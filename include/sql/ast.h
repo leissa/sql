@@ -1,14 +1,13 @@
-#ifndef LAM_AST_H
-#define LAM_AST_H
+#pragma once
 
 #include <memory>
 #include <ostream>
 #include <unordered_set>
 
-#include "loc.h"
-#include "sym.h"
+#include "sql/loc.h"
+#include "sql/sym.h"
 
-namespace lam {
+namespace sql {
 
 template<class T>
 using Ptr = std::unique_ptr<T>;
@@ -145,5 +144,3 @@ public:
 };
 
 }
-
-#endif

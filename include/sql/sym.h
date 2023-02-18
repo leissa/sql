@@ -1,10 +1,9 @@
-#ifndef LAM_SYM_H
-#define LAM_SYM_H
+#pragma once
 
 #include <string>
 #include <unordered_set>
 
-namespace lam {
+namespace sql {
 
 using Sym = const std::string*;
 
@@ -27,5 +26,3 @@ struct SymHash {
 extern SymTab symtab;
 
 }
-
-#endif

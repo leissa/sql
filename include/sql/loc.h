@@ -1,22 +1,24 @@
-#ifndef LAM_LOC_H
-#define LAM_LOC_H
+#pragma once
 
+#include <cstdint>
 #include <ostream>
 
-namespace lam {
+namespace sql {
 
 // I don't recommend global variables in production code but for our toy project it's fine.
 extern int num_errors;
 
 struct Pos {
     Pos() = default;
-    Pos(int row, int col)
+    Pos(uint16_t row, uint16_t col)
         : row(row)
         , col(col)
     {}
 
-    int row = -1;
-    int col = -1;
+    operator bool() const { return row; }
+
+    uint16_t row = 0;
+    uint16_t col = 0;
 };
 
 struct Loc {
@@ -41,5 +43,3 @@ std::ostream& operator<<(std::ostream&, const Pos&);
 std::ostream& operator<<(std::ostream&, const Loc&);
 
 }
-
-#endif

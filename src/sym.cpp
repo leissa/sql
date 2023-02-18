@@ -1,6 +1,6 @@
-#include "sym.h"
+#include "sql/sym.h"
 
-namespace lam {
+namespace sql {
 
 SymTab symtab;
 

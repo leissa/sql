@@ -1,8 +1,8 @@
-#include "ast.h"
+#include "sql/ast.h"
 
 #include <iostream>
 
-namespace lam {
+namespace sql {
 
 int Lam::counter_ = 0;
 

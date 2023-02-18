@@ -1,13 +1,13 @@
-#include "tok.h"
+#include "sql/tok.h"
 
-namespace lam {
+namespace sql {
 
 const char* Tok::tag2str(Tok::Tag tag) {
     switch (tag) {
 #define CODE(t, str) case Tok::Tag::t: return str;
-        LAM_KEYWORDS(CODE)
-        LAM_PUNCTUATORS(CODE)
-        LAM_MISC(CODE)
+        SQL_KEYWORDS(CODE)
+        SQL_PUNCTUATORS(CODE)
+        SQL_MISC(CODE)
 #undef CODE
     }
 

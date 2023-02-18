@@ -1,8 +1,8 @@
-#include "lexer.h"
+#include "sql/lexer.h"
 
 #include <iostream>
 
-namespace lam {
+namespace sql {
 
 Lexer::Lexer(const char* filename, std::istream& stream)
     : loc_{filename, {1, 1}, {1, 1}}
@@ -12,7 +12,7 @@ Lexer::Lexer(const char* filename, std::istream& stream)
     if (!stream_) throw std::runtime_error("stream is bad");
 
 #define CODE(t, str) keywords_[str] = Tok::Tag::t;
-    LAM_KEYWORDS(CODE)
+    SQL_KEYWORDS(CODE)
 #undef CODE
 }
 

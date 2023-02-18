@@ -1,8 +1,8 @@
-#include "loc.h"
+#include "sql/loc.h"
 
 #include <iostream>
 
-namespace lam {
+namespace sql {
 
 int num_errors = 0;
 

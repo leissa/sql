@@ -1,10 +1,10 @@
-#include "parser.h"
+#include "sql/parser.h"
 
 #include <cstring>
 #include <iostream>
 #include <fstream>
 
-using namespace lam;
+using namespace sql;
 
 static const auto usage =
 "Usage: lam [options] file\n"

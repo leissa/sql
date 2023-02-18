@@ -1,25 +1,24 @@
-#ifndef LAM_TOK_H
-#define LAM_TOK_H
+#pragma once
 
 #include <cassert>
 
-#include "loc.h"
-#include "sym.h"
+#include "sql/loc.h"
+#include "sql/sym.h"
 
-namespace lam {
+namespace sql {
 
-#define LAM_KEYWORDS(m) \
+#define SQL_KEYWORDS(m) \
     m(K_lam, "lam")     \
     m(K_let, "let")
 
-#define LAM_PUNCTUATORS(m)  \
+#define SQL_PUNCTUATORS(m)  \
     m(P_assign,     "=")    \
     m(P_dot,        ".")    \
     m(P_semicolon,  ";")    \
     m(P_paren_l,    "(")    \
     m(P_paren_r,    ")")
 
-#define LAM_MISC(m)           \
+#define SQL_MISC(m)           \
     m(M_eof, "<end of file>") \
     m(M_id,  "<identifier>")
 
@@ -27,9 +26,9 @@ class Tok {
 public:
     enum class Tag {
 #define CODE(t, str) t,
-        LAM_KEYWORDS(CODE)
-        LAM_PUNCTUATORS(CODE)
-        LAM_MISC(CODE)
+        SQL_KEYWORDS(CODE)
+        SQL_PUNCTUATORS(CODE)
+        SQL_MISC(CODE)
 #undef CODE
     };
 
@@ -59,5 +58,3 @@ private:
 std::ostream& operator<<(std::ostream&, const Tok&);
 
 }
-
-#endif

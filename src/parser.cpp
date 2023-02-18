@@ -1,9 +1,9 @@
-#include "parser.h"
+#include "sql/parser.h"
 
 #include <fstream>
 #include <iostream>
 
-namespace lam {
+namespace sql {
 
 Parser::Parser(const char* file, std::istream& stream)
     : lexer_(file, stream)

@@ -1,13 +1,12 @@
-#ifndef LAM_LEXER_H
-#define LAM_LEXER_H
+#pragma once
 
 #include <cassert>
 #include <istream>
 #include <unordered_map>
 
-#include "tok.h"
+#include "sql/tok.h"
 
-namespace lam {
+namespace sql {
 
 class Lexer {
 public:
@@ -48,5 +47,3 @@ private:
 };
 
 }
-
-#endif

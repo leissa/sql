@@ -1,10 +1,9 @@
-#ifndef LAM_PARSER_H
-#define LAM_PARSER_H
+#pragma once
 
-#include "ast.h"
-#include "lexer.h"
+#include "sql/ast.h"
+#include "sql/lexer.h"
 
-namespace lam {
+namespace sql {
 
 class Parser {
 public:
@@ -67,5 +66,3 @@ private:
 };
 
 }
-
-#endif
