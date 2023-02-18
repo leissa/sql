@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <ostream>
 
+#include "sql/sym.h"
+
 namespace sql {
 
 // I don't recommend global variables in production code but for our toy project it's fine.
@@ -23,16 +25,20 @@ struct Pos {
 
 struct Loc {
     Loc() = default;
-    Loc(const char* file, Pos begin, Pos finis)
+    Loc(Sym file)
+        : file(file)
+        , begin(1, 1)
+        , finis(1, 1) {}
+    Loc(Sym file, Pos begin, Pos finis)
         : file(file)
         , begin(begin)
         , finis(finis)
     {}
-    Loc(const char* file, Pos pos)
+    Loc(Sym file, Pos pos)
         : Loc(file, pos, pos)
     {}
 
-    const char* file = nullptr;
+    Sym file;
     Pos begin;
     Pos finis;
 

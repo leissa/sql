@@ -5,8 +5,8 @@
 
 namespace sql {
 
-Parser::Parser(const char* file, std::istream& stream)
-    : lexer_(file, stream)
+Parser::Parser(Driver& driver, Sym filename, std::istream& stream)
+    : lexer_(driver, filename, stream)
     , prev_(lexer_.loc())
     , ahead_(lexer_.lex())
 {}
@@ -104,7 +104,7 @@ Ptr<App> Parser::parse_let() {
 Sym Parser::parse_sym(const char* ctxt) {
     if (ahead().isa(Tok::Tag::M_id)) return lex().sym();
     err("identifier", ctxt);
-    return symtab.make("<error>");
+    return driver().symtab.add("<error>");
 }
 
 }

@@ -7,8 +7,9 @@ namespace sql {
 
 class Parser {
 public:
-    Parser(const char* file, std::istream& stream);
+    Parser(Driver&, Sym filename, std::istream& stream);
 
+    Driver& driver() { return lexer_.driver(); }
     Ptr<Exp> parse_prg();
 
 private:

@@ -4,16 +4,18 @@
 #include <istream>
 #include <unordered_map>
 
+#include "sql/driver.h"
 #include "sql/tok.h"
 
 namespace sql {
 
 class Lexer {
 public:
-    Lexer(const char*, std::istream&);
+    Lexer(Driver& drv, Sym filename, std::istream&);
 
     Loc loc() const { return loc_; }
     Tok lex();                                          ///< Get next @p Tok in stream.
+    Driver& driver() { return driver_; }
 
 private:
     Tok tok(Tok::Tag tag) { return {loc(), tag}; }      ///< Factory method to create a @p Tok.
@@ -39,6 +41,7 @@ private:
     int peek() const { return stream_.peek(); }
     void eat_comments();
 
+    Driver& driver_;
     Loc loc_;       ///< @p Loc%ation of the @p Tok%en we are currently constructing within @p str_,
     Pos peek_pos_;  ///< @p Pos%ition of the current @p peek().
     std::istream& stream_;

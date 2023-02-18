@@ -4,8 +4,9 @@
 
 namespace sql {
 
-Lexer::Lexer(const char* filename, std::istream& stream)
-    : loc_{filename, {1, 1}, {1, 1}}
+Lexer::Lexer(Driver& driver, Sym filename, std::istream& stream)
+    : driver_(driver)
+    , loc_(filename)
     , peek_pos_({1, 1})
     , stream_(stream)
 {
@@ -60,7 +61,7 @@ Tok Lexer::lex() {
         if (accept_if([](int i) { return i == '_' || isalpha(i); })) {
             while (accept_if([](int i) { return i == '_' || isalpha(i) || isdigit(i); })) {}
             if (auto i = keywords_.find(str_); i != keywords_.end()) return tok(i->second); // keyword
-            return {loc(), symtab.make(str_)};                                              // identifier
+            return {loc(), driver_.symtab.add(str_)};                                              // identifier
         }
 
         Loc(loc_.file, peek_pos_).err() << "invalid input char: '" << (char) peek() << "'" << std::endl;

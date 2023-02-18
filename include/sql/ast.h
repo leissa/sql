@@ -28,27 +28,8 @@ public:
     Loc loc() const { return loc_; }
     void dump() const;
 
-    /// Compute free @p Var%s.
-    Vars free_vars() const;
-
-    /// Create a deep copy.
-    virtual Ptr<Exp> clone() const = 0;
-
     /// Stream to @p o.
     virtual std::ostream& stream(std::ostream& o) const = 0;
-
-    /// Compute free @p Var%s.
-    virtual void free_vars(Vars&) const = 0;
-
-    /// Rename @c this by replacing all occurances of @p x with @p subst.
-    virtual Ptr<Exp> rename(Sym x, Sym subst) const = 0;
-
-    /// Substitute within @c this @p Exp all occurances of @p x with @p e.
-    virtual Ptr<Exp> subst(Sym, const Exp& e) const = 0;
-
-    /// Evaluate @c this @p Exp.
-    /// @p stop_on_lam is internally used to stop evaluation on a @p Lam when evaluating the callee of an @p App.
-    virtual Ptr<Exp> eval(bool stop_on_lam = false) const = 0;
 
 private:
     Loc loc_;
@@ -64,12 +45,7 @@ public:
 
     Sym name() const { return name_; }
 
-    Ptr<Exp> clone() const override;
     std::ostream& stream(std::ostream& o) const override;
-    void free_vars(Vars&) const override;
-    Ptr<Exp> rename(Sym, Sym) const override;
-    Ptr<Exp> subst(Sym, const Exp&) const override;
-    Ptr<Exp> eval(bool) const override;
 
 private:
     Sym name_;
@@ -87,12 +63,7 @@ public:
     Sym binder() const { return binder_; }
     const Exp* body() const { return body_.get(); }
 
-    Ptr<Exp> clone() const override;
     std::ostream& stream(std::ostream& o) const override;
-    void free_vars(Vars&) const override;
-    Ptr<Exp> rename(Sym, Sym) const override;
-    Ptr<Exp> subst(Sym, const Exp&) const override;
-    Ptr<Exp> eval(bool) const override;
 
 private:
     static int counter_;
@@ -115,12 +86,7 @@ public:
     const Exp* arg() const { return arg_.get(); }
     const Lam* isa_let() const { return let_ ? (Lam*) callee() : nullptr; }
 
-    Ptr<Exp> clone() const override;
     std::ostream& stream(std::ostream&) const override;
-    void free_vars(Vars&) const override;
-    Ptr<Exp> rename(Sym, Sym) const override;
-    Ptr<Exp> subst(Sym, const Exp&) const override;
-    Ptr<Exp> eval(bool) const override;
 
 private:
     Ptr<Exp> callee_;
@@ -135,12 +101,7 @@ public:
         : Exp(loc)
     {}
 
-    Ptr<Exp> clone() const override;
     std::ostream& stream(std::ostream& o) const override;
-    void free_vars(Vars&) const override;
-    Ptr<Exp> rename(Sym, Sym) const override;
-    Ptr<Exp> subst(Sym, const Exp&) const override;
-    Ptr<Exp> eval(bool) const override;
 };
 
 }

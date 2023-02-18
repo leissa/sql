@@ -1,5 +1,6 @@
 add_library(libsql
     ast.cpp
+    driver.cpp
     lexer.cpp
     parser.cpp
     loc.cpp
