@@ -1,0 +1,6 @@
+[submodule "external/abseil-cpp"]
+	path = external/abseil-cpp
+	url = git@github.com:abseil/abseil-cpp.git
+[submodule "external/Lyra"]
+	path = external/Lyra
+	url = git@github.com:bfgroup/Lyra.git
