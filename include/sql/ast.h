@@ -6,6 +6,7 @@
 
 #include "sql/loc.h"
 #include "sql/sym.h"
+#include "sql/tok.h"
 
 namespace sql {
 
@@ -15,15 +16,13 @@ using Ptr = std::unique_ptr<T>;
 template<class T, class... Args>
 Ptr<T> mk(Args&&... args) { return std::make_unique<T>(std::forward<Args>(args)...); }
 
-using Vars = std::unordered_set<Sym>;
-
-/// Base class for all @p Exp%ressions.
-class Exp {
+/// Base class for all @p Expr%essions.
+class Expr {
 public:
-    Exp(Loc loc)
+    Expr(Loc loc)
         : loc_(loc)
     {}
-    virtual ~Exp() {}
+    virtual ~Expr() {}
 
     Loc loc() const { return loc_; }
     void dump() const;
@@ -35,70 +34,50 @@ private:
     Loc loc_;
 };
 
-/// A @p Var%iable with a @p name.
-class Var : public Exp {
+class UnExpr : public Expr {
 public:
-    Var(Loc loc, Sym name)
-        : Exp(loc)
-        , name_(name)
+    UnExpr(Loc loc, Tok::Tag tag, Ptr<Expr>&& rhs)
+        : Expr(loc)
+        , tag_(tag)
+        , rhs_(std::move(rhs))
     {}
 
-    Sym name() const { return name_; }
+    Tok::Tag tag() const { return tag_; }
+    const Expr* rhs() const { return rhs_.get(); }
 
     std::ostream& stream(std::ostream& o) const override;
 
 private:
-    Sym name_;
+    Tok::Tag tag_;
+    Ptr<Expr> rhs_;
 };
 
-/// @p Lam%bda abstraction of the form (<code>lam</code> @p binder(). @p body()).
-class Lam : public Exp {
+class BinExpr : public Expr {
 public:
-    Lam(Loc loc, Sym binder, Ptr<Exp>&& body)
-        : Exp(loc)
-        , binder_(binder)
-        , body_(std::move(body))
+    BinExpr(Loc loc, Ptr<Expr>&& lhs, Tok::Tag tag, Ptr<Expr>&& rhs)
+        : Expr(loc)
+        , lhs_(std::move(lhs))
+        , tag_(tag)
+        , rhs_(std::move(rhs))
     {}
 
-    Sym binder() const { return binder_; }
-    const Exp* body() const { return body_.get(); }
+    const Expr* lhs() const { return rhs_.get(); }
+    Tok::Tag tag() const { return tag_; }
+    const Expr* rhs() const { return rhs_.get(); }
 
     std::ostream& stream(std::ostream& o) const override;
 
 private:
-    static int counter_;
-
-    Sym binder_;
-    Ptr<Exp> body_;
+    Ptr<Expr> lhs_;
+    Tok::Tag tag_;
+    Ptr<Expr> rhs_;
 };
 
-/// Function @p App%lication of the form (@p callee() @p arg()).
-class App : public Exp {
+/// The @p Err%or @p Expr%ression is a dummy that does nothing and will only be constructed during parse errors.
+class ErrExpr : public Expr {
 public:
-    App(Loc loc, Ptr<Exp>&& callee, Ptr<Exp>&& arg, bool let = false)
-        : Exp(loc)
-        , callee_(std::move(callee))
-        , arg_(std::move(arg))
-        , let_(let)
-    {}
-
-    const Exp* callee() const { return callee_.get(); }
-    const Exp* arg() const { return arg_.get(); }
-    const Lam* isa_let() const { return let_ ? (Lam*) callee() : nullptr; }
-
-    std::ostream& stream(std::ostream&) const override;
-
-private:
-    Ptr<Exp> callee_;
-    Ptr<Exp> arg_;
-    bool let_;
-};
-
-/// The @p Err%or @p Exp%ression is a dummy that does nothing and will only be constructed during parse errors.
-class Err : public Exp {
-public:
-    Err(Loc loc)
-        : Exp(loc)
+    ErrExpr(Loc loc)
+        : Expr(loc)
     {}
 
     std::ostream& stream(std::ostream& o) const override;

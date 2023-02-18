@@ -46,14 +46,14 @@ int main(int argc, char** argv) {
         }
 
         sql::Driver driver;
-        sql::Ptr<sql::Exp> exp;
+        sql::Ptr<sql::Expr> expr;
         if (input == "-") {
             sql::Parser parser(driver, driver.symtab.add("<stdin>"s), std::cin);
-            exp = parser.parse_prg();
+            expr = parser.parse();
         } else {
             std::ifstream ifs(input);
             sql::Parser parser(driver, driver.symtab.add(std::move(input)), ifs);
-            exp = parser.parse_prg();
+            expr = parser.parse();
         }
 
         //if (num_errors != 0) {

@@ -10,15 +10,12 @@ public:
     Parser(Driver&, Sym filename, std::istream& stream);
 
     Driver& driver() { return lexer_.driver(); }
-    Ptr<Exp> parse_prg();
+    Ptr<Expr> parse() { return parse_expr("test"); }
 
 private:
-    Ptr<Exp> parse_exp(const char* ctxt);
-    Ptr<Exp> parse_exp_();
-    Ptr<Var> parse_var();
-    Ptr<Lam> parse_lam();
-    Ptr<App> parse_let();
     Sym parse_sym(const char* ctxt);
+    Ptr<Expr> parse_expr(const char* ctxt, int cur_prec = 0);
+    Ptr<Expr> parse_primary_or_unary_expr(const char* ctxt);
 
     /// Trick to easily keep track of @p Loc%ations.
     class Tracker {
