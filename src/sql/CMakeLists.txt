@@ -12,7 +12,7 @@ set_target_properties(libsql PROPERTIES PREFIX "")
 
 target_include_directories(libsql
     PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include> # for sql/*
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
 )
 

@@ -8,8 +8,7 @@ Lexer::Lexer(Driver& driver, Sym filename, std::istream& stream)
     : driver_(driver)
     , loc_(filename)
     , peek_pos_({1, 1})
-    , stream_(stream)
-{
+    , stream_(stream) {
     if (!stream_) throw std::runtime_error("stream is bad");
 
 #define CODE(t, str) keywords_[str] = Tok::Tag::t;
@@ -19,7 +18,7 @@ Lexer::Lexer(Driver& driver, Sym filename, std::istream& stream)
 
 int Lexer::next() {
     loc_.finis = peek_pos_;
-    int c = stream_.get();
+    int c      = stream_.get();
 
     if (c == '\n') {
         ++peek_pos_.row;
@@ -53,7 +52,8 @@ Tok Lexer::lex() {
                 continue;
             }
 
-            Loc(loc_.file, peek_pos_).err() << "invalid input char '/'; maybe you wanted to start a comment?" << std::endl;
+            Loc(loc_.file, peek_pos_).err()
+                << "invalid input char '/'; maybe you wanted to start a comment?" << std::endl;
             continue;
         }
 
@@ -61,10 +61,10 @@ Tok Lexer::lex() {
         if (accept_if([](int i) { return i == '_' || isalpha(i); })) {
             while (accept_if([](int i) { return i == '_' || isalpha(i) || isdigit(i); })) {}
             if (auto i = keywords_.find(str_); i != keywords_.end()) return tok(i->second); // keyword
-            return {loc(), driver_.symtab.add(str_)};                                              // identifier
+            return {loc(), driver_.symtab.add(str_)};                                       // identifier
         }
 
-        Loc(loc_.file, peek_pos_).err() << "invalid input char: '" << (char) peek() << "'" << std::endl;
+        Loc(loc_.file, peek_pos_).err() << "invalid input char: '" << (char)peek() << "'" << std::endl;
         next();
     }
 }
@@ -81,4 +81,4 @@ void Lexer::eat_comments() {
     }
 }
 
-}
+} // namespace sql

@@ -35,7 +35,6 @@ set(ABSL_ENABLE_INSTALL ON)
 add_subdirectory(external/abseil-cpp)
 add_subdirectory(external/Lyra EXCLUDE_FROM_ALL)
 add_subdirectory(src)
-add_subdirectory(cli)
 
 if(BUILD_TESTING AND THORIN_BUILD_TESTING)
     add_subdirectory(gtest)

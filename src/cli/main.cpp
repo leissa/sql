@@ -1,10 +1,10 @@
-#include "sql/parser.h"
-
 #include <cstring>
-#include <iostream>
-#include <fstream>
 
+#include <fstream>
+#include <iostream>
 #include <lyra/lyra.hpp>
+
+#include "sql/parser.h"
 
 using namespace std::literals;
 
@@ -12,8 +12,8 @@ int main(int argc, char** argv) {
     try {
         // TODO put version number into cmake magic
         static const auto version = "libsql command-line utility version 0.1\n";
-        bool show_help = false;
-        bool show_version = false;
+        bool show_help            = false;
+        bool show_version         = false;
         std::string input;
 
         // clang-format off
@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
 
         std::ifstream ifs(input);
         if (!ifs) {
-            //errln("error: cannot read file '{}'", input);
+            // errln("error: cannot read file '{}'", input);
             return EXIT_FAILURE;
         }
 
@@ -56,9 +56,9 @@ int main(int argc, char** argv) {
             expr = parser.parse();
         }
 
-        //if (num_errors != 0) {
-            //std::cerr << num_errors << " error(s) encountered" << std::endl;
-            //return EXIT_FAILURE;
+        // if (num_errors != 0) {
+        // std::cerr << num_errors << " error(s) encountered" << std::endl;
+        // return EXIT_FAILURE;
         //}
     } catch (const std::exception& e) {
         std::cerr << "error: " << e.what() << std::endl;
