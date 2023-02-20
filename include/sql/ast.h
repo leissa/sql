@@ -36,7 +36,7 @@ private:
 };
 
 /*
- * Expr
+ * Expr (<value expression>)
  */
 
 /// Base class for all @p Expr%essions.
@@ -54,7 +54,7 @@ public:
 
     Sym sym() const { return sym_; }
 
-    std::ostream& stream(std::ostream& o) const override;
+    std::ostream& stream(std::ostream&) const override;
 
 private:
     Sym sym_;
@@ -68,10 +68,24 @@ public:
 
     uint64_t u64() const { return u64_; }
 
-    std::ostream& stream(std::ostream& o) const override;
+    std::ostream& stream(std::ostream&) const override;
 
 private:
     uint64_t u64_;
+};
+
+class TruthValueExpr : public Expr {
+public:
+    TruthValueExpr(Loc loc, Tok::Tag tag)
+        : Expr(loc)
+        , tag_(tag) {}
+
+    Tok::Tag tag() const { return tag_; }
+
+    std::ostream& stream(std::ostream&) const override;
+
+private:
+    Tok::Tag tag_;
 };
 
 class UnExpr : public Expr {
@@ -84,7 +98,7 @@ public:
     Tok::Tag tag() const { return tag_; }
     const Expr* rhs() const { return rhs_.get(); }
 
-    std::ostream& stream(std::ostream& o) const override;
+    std::ostream& stream(std::ostream&) const override;
 
 private:
     Tok::Tag tag_;
@@ -99,11 +113,11 @@ public:
         , tag_(tag)
         , rhs_(std::move(rhs)) {}
 
-    const Expr* lhs() const { return rhs_.get(); }
+    const Expr* lhs() const { return lhs_.get(); }
     Tok::Tag tag() const { return tag_; }
     const Expr* rhs() const { return rhs_.get(); }
 
-    std::ostream& stream(std::ostream& o) const override;
+    std::ostream& stream(std::ostream&) const override;
 
 private:
     Ptr<Expr> lhs_;
@@ -117,7 +131,7 @@ public:
     ErrExpr(Loc loc)
         : Expr(loc) {}
 
-    std::ostream& stream(std::ostream& o) const override;
+    std::ostream& stream(std::ostream&) const override;
 };
 
 /*
@@ -131,9 +145,23 @@ public:
         : Node(loc) {}
 };
 
-class SelectStmt : public Stmt {
+class Select : public Stmt {
 public:
-    SelectStmt(Loc loc, bool all, Ptr<Expr>&& select, Ptr<Expr>&& from, Ptr<Expr>&& where, Ptr<Expr>&& group)
+#if 0
+    class Item : public Node {
+    public:
+        Item(Loc loc, std::deque<Ptr<Sublist>&& sublist)
+            : Node(loc)
+            , sublist_(std::move(sublist))
+        {}
+
+        bool astersik() const { return sublist_.empty(); }
+
+    private:
+    };
+#endif
+
+    Select(Loc loc, bool all, Ptr<Expr>&& select, Ptr<Expr>&& from, Ptr<Expr>&& where, Ptr<Expr>&& group)
         : Stmt(loc)
         , all_(all)
         , select_(std::move(select))
@@ -148,11 +176,12 @@ public:
     const Expr* where() const { return where_.get(); }
     const Expr* group() const { return group_.get(); }
 
-    std::ostream& stream(std::ostream& o) const override;
+    std::ostream& stream(std::ostream&) const override;
 
 private:
     bool all_;
     Ptr<Expr> select_;
+    //std::deque<Ptr<List>> list_;
     Ptr<Expr> from_;
     Ptr<Expr> where_;
     Ptr<Expr> group_;

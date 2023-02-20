@@ -30,7 +30,7 @@ bool Parser::expect(Tok::Tag tag, std::string_view ctxt) {
     }
 
     auto what = "'"s;
-    what += Tok::tag2str(tag);
+    what += Tok::str(tag);
     what += "'";
     err(what, ctxt);
     return false;
@@ -73,23 +73,22 @@ Ptr<Stmt> Parser::parse_select_stmt() {
                    ? (expect(Tok::Tag::K_BY, "group within select statement"), parse_expr("group expression"))
                    : nullptr;
 
-    return mk<SelectStmt>(track, all, std::move(select), std::move(from), std::move(where), std::move(group));
+    return mk<Select>(track, all, std::move(select), std::move(from), std::move(where), std::move(group));
 }
 
 /*
  * Expr
  */
 
-Ptr<Expr> Parser::parse_expr(std::string_view ctxt, int cur_prec) {
+Ptr<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
     auto track = tracker();
     auto lhs   = parse_primary_or_unary_expr(ctxt);
 
-    while (false /*true*/ /*is bin op*/) {
-        int l_prec = 3, r_prec = 42; // TODO get
-        if (l_prec < cur_prec) break;
+    while (auto prec = Tok::bin_prec(ahead().tag())) {
+        if (*prec < cur_prec) break;
 
         auto op  = lex().tag();
-        auto rhs = parse_expr("right-hand side of operator '{op}'", r_prec);
+        auto rhs = parse_expr("right-hand side of binary expression", *prec);
         lhs      = mk<BinExpr>(track, std::move(lhs), op, std::move(rhs));
     }
 
@@ -97,25 +96,25 @@ Ptr<Expr> Parser::parse_expr(std::string_view ctxt, int cur_prec) {
 }
 
 Ptr<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
+    if (auto tok = accept(Tok::Tag::L_i))  return mk<LitExpr>(tok->loc(), tok->u64());
+    if (auto tok = accept(Tok::Tag::M_id)) return mk<IdExpr>(tok->loc(), tok->sym());
+
+    if (ahead().isa(Tok::Tag::K_TRUE) || ahead().isa(Tok::Tag::K_FALSE) || ahead().isa(Tok::Tag::K_UNKNOWN)) {
+        auto tok = lex();
+        return mk<TruthValueExpr>(tok.loc(), tok.tag());
+    }
+
     auto track = tracker();
-    // if (auto tok = accept(Tag.K_FALSE)) is not None: return BoolExpr(tok.loc,
-    // False  ) if (auto tok = accept(Tag.K_TRUE )) is not None: return
-    // BoolExpr(tok.loc, True   ) if (auto tok = accept(Tag.M_SYM  )) is not None:
-    // return SymExpr (tok.loc, tok    )
+    if (auto prec = Tok::un_prec(ahead().tag())) {
+        auto op = lex().tag();
+        return mk<UnExpr>(track, op, parse_expr("operand of unary expression", *prec));
+    }
 
-    if (auto tok = accept(Tok::Tag::L_i)) return mk<LitExpr>(track, tok->u64());
-    if (auto tok = accept(Tok::Tag::M_id)) return mk<IdExpr>(track, tok->sym());
-    // not None: return LitExpr (tok.loc, tok.val)
-
-    // if self.ahead.tag.is_unary():
-    // op  = self.lex().tag
-    // rhs = self.parse_expr("unary expression", Prec.NOT if op is Tag.K_NOT else
-    // Prec.UNARY) return UnaryExpr(t.loc(), op, rhs)
-
-    // if self.accept(Tag.D_PAREN_L):
-    // expr = self.parse_expr()
-    // self.expect(Tag.D_PAREN_R, "parenthesized expression")
-    // return expr
+    if (accept(Tok::Tag::D_paren_l)) {
+        auto expr = parse_expr("parenthesized expression");
+        expect(Tok::Tag::D_paren_r, "parenthesized expression");
+        return expr;
+    }
 
     if (!ctxt.empty()) {
         err("primary or unary expression", ctxt);

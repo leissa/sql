@@ -1,10 +1,10 @@
 add_library(libsql
-    ast.cpp
     driver.cpp
     lexer.cpp
     parser.cpp
     print.cpp
     loc.cpp
+    stream.cpp
     sym.cpp
     tok.cpp
 )

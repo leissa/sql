@@ -57,6 +57,9 @@ Tok Lexer::lex() {
         if (accept('=')) return tok(Tok::Tag::T_assign);
         if (accept('.')) return tok(Tok::Tag::T_dot);
         if (accept(';')) return tok(Tok::Tag::T_semicolon);
+        if (accept('+')) return tok(Tok::Tag::T_add);
+        if (accept('-')) return tok(Tok::Tag::T_sub);
+        if (accept('*')) return tok(Tok::Tag::T_mul);
         if (accept('/')) {
             if (accept('*')) {
                 eat_comments();
@@ -67,8 +70,7 @@ Tok Lexer::lex() {
                 continue;
             }
 
-            driver_.err({loc_.file, peek_pos_}, "invalid input char '/'; maybe you wanted to start a comment?");
-            continue;
+            return tok(Tok::Tag::T_div);
         }
 
         // integer literal
