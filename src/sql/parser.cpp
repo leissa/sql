@@ -67,9 +67,11 @@ Ptr<Stmt> Parser::parse_select_stmt() {
 
     auto select = parse_expr("select expression");
     expect(Tok::Tag::K_FROM, "select statement");
-    auto from = parse_expr("from expression");
+    auto from  = parse_expr("from expression");
     auto where = accept(Tok::Tag::K_WHERE) ? parse_expr("where expression") : nullptr;
-    auto group = accept(Tok::Tag::K_GROUP) ? (expect(Tok::Tag::K_BY, "group within select statement"), parse_expr("group expression")) : nullptr;
+    auto group = accept(Tok::Tag::K_GROUP)
+                   ? (expect(Tok::Tag::K_BY, "group within select statement"), parse_expr("group expression"))
+                   : nullptr;
 
     return mk<SelectStmt>(track, all, std::move(select), std::move(from), std::move(where), std::move(group));
 }
