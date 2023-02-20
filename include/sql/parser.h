@@ -25,8 +25,7 @@ private:
     public:
         Tracker(Parser& parser, const Pos& pos)
             : parser_(parser)
-            , pos_(pos)
-        {}
+            , pos_(pos) {}
 
         operator Loc() const { return {parser_.prev_.file, pos_, parser_.prev_.finis}; }
 
@@ -52,7 +51,10 @@ private:
     bool expect(Tok::Tag tag, std::string_view ctxt);
 
     /// Consume Parser::ahead which must be a @p tag; `assert`s otherwise.
-    Tok eat([[maybe_unused]] Tok::Tag tag) { assert(tag == ahead().tag() && "internal parser error"); return lex(); }
+    Tok eat([[maybe_unused]] Tok::Tag tag) {
+        assert(tag == ahead().tag() && "internal parser error");
+        return lex();
+    }
 
     /// Issue an error message of the form:
     /// `expected <what>, got '<tok>' while parsing <ctxt>`
@@ -66,4 +68,4 @@ private:
     Tok ahead_;
 };
 
-}
+} // namespace sql

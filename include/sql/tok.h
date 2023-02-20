@@ -7,6 +7,7 @@
 
 namespace sql {
 
+// clang-format off
 #define SQL_KEY(m)                              \
     m(K_ADD,        "add",        "ADD")        \
     m(K_ALL,        "all",        "ALL")        \
@@ -93,11 +94,8 @@ namespace sql {
     m(T_ge,         ">=")               \
     m(T_dot,        ".")                \
     m(T_colon,      ":")                \
-    m(T_semicolon,  ";")                \
-
-#define CODE(t, _, __) + size_t(1)
-constexpr auto Num_Keys = size_t(0) SQL_KEY(CODE);
-#undef CODE
+    m(T_semicolon,  ";")
+// clang-format on
 
 class Tok {
 public:
@@ -106,25 +104,26 @@ public:
         SQL_KEY(CODE)
 #undef CODE
 #define CODE(t, _) t,
-        SQL_TOK(CODE)
+            SQL_TOK(CODE)
 #undef CODE
     };
 
     Tok() {}
     Tok(Loc loc, Tag tag)
         : loc_(loc)
-        , tag_(tag)
-    {}
+        , tag_(tag) {}
     Tok(Loc loc, Sym sym)
         : loc_(loc)
         , tag_(Tag::M_id)
-        , sym_(sym)
-    {}
+        , sym_(sym) {}
 
     Loc loc() const { return loc_; }
     Tag tag() const { return tag_; }
     bool isa(Tag tag) const { return tag == tag_; }
-    Sym sym() const { assert(isa(Tag::M_id)); return sym_; }
+    Sym sym() const {
+        assert(isa(Tag::M_id));
+        return sym_;
+    }
     static std::string_view tag2str(Tok::Tag);
 
 private:
@@ -135,4 +134,4 @@ private:
 
 std::ostream& operator<<(std::ostream&, const Tok&);
 
-}
+} // namespace sql

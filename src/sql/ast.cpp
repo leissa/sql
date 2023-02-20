@@ -14,13 +14,9 @@ void Node::dump() const { stream(std::cout) << std::endl; }
 
 std::ostream& IdExpr::stream(std::ostream& o) const { return o << sym(); }
 
-std::ostream& UnExpr::stream(std::ostream& o) const {
-    return o;
-}
+std::ostream& UnExpr::stream(std::ostream& o) const { return o; }
 
-std::ostream& BinExpr::stream(std::ostream& o) const {
-    return o;
-}
+std::ostream& BinExpr::stream(std::ostream& o) const { return o; }
 
 std::ostream& ErrExpr::stream(std::ostream& o) const { return o << "<error>"; }
 

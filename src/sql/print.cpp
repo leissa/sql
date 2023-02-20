@@ -39,4 +39,3 @@ bool match2nd(std::ostream& os, const char* next, const char*& s, const char c) 
 } // namespace detail
 
 } // namespace sql
-

@@ -14,14 +14,15 @@ template<class T>
 using Ptr = std::unique_ptr<const T>;
 
 template<class T, class... Args>
-Ptr<T> mk(Args&&... args) { return std::make_unique<T>(std::forward<Args>(args)...); }
+Ptr<T> mk(Args&&... args) {
+    return std::make_unique<T>(std::forward<Args>(args)...);
+}
 
 /// Base class for all @p Expr%essions.
 class Node {
 public:
     Node(Loc loc)
-        : loc_(loc)
-    {}
+        : loc_(loc) {}
     virtual ~Node() {}
 
     Loc loc() const { return loc_; }
@@ -42,8 +43,7 @@ private:
 class Expr : public Node {
 public:
     Expr(Loc loc)
-        : Node(loc)
-    {}
+        : Node(loc) {}
 };
 
 class IdExpr : public Expr {
@@ -65,8 +65,7 @@ public:
     UnExpr(Loc loc, Tok::Tag tag, Ptr<Expr>&& rhs)
         : Expr(loc)
         , tag_(tag)
-        , rhs_(std::move(rhs))
-    {}
+        , rhs_(std::move(rhs)) {}
 
     Tok::Tag tag() const { return tag_; }
     const Expr* rhs() const { return rhs_.get(); }
@@ -84,8 +83,7 @@ public:
         : Expr(loc)
         , lhs_(std::move(lhs))
         , tag_(tag)
-        , rhs_(std::move(rhs))
-    {}
+        , rhs_(std::move(rhs)) {}
 
     const Expr* lhs() const { return rhs_.get(); }
     Tok::Tag tag() const { return tag_; }
@@ -103,8 +101,7 @@ private:
 class ErrExpr : public Expr {
 public:
     ErrExpr(Loc loc)
-        : Expr(loc)
-    {}
+        : Expr(loc) {}
 
     std::ostream& stream(std::ostream& o) const override;
 };
@@ -117,13 +114,18 @@ public:
 class Stmt : public Node {
 public:
     Stmt(Loc loc)
-        : Node(loc)
-    {}
+        : Node(loc) {}
 };
 
 class SelectStmt : public Stmt {
 public:
-    SelectStmt(Loc loc, bool all, Ptr<Expr>&& select, Ptr<Expr>&& from, Ptr<Expr>&& where, Ptr<Expr>&& group, Ptr<Expr>&& having)
+    SelectStmt(Loc loc,
+               bool all,
+               Ptr<Expr>&& select,
+               Ptr<Expr>&& from,
+               Ptr<Expr>&& where,
+               Ptr<Expr>&& group,
+               Ptr<Expr>&& having)
         : Stmt(loc)
         , all_(all)
         , select_(std::move(select))
@@ -149,8 +151,8 @@ private:
     Ptr<Expr> where_;
     Ptr<Expr> group_;
     Ptr<Expr> having_;
-    //Ptr<Expr> order_;
-    //Ptr<Expr> limit_;
+    // Ptr<Expr> order_;
+    // Ptr<Expr> limit_;
 };
 
-}
+} // namespace sql

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+
 #include <ostream>
 
 #include "sql/sym.h"
@@ -14,8 +15,7 @@ struct Pos {
     Pos() = default;
     Pos(uint16_t row, uint16_t col)
         : row(row)
-        , col(col)
-    {}
+        , col(col) {}
 
     operator bool() const { return row; }
 
@@ -32,11 +32,9 @@ struct Loc {
     Loc(Sym file, Pos begin, Pos finis)
         : file(file)
         , begin(begin)
-        , finis(finis)
-    {}
+        , finis(finis) {}
     Loc(Sym file, Pos pos)
-        : Loc(file, pos, pos)
-    {}
+        : Loc(file, pos, pos) {}
 
     Sym file;
     Pos begin;
@@ -46,4 +44,4 @@ struct Loc {
 std::ostream& operator<<(std::ostream&, const Pos&);
 std::ostream& operator<<(std::ostream&, const Loc&);
 
-}
+} // namespace sql

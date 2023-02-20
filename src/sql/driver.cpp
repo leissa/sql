@@ -1,5 +1,3 @@
 #include "sql/driver.h"
 
-namespace sql {
-
-}
+namespace sql {}

@@ -60,8 +60,9 @@ Ptr<Stmt> Parser::parse_select_stmt() {
     eat(Tok::Tag::K_SELECT);
 
     bool all = true;
-    if (accept(Tok::Tag::K_ALL)) { /* do nothing */ }
-    else if (accept(Tok::Tag::K_DISTINCT)) all = false;
+    if (accept(Tok::Tag::K_ALL)) { /* do nothing */
+    } else if (accept(Tok::Tag::K_DISTINCT))
+        all = false;
 
     auto select = parse_expr("select expression");
 
@@ -78,7 +79,8 @@ Ptr<Stmt> Parser::parse_select_stmt() {
 
     if (accept(Tok::Tag::K_HAVING)) having = parse_expr("having expression");
 
-    return mk<SelectStmt>(track, all, std::move(select), std::move(from), std::move(where), std::move(group), std::move(having));
+    return mk<SelectStmt>(track, all, std::move(select), std::move(from), std::move(where), std::move(group),
+                          std::move(having));
 }
 
 /*

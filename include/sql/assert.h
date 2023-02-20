@@ -30,4 +30,4 @@ inline void breakpoint() {
 }
 #endif
 
-}
+} // namespace sql

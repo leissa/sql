@@ -27,9 +27,9 @@ struct Elem {
 namespace detail {
 template<typename T>
 concept Elemable = requires(T elem) {
-    elem.range;
-    elem.f;
-};
+                       elem.range;
+                       elem.f;
+                   };
 
 template<class R, class F>
 std::ostream& range(std::ostream& os, const R& r, F f, const char* sep = ", ") {
@@ -210,15 +210,14 @@ private:
 #    define assertf(condition, ...) \
         do { (void)sizeof(condition); } while (false)
 #else
-#    define assertf(condition, ...)                                     \
-        do {                                                            \
-            if (!(condition)) {                                         \
+#    define assertf(condition, ...)                                  \
+        do {                                                         \
+            if (!(condition)) {                                      \
                 sql::errf("{}:{}: assertion: ", __FILE__, __LINE__); \
                 sql::errln(__VA_ARGS__);                             \
                 sql::breakpoint();                                   \
-            }                                                           \
+            }                                                        \
         } while (false)
 #endif
 
 } // namespace sql
-
