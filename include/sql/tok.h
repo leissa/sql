@@ -92,10 +92,6 @@ namespace sql {
     m(T_g,          ">")                \
     m(T_le,         "<=")               \
     m(T_ge,         ">=")               \
-    m(T_add,        "+")                \
-    m(T_sub,        "-")                \
-    m(T_mul,        "*")                \
-    m(T_div,        "/")                \
     m(T_dot,        ".")                \
     m(T_colon,      ":")                \
     m(T_semicolon,  ";")

@@ -121,30 +121,6 @@ public:
 };
 
 /*
- * Query Expressions
- */
-
-class TableQuery : public Node {
-public:
-    TableQuery(Loc loc, Ptr<Expr>&& from, Ptr<Expr>&& where, Ptr<Expr>&& group)
-        : Node(loc)
-        , from_(std::move(from))
-        , where_(std::move(where))
-        , group_(std::move(group)) {}
-
-    const Expr* from() const { return from_.get(); }
-    const Expr* where() const { return where_.get(); }
-    const Expr* group() const { return group_.get(); }
-
-    std::ostream& stream(std::ostream& o) const override;
-
-private:
-    Ptr<Expr> from_;
-    Ptr<Expr> where_;
-    Ptr<Expr> group_;
-};
-
-/*
  * Stmt
  */
 
@@ -157,23 +133,29 @@ public:
 
 class SelectStmt : public Stmt {
 public:
-    SelectStmt(Loc loc, bool all, Ptr<Expr>&& select, Ptr<TableQuery>&& table)
+    SelectStmt(Loc loc, bool all, Ptr<Expr>&& select, Ptr<Expr>&& from, Ptr<Expr>&& where, Ptr<Expr>&& group)
         : Stmt(loc)
         , all_(all)
         , select_(std::move(select))
-        , table_(std::move(table)) {}
+        , from_(std::move(from))
+        , where_(std::move(where))
+        , group_(std::move(group)) {}
 
     bool all() const { return all_; }
     bool distinct() const { return !all_; }
     const Expr* select() const { return select_.get(); }
-    const TableQuery* table() const { return table_.get(); }
+    const Expr* from() const { return from_.get(); }
+    const Expr* where() const { return where_.get(); }
+    const Expr* group() const { return group_.get(); }
 
     std::ostream& stream(std::ostream& o) const override;
 
 private:
     bool all_;
     Ptr<Expr> select_;
-    Ptr<TableQuery> table_;
+    Ptr<Expr> from_;
+    Ptr<Expr> where_;
+    Ptr<Expr> group_;
 };
 
 } // namespace sql

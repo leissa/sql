@@ -13,14 +13,12 @@ public:
     Ptr<Stmt> parse() { return parse_stmt(); }
 
 private:
-    Ptr<TableQuery> parse_table_query(std::string_view);
-
     Ptr<Stmt> parse_stmt();
     Ptr<Stmt> parse_select_stmt();
 
-    Sym parse_sym(std::string_view);
-    Ptr<Expr> parse_expr(std::string_view, int cur_prec = 0);
-    Ptr<Expr> parse_primary_or_unary_expr(std::string_view);
+    Sym parse_sym(std::string_view ctxt);
+    Ptr<Expr> parse_expr(std::string_view ctxt, int cur_prec = 0);
+    Ptr<Expr> parse_primary_or_unary_expr(std::string_view ctxt);
 
     /// Trick to easily keep track of Loc%ations.
     class Tracker {
