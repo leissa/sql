@@ -110,7 +110,7 @@ public:
  * Stmt
  */
 
-/// Base class for all @p Expr%essions.
+/// Base class for all @p Stmt%s
 class Stmt : public Node {
 public:
     Stmt(Loc loc)
