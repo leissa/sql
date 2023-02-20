@@ -1,8 +1,12 @@
 #include "sql/lexer.h"
 
-#include <iostream>
+#include <ranges>
+
+using namespace std::literals;
 
 namespace sql {
+
+static void tolower(std::string& s) { std::ranges::transform(s, s.begin(), [](char c) { return std::tolower(c); }); }
 
 Lexer::Lexer(Driver& driver, Sym filename, std::istream& stream)
     : driver_(driver)
@@ -11,7 +15,7 @@ Lexer::Lexer(Driver& driver, Sym filename, std::istream& stream)
     , stream_(stream) {
     if (!stream_) throw std::runtime_error("stream is bad");
 
-#define CODE(t, str) keywords_[str] = Tok::Tag::t;
+#define CODE(t, str, _) keywords_[driver_.sym(str##s)] = Tok::Tag::t;
     SQL_KEY(CODE)
 #undef CODE
 }
@@ -63,8 +67,10 @@ Tok Lexer::lex() {
         // lex identifier or keyword
         if (accept_if([](int i) { return i == '_' || isalpha(i); })) {
             while (accept_if([](int i) { return i == '_' || isalpha(i) || isdigit(i); })) {}
-            if (auto i = keywords_.find(str_); i != keywords_.end()) return tok(i->second); // keyword
-            return {loc(), driver_.sym(str_)};                                       // identifier
+            tolower(str_);
+            auto sym = driver_.sym(str_);
+            if (auto i = keywords_.find(sym); i != keywords_.end()) return tok(i->second); // keyword
+            return {loc(), sym};                                                           // identifier
         }
 
         driver_.err({loc_.file, peek_pos_}, "invalid input char: '{}'", (char)peek());

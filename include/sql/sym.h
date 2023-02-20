@@ -3,6 +3,8 @@
 #include <string>
 
 #include <absl/container/node_hash_set.h>
+#include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
 
 namespace sql {
 
@@ -24,11 +26,15 @@ private:
     const std::string* ptr_ = nullptr;
 };
 
+struct SymHash {
+    size_t operator()(Sym sym) const { return absl::Hash<std::string>()(*sym); }
+};
+
 std::ostream& operator<<(std::ostream&, Sym);
 
 class Syms {
 public:
-    Syms()            = default;
+    Syms() = default;
     Syms(const Syms&) = delete;
     Syms(Syms&& other)
         : pool_(std::move(other.pool_)) {}
@@ -45,5 +51,9 @@ public:
 private:
     absl::node_hash_set<std::string> pool_;
 };
+
+template<class V>
+using SymMap = absl::flat_hash_map<Sym, V, SymHash>;
+using SymSet = absl::flat_hash_set<Sym, SymHash>;
 
 }

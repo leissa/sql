@@ -7,67 +7,67 @@
 
 namespace sql {
 
-#define SQL_KEY(m)                \
-    m(K_ADD,        "ADD")        \
-    m(K_ALL,        "ALL")        \
-    m(K_ALTER,      "ALTER")      \
-    m(K_AND,        "AND")        \
-    m(K_ANY,        "ANY")        \
-    m(K_AS,         "AS")         \
-    m(K_ASC,        "ASC")        \
-    m(K_BACKUP,     "BACKUP")     \
-    m(K_BETWEEN,    "BETWEEN")    \
-    m(K_BY,         "BY")         \
-    m(K_CASE,       "CASE")       \
-    m(K_CHECK,      "CHECK")      \
-    m(K_COLUMN,     "COLUMN")     \
-    m(K_CONSTRAINT, "CONSTRAINT") \
-    m(K_CREATE,     "CREATE")     \
-    m(K_DATABASE,   "DATABASE")   \
-    m(K_DEFAULT,    "DEFAULT")    \
-    m(K_DELETE,     "DELETE")     \
-    m(K_DESC,       "DESC")       \
-    m(K_DISTINCT,   "DISTINCT")   \
-    m(K_DROP,       "DROP")       \
-    m(K_EXEC,       "EXEC")       \
-    m(K_EXISTS,     "EXISTS")     \
-    m(K_FOREIGN,    "FOREIGN")    \
-    m(K_FROM,       "FROM")       \
-    m(K_FULL,       "FULL")       \
-    m(K_GROUP,      "GROUP")      \
-    m(K_HAVING,     "HAVING")     \
-    m(K_IN,         "IN")         \
-    m(K_INDEX,      "INDEX")      \
-    m(K_INNER,      "INNER")      \
-    m(K_INSERT,     "INSERT")     \
-    m(K_INTO,       "INTO")       \
-    m(K_IS,         "IS")         \
-    m(K_JOIN,       "JOIN")       \
-    m(K_KEY,        "KEY")        \
-    m(K_LEFT,       "LEFT")       \
-    m(K_LIKE,       "LIKE")       \
-    m(K_LIMIT,      "LIMIT")      \
-    m(K_NOT,        "NOT")        \
-    m(K_NULL,       "NULL")       \
-    m(K_OR,         "OR")         \
-    m(K_ORDER,      "ORDER")      \
-    m(K_OUTER,      "OUTER")      \
-    m(K_PRIMARY,    "PRIMARY")    \
-    m(K_PROCEDURE,  "PROCEDURE")  \
-    m(K_REPLACE,    "REPLACE")    \
-    m(K_RIGHT,      "RIGHT")      \
-    m(K_ROWNUM,     "ROWNUM")     \
-    m(K_SELECT,     "SELECT")     \
-    m(K_SET,        "SET")        \
-    m(K_TABLE,      "TABLE")      \
-    m(K_TOP,        "TOP")        \
-    m(K_TRUNCATE,   "TRUNCATE")   \
-    m(K_UNION,      "UNION")      \
-    m(K_UNIQUE,     "UNIQUE")     \
-    m(K_UPDATE,     "UPDATE")     \
-    m(K_VALUES,     "VALUES")     \
-    m(K_VIEW,       "VIEW")       \
-    m(K_WHERE,      "WHERE")      \
+#define SQL_KEY(m)                              \
+    m(K_ADD,        "add",        "ADD")        \
+    m(K_ALL,        "all",        "ALL")        \
+    m(K_ALTER,      "alter",      "ALTER")      \
+    m(K_AND,        "and",        "AND")        \
+    m(K_ANY,        "any",        "ANY")        \
+    m(K_AS,         "as",         "AS")         \
+    m(K_ASC,        "asc",        "ASC")        \
+    m(K_BACKUP,     "backup",     "BACKUP")     \
+    m(K_BETWEEN,    "between",    "BETWEEN")    \
+    m(K_BY,         "by",         "BY")         \
+    m(K_CASE,       "case",       "CASE")       \
+    m(K_CHECK,      "check",      "CHECK")      \
+    m(K_COLUMN,     "column",     "COLUMN")     \
+    m(K_CONSTRAINT, "constraint", "CONSTRAINT") \
+    m(K_CREATE,     "create",     "CREATE")     \
+    m(K_DATABASE,   "database",   "DATABASE")   \
+    m(K_DEFAULT,    "default",    "DEFAULT")    \
+    m(K_DELETE,     "delete",     "DELETE")     \
+    m(K_DESC,       "desc",       "DESC")       \
+    m(K_DISTINCT,   "distinct",   "DISTINCT")   \
+    m(K_DROP,       "drop",       "DROP")       \
+    m(K_EXEC,       "exec",       "EXEC")       \
+    m(K_EXISTS,     "exists",     "EXISTS")     \
+    m(K_FOREIGN,    "foreign",    "FOREIGN")    \
+    m(K_FROM,       "from",       "FROM")       \
+    m(K_FULL,       "full",       "FULL")       \
+    m(K_GROUP,      "group",      "GROUP")      \
+    m(K_HAVING,     "having",     "HAVING")     \
+    m(K_IN,         "in",         "IN")         \
+    m(K_INDEX,      "index",      "INDEX")      \
+    m(K_INNER,      "inner",      "INNER")      \
+    m(K_INSERT,     "insert",     "INSERT")     \
+    m(K_INTO,       "into",       "INTO")       \
+    m(K_IS,         "is",         "IS")         \
+    m(K_JOIN,       "join",       "JOIN")       \
+    m(K_KEY,        "key",        "KEY")        \
+    m(K_LEFT,       "left",       "LEFT")       \
+    m(K_LIKE,       "like",       "LIKE")       \
+    m(K_LIMIT,      "limit",      "LIMIT")      \
+    m(K_NOT,        "not",        "NOT")        \
+    m(K_NULL,       "null",       "NULL")       \
+    m(K_OR,         "or",         "OR")         \
+    m(K_ORDER,      "order",      "ORDER")      \
+    m(K_OUTER,      "outer",      "OUTER")      \
+    m(K_PRIMARY,    "primary",    "PRIMARY")    \
+    m(K_PROCEDURE,  "procedure",  "PROCEDURE")  \
+    m(K_REPLACE,    "replace",    "REPLACE")    \
+    m(K_RIGHT,      "right",      "RIGHT")      \
+    m(K_ROWNUM,     "rownum",     "ROWNUM")     \
+    m(K_SELECT,     "select",     "SELECT")     \
+    m(K_SET,        "set",        "SET")        \
+    m(K_TABLE,      "table",      "TABLE")      \
+    m(K_TOP,        "top",        "TOP")        \
+    m(K_TRUNCATE,   "truncate",   "TRUNCATE")   \
+    m(K_UNION,      "union",      "UNION")      \
+    m(K_UNIQUE,     "unique",     "UNIQUE")     \
+    m(K_UPDATE,     "update",     "UPDATE")     \
+    m(K_VALUES,     "values",     "VALUES")     \
+    m(K_VIEW,       "view",       "VIEW")       \
+    m(K_WHERE,      "where",      "WHERE")      \
 
 #define SQL_LIT(m)                          \
     m(L_int,        "<interger literal>")   \
@@ -95,15 +95,17 @@ namespace sql {
     m(T_colon,      ":")                \
     m(T_semicolon,  ";")                \
 
-#define CODE(t, str) + size_t(1)
+#define CODE(t, _, __) + size_t(1)
 constexpr auto Num_Keys = size_t(0) SQL_KEY(CODE);
 #undef CODE
 
 class Tok {
 public:
     enum class Tag {
-#define CODE(t, str) t,
+#define CODE(t, _, __) t,
         SQL_KEY(CODE)
+#undef CODE
+#define CODE(t, _) t,
         SQL_TOK(CODE)
 #undef CODE
     };

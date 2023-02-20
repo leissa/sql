@@ -5,6 +5,7 @@
 #include <unordered_map>
 
 #include "sql/driver.h"
+#include "sql/sym.h"
 #include "sql/tok.h"
 
 namespace sql {
@@ -46,7 +47,7 @@ private:
     Pos peek_pos_;  ///< Pos%ition of the current Lexer::peek().
     std::istream& stream_;
     std::string str_;
-    std::unordered_map<std::string, Tok::Tag> keywords_;
+    SymMap<Tok::Tag> keywords_;
 };
 
 }
