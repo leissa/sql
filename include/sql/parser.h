@@ -13,11 +13,11 @@ public:
     Ptr<Expr> parse() { return parse_expr("test"); }
 
 private:
-    Sym parse_sym(const char* ctxt);
-    Ptr<Expr> parse_expr(const char* ctxt, int cur_prec = 0);
-    Ptr<Expr> parse_primary_or_unary_expr(const char* ctxt);
+    Sym parse_sym(std::string_view ctxt);
+    Ptr<Expr> parse_expr(std::string_view ctxt, int cur_prec = 0);
+    Ptr<Expr> parse_primary_or_unary_expr(std::string_view ctxt);
 
-    /// Trick to easily keep track of @p Loc%ations.
+    /// Trick to easily keep track of Loc%ations.
     class Tracker {
     public:
         Tracker(Parser& parser, const Pos& pos)
@@ -32,31 +32,31 @@ private:
         Pos pos_;
     };
 
-    /// Factory method to build a @p Tracker.
+    /// Factory method to build a Tracker.
     Tracker tracker() { return Tracker(*this, ahead().loc().begin); }
 
-    /// Invoke @p Lexer to retrieve next @p Tok%en.
+    /// Invoke Lexer to retrieve next Tok%en.
     Tok lex();
 
     /// Get lookahead.
     Tok ahead() const { return ahead_; }
 
-    /// If @p ahead() is a @p tag, @p lex(), and return @c true.
+    /// If Parser::ahead() is a @p tag, Parser::lex(), and return `true`.
     bool accept(Tok::Tag tag);
 
-    /// @p lex @p ahead() which must be a @p tag.
-    /// Issue @p err%or with @p ctxt otherwise.
-    bool expect(Tok::Tag tag, const char* ctxt);
+    /// Parser::lex Parser::ahead() which must be a @p tag.
+    /// Issue Parser::err%or with @p ctxt otherwise.
+    bool expect(Tok::Tag tag, std::string_view ctxt);
 
-    /// Consume @p ahead which must be a @p tag; @c asserts otherwise.
+    /// Consume Parser::ahead which must be a @p tag; `assert`s otherwise.
     Tok eat([[maybe_unused]] Tok::Tag tag) { assert(tag == ahead().tag() && "internal parser error"); return lex(); }
 
     /// Issue an error message of the form:
-    /// <code>expected <what>, got '<tok>' while parsing <ctxt></code>
-    void err(const std::string& what, const Tok& tok, const char* ctxt);
+    /// `expected <what>, got '<tok>' while parsing <ctxt>`
+    void err(const std::string& what, const Tok& tok, std::string_view ctxt);
 
-    /// Same above but uses @p ahead() as @p tok.
-    void err(const std::string& what, const char* ctxt) { err(what, ahead(), ctxt); }
+    /// Same above but uses Parser::ahead() as Tok%en.
+    void err(const std::string& what, std::string_view ctxt) { err(what, ahead(), ctxt); }
 
     Lexer lexer_;
     Loc prev_;

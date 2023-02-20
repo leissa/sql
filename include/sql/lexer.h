@@ -14,15 +14,15 @@ public:
     Lexer(Driver& drv, Sym filename, std::istream&);
 
     Loc loc() const { return loc_; }
-    Tok lex();                                          ///< Get next @p Tok in stream.
+    Tok lex();                                          ///< Get next Tok in stream.
     Driver& driver() { return driver_; }
 
 private:
-    Tok tok(Tok::Tag tag) { return {loc(), tag}; }      ///< Factory method to create a @p Tok.
+    Tok tok(Tok::Tag tag) { return {loc(), tag}; }      ///< Factory method to create a Tok.
     bool eof() const { peek(); return stream_.eof(); }  ///< Have we reached the end of file?
 
-    /// @return @c true if @p pred holds.
-    /// In this case invoke @p next() and append to @p str_;
+    /// @return `true` if @p pred holds.
+    /// In this case invoke Lexer::next() and append to Lexer::str_.
     template<class Pred>
     bool accept_if(Pred pred) {
         if (pred(peek())) {
@@ -42,8 +42,8 @@ private:
     void eat_comments();
 
     Driver& driver_;
-    Loc loc_;       ///< @p Loc%ation of the @p Tok%en we are currently constructing within @p str_,
-    Pos peek_pos_;  ///< @p Pos%ition of the current @p peek().
+    Loc loc_;       ///< Loc%ation of the Tok%en we are currently constructing within Lexer::str_,
+    Pos peek_pos_;  ///< Pos%ition of the current Lexer::peek().
     std::istream& stream_;
     std::string str_;
     std::unordered_map<std::string, Tok::Tag> keywords_;

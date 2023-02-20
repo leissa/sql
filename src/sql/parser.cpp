@@ -3,6 +3,8 @@
 #include <fstream>
 #include <iostream>
 
+using namespace std::literals;
+
 namespace sql {
 
 Parser::Parser(Driver& driver, Sym filename, std::istream& stream)
@@ -22,27 +24,30 @@ bool Parser::accept(Tok::Tag tag) {
     return true;
 }
 
-bool Parser::expect(Tok::Tag tag, const char* ctxt) {
+bool Parser::expect(Tok::Tag tag, std::string_view ctxt) {
     if (ahead().tag() == tag) {
         lex();
         return true;
     }
 
-    err(std::string("'") + Tok::tag2str(tag) + std::string("'"), ctxt);
+    auto what = "'"s;
+    what += Tok::tag2str(tag);
+    what += "'";
+    err(what, ctxt);
     return false;
 }
 
-void Parser::err(const std::string& what, const Tok& tok, const char* ctxt) {
+void Parser::err(const std::string& what, const Tok& tok, std::string_view ctxt) {
     driver().err(tok.loc(), "expected '{}', got '{}' while parsing {}", what, tok, ctxt);
 }
 
-Sym Parser::parse_sym(const char* ctxt) {
+Sym Parser::parse_sym(std::string_view ctxt) {
     if (ahead().isa(Tok::Tag::M_id)) return lex().sym();
     err("identifier", ctxt);
     return driver().sym("<error>");
 }
 
-Ptr<Expr> Parser::parse_expr(const char* ctxt, int cur_prec) {
+Ptr<Expr> Parser::parse_expr(std::string_view ctxt, int cur_prec) {
     auto track = tracker();
     auto lhs   = parse_primary_or_unary_expr(ctxt);
 
@@ -58,7 +63,7 @@ Ptr<Expr> Parser::parse_expr(const char* ctxt, int cur_prec) {
     return lhs;
 }
 
-Ptr<Expr> Parser::parse_primary_or_unary_expr(const char* ctxt) {
+Ptr<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
     auto track = tracker();
     // if (auto tok = accept(Tag.K_FALSE)) is not None: return BoolExpr(tok.loc,
     // False  ) if (auto tok = accept(Tag.K_TRUE )) is not None: return

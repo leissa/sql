@@ -1,17 +1,21 @@
 #include "sql/tok.h"
 
+#include "sql/assert.h"
+
+using namespace std::literals;
+
 namespace sql {
 
-const char* Tok::tag2str(Tok::Tag tag) {
+std::string_view Tok::tag2str(Tok::Tag tag) {
     switch (tag) {
 #define CODE(t, str) \
-    case Tok::Tag::t: return str;
+    case Tok::Tag::t: return str##sv;
         SQL_KEY(CODE)
         SQL_TOK(CODE)
 #undef CODE
     }
 
-    return nullptr; // shut up warning
+    unreachable();
 }
 
 std::ostream& operator<<(std::ostream& o, const Tok& tok) {
