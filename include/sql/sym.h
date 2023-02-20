@@ -12,7 +12,6 @@ public:
     Sym(const std::string* ptr)
         : ptr_(ptr) {}
 
-    bool is_anonymous() const { return ptr_ && *ptr_ == "_"; }
     bool operator==(Sym other) const { return this->ptr_ == other.ptr_; }
     bool operator!=(Sym other) const { return this->ptr_ != other.ptr_; }
     operator const std::string_view() const { return *ptr_; }
@@ -27,18 +26,18 @@ private:
 
 std::ostream& operator<<(std::ostream&, Sym);
 
-class SymTab {
+class Syms {
 public:
-    SymTab()              = default;
-    SymTab(const SymTab&) = delete;
-    SymTab(SymTab&& other)
+    Syms()            = default;
+    Syms(const Syms&) = delete;
+    Syms(Syms&& other)
         : pool_(std::move(other.pool_)) {}
 
-    Sym add(std::string_view s) { return &*pool_.emplace(s).first; }
-    Sym add(const char* s) { return &*pool_.emplace(s).first; }
-    Sym add(std::string&& s) { return &*pool_.emplace(std::move(s)).first; }
+    Sym sym(std::string_view s) { return &*pool_.emplace(s).first; }
+    Sym sym(const char* s) { return &*pool_.emplace(s).first; }
+    Sym sym(std::string&& s) { return &*pool_.emplace(std::move(s)).first; }
 
-    friend void swap(SymTab& p1, SymTab& p2) {
+    friend void swap(Syms& p1, Syms& p2) {
         using std::swap;
         swap(p1.pool_, p2.pool_);
     }

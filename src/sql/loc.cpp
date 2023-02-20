@@ -4,13 +4,6 @@
 
 namespace sql {
 
-int num_errors = 0;
-
-std::ostream& Loc::err() const {
-    ++num_errors;
-    return std::cerr << (*this) << ": error: ";
-}
-
 std::ostream& operator<<(std::ostream& o, const Pos& pos) { return o << pos.row << ":" << pos.col; }
 
 std::ostream& operator<<(std::ostream& o, const Loc& loc) {

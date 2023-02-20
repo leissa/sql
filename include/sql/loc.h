@@ -41,8 +41,6 @@ struct Loc {
     Sym file;
     Pos begin;
     Pos finis;
-
-    std::ostream& err() const;
 };
 
 std::ostream& operator<<(std::ostream&, const Pos&);

@@ -7,28 +7,38 @@
 
 namespace sql {
 
-#define SQL_KEYWORDS(m) \
-    m(K_lam, "lam")     \
-    m(K_let, "let")
+#define SQL_KEY(m) \
+    m(K_select, "select")     \
+    m(K_where, "where")
 
-#define SQL_PUNCTUATORS(m)  \
-    m(P_assign,     "=")    \
-    m(P_dot,        ".")    \
-    m(P_semicolon,  ";")    \
-    m(P_paren_l,    "(")    \
-    m(P_paren_r,    ")")
+#define CODE(t, str) + size_t(1)
+constexpr auto Num_Keys = size_t(0) SQL_KEY(CODE);
+#undef CODE
 
-#define SQL_MISC(m)           \
+#define SQL_LIT(m)  \
+
+#define SQL_TOK(m)           \
+    /* misc */                  \
     m(M_eof, "<end of file>") \
-    m(M_id,  "<identifier>")
+    m(M_id,  "<identifier>") \
+    /* delimiter */         \
+    m(D_brace_l,    "{")                \
+    m(D_brace_r,    "}")                \
+    m(D_brckt_l,    "[")                \
+    m(D_brckt_r,    "]")                \
+    m(D_paren_l,    "(")                \
+    m(D_paren_r,    ")")                \
+    /* further tokens */            \
+    m(T_assign,     "=")    \
+    m(T_dot,        ".")    \
+    m(T_semicolon,  ";")    \
 
 class Tok {
 public:
     enum class Tag {
 #define CODE(t, str) t,
-        SQL_KEYWORDS(CODE)
-        SQL_PUNCTUATORS(CODE)
-        SQL_MISC(CODE)
+        SQL_KEY(CODE)
+        SQL_TOK(CODE)
 #undef CODE
     };
 

@@ -12,7 +12,7 @@ Lexer::Lexer(Driver& driver, Sym filename, std::istream& stream)
     if (!stream_) throw std::runtime_error("stream is bad");
 
 #define CODE(t, str) keywords_[str] = Tok::Tag::t;
-    SQL_KEYWORDS(CODE)
+    SQL_KEY(CODE)
 #undef CODE
 }
 
@@ -37,11 +37,15 @@ Tok Lexer::lex() {
 
         if (eof()) return tok(Tok::Tag::M_eof);
         if (accept_if(isspace)) continue;
-        if (accept('=')) return tok(Tok::Tag::P_assign);
-        if (accept('.')) return tok(Tok::Tag::P_dot);
-        if (accept(';')) return tok(Tok::Tag::P_semicolon);
-        if (accept('(')) return tok(Tok::Tag::P_paren_l);
-        if (accept(')')) return tok(Tok::Tag::P_paren_r);
+        if (accept('{')) return tok(Tok::Tag::D_brace_l);
+        if (accept('}')) return tok(Tok::Tag::D_brace_r);
+        if (accept('[')) return tok(Tok::Tag::D_brckt_l);
+        if (accept(']')) return tok(Tok::Tag::D_brckt_r);
+        if (accept('(')) return tok(Tok::Tag::D_paren_l);
+        if (accept(')')) return tok(Tok::Tag::D_paren_r);
+        if (accept('=')) return tok(Tok::Tag::T_assign);
+        if (accept('.')) return tok(Tok::Tag::T_dot);
+        if (accept(';')) return tok(Tok::Tag::T_semicolon);
         if (accept('/')) {
             if (accept('*')) {
                 eat_comments();
@@ -52,8 +56,7 @@ Tok Lexer::lex() {
                 continue;
             }
 
-            Loc(loc_.file, peek_pos_).err()
-                << "invalid input char '/'; maybe you wanted to start a comment?" << std::endl;
+            driver_.err({loc_.file, peek_pos_}, "invalid input char '/'; maybe you wanted to start a comment?");
             continue;
         }
 
@@ -61,10 +64,10 @@ Tok Lexer::lex() {
         if (accept_if([](int i) { return i == '_' || isalpha(i); })) {
             while (accept_if([](int i) { return i == '_' || isalpha(i) || isdigit(i); })) {}
             if (auto i = keywords_.find(str_); i != keywords_.end()) return tok(i->second); // keyword
-            return {loc(), driver_.symtab.add(str_)};                                       // identifier
+            return {loc(), driver_.sym(str_)};                                       // identifier
         }
 
-        Loc(loc_.file, peek_pos_).err() << "invalid input char: '" << (char)peek() << "'" << std::endl;
+        driver_.err({loc_.file, peek_pos_}, "invalid input char: '{}'", (char)peek());
         next();
     }
 }
@@ -73,7 +76,7 @@ void Lexer::eat_comments() {
     while (true) {
         while (!eof() && peek() != '*') next();
         if (eof()) {
-            loc_.err() << "non-terminated multiline comment" << std::endl;
+            driver_.err(loc_, "non-terminated multiline comment");
             return;
         }
         next();

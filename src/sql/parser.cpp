@@ -33,13 +33,13 @@ bool Parser::expect(Tok::Tag tag, const char* ctxt) {
 }
 
 void Parser::err(const std::string& what, const Tok& tok, const char* ctxt) {
-    tok.loc().err() << "expected " << what << ", got '" << tok << "' while parsing " << ctxt << std::endl;
+    driver().err(tok.loc(), "expected '{}', got '{}' while parsing {}", what, tok, ctxt);
 }
 
 Sym Parser::parse_sym(const char* ctxt) {
     if (ahead().isa(Tok::Tag::M_id)) return lex().sym();
     err("identifier", ctxt);
-    return driver().symtab.add("<error>");
+    return driver().sym("<error>");
 }
 
 Ptr<Expr> Parser::parse_expr(const char* ctxt, int cur_prec) {

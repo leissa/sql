@@ -17,12 +17,12 @@ template<class T, class... Args>
 Ptr<T> mk(Args&&... args) { return std::make_unique<T>(std::forward<Args>(args)...); }
 
 /// Base class for all @p Expr%essions.
-class Expr {
+class Node {
 public:
-    Expr(Loc loc)
+    Node(Loc loc)
         : loc_(loc)
     {}
-    virtual ~Expr() {}
+    virtual ~Node() {}
 
     Loc loc() const { return loc_; }
     void dump() const;
@@ -32,6 +32,34 @@ public:
 
 private:
     Loc loc_;
+};
+
+/*
+ * Stmt
+ */
+
+/// Base class for all @p Expr%essions.
+class Stmt : public Node {
+public:
+    Stmt(Loc loc)
+        : Node(loc)
+    {}
+};
+
+class SelectStmt : public Stmt {
+public:
+};
+
+/*
+ * Expr
+ */
+
+/// Base class for all @p Expr%essions.
+class Expr : public Node {
+public:
+    Expr(Loc loc)
+        : Node(loc)
+    {}
 };
 
 class UnExpr : public Expr {

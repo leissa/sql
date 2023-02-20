@@ -6,13 +6,12 @@ const char* Tok::tag2str(Tok::Tag tag) {
     switch (tag) {
 #define CODE(t, str) \
     case Tok::Tag::t: return str;
-        SQL_KEYWORDS(CODE)
-        SQL_PUNCTUATORS(CODE)
-        SQL_MISC(CODE)
+        SQL_KEY(CODE)
+        SQL_TOK(CODE)
 #undef CODE
     }
 
-    return nullptr; // shutup warning
+    return nullptr; // shut up warning
 }
 
 std::ostream& operator<<(std::ostream& o, const Tok& tok) {
