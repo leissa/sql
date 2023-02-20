@@ -66,7 +66,7 @@ Ptr<Stmt> Parser::parse_select_stmt() {
 
     auto select = parse_expr("select expression");
 
-    expect(Tok::Tag::K_FROM, "select statment");
+    expect(Tok::Tag::K_FROM, "select statement");
     auto from = parse_expr("from expression");
 
     Ptr<Expr> where, group, having;
