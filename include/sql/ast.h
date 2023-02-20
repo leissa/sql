@@ -144,7 +144,6 @@ private:
     Ptr<Expr> group_;
 };
 
-
 /*
  * Stmt
  */
