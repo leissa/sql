@@ -99,6 +99,7 @@ namespace sql {
 
 class Tok {
 public:
+    // clang-format off
     enum class Tag {
 #define CODE(t, _, __) t,
         SQL_KEY(CODE)
@@ -108,6 +109,7 @@ public:
         SQL_TOK(CODE)
 #undef CODE
     };
+    // clang-format on
 
     Tok() {}
     Tok(Loc loc, Tag tag)
