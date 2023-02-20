@@ -18,10 +18,9 @@ Tok Parser::lex() {
     return result;
 }
 
-bool Parser::accept(Tok::Tag tag) {
-    if (tag != ahead().tag()) return false;
-    lex();
-    return true;
+std::optional<Tok> Parser::accept(Tok::Tag tag) {
+    if (tag != ahead().tag()) return std::nullopt;
+    return lex();
 }
 
 bool Parser::expect(Tok::Tag tag, std::string_view ctxt) {
@@ -38,7 +37,7 @@ bool Parser::expect(Tok::Tag tag, std::string_view ctxt) {
 }
 
 void Parser::err(const std::string& what, const Tok& tok, std::string_view ctxt) {
-    driver().err(tok.loc(), "expected '{}', got '{}' while parsing {}", what, tok, ctxt);
+    driver().err(tok.loc(), "expected {}, got '{}' while parsing {}", what, tok, ctxt);
 }
 
 Sym Parser::parse_sym(std::string_view ctxt) {
@@ -47,11 +46,50 @@ Sym Parser::parse_sym(std::string_view ctxt) {
     return driver().sym("<error>");
 }
 
+/*
+ * Stmt
+ */
+
+Ptr<Stmt> Parser::parse_stmt() {
+    // TODO
+    return parse_select_stmt();
+}
+
+Ptr<Stmt> Parser::parse_select_stmt() {
+    auto track = tracker();
+    eat(Tok::Tag::K_SELECT);
+
+    bool all = true;
+    if (accept(Tok::Tag::K_ALL)) { /* do nothing */ }
+    else if (accept(Tok::Tag::K_DISTINCT)) all = false;
+
+    auto select = parse_expr("select expression");
+
+    expect(Tok::Tag::K_FROM, "select statment");
+    auto from = parse_expr("from expression");
+
+    Ptr<Expr> where, group, having;
+    if (accept(Tok::Tag::K_WHERE)) where = parse_expr("where expression");
+
+    if (accept(Tok::Tag::K_GROUP)) {
+        expect(Tok::Tag::K_BY, "group within select statement");
+        group = parse_expr("group expression");
+    }
+
+    if (accept(Tok::Tag::K_HAVING)) having = parse_expr("having expression");
+
+    return mk<SelectStmt>(track, all, std::move(select), std::move(from), std::move(where), std::move(group), std::move(having));
+}
+
+/*
+ * Expr
+ */
+
 Ptr<Expr> Parser::parse_expr(std::string_view ctxt, int cur_prec) {
     auto track = tracker();
     auto lhs   = parse_primary_or_unary_expr(ctxt);
 
-    while (true /*is bin op*/) {
+    while (false /*true*/ /*is bin op*/) {
         int l_prec = 3, r_prec = 42; // TODO get
         if (l_prec < cur_prec) break;
 
@@ -68,7 +106,11 @@ Ptr<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
     // if (auto tok = accept(Tag.K_FALSE)) is not None: return BoolExpr(tok.loc,
     // False  ) if (auto tok = accept(Tag.K_TRUE )) is not None: return
     // BoolExpr(tok.loc, True   ) if (auto tok = accept(Tag.M_SYM  )) is not None:
-    // return SymExpr (tok.loc, tok    ) if (auto tok = accept(Tag.M_LIT  )) is
+    // return SymExpr (tok.loc, tok    )
+
+    if (auto tok = accept(Tok::Tag::M_id)) return mk<IdExpr>(track, tok->sym());
+    //
+    // if (auto tok = accept(Tag.M_LIT  )) is
     // not None: return LitExpr (tok.loc, tok.val)
 
     // if self.ahead.tag.is_unary():
@@ -81,10 +123,11 @@ Ptr<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
     // self.expect(Tag.D_PAREN_R, "parenthesized expression")
     // return expr
 
-    // if ctxt is not None:
-    // self.err("primary or unary expression", ctxt)
-    // return ErrExpr(self.ahead.loc)
-    assert(false);
+    if (!ctxt.empty()) {
+        err("primary or unary expression", ctxt);
+        return {};
+    }
+    unreachable();
 }
 
 } // namespace sql

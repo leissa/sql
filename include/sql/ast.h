@@ -11,7 +11,7 @@
 namespace sql {
 
 template<class T>
-using Ptr = std::unique_ptr<T>;
+using Ptr = std::unique_ptr<const T>;
 
 template<class T, class... Args>
 Ptr<T> mk(Args&&... args) { return std::make_unique<T>(std::forward<Args>(args)...); }
@@ -35,22 +35,6 @@ private:
 };
 
 /*
- * Stmt
- */
-
-/// Base class for all @p Expr%essions.
-class Stmt : public Node {
-public:
-    Stmt(Loc loc)
-        : Node(loc)
-    {}
-};
-
-class SelectStmt : public Stmt {
-public:
-};
-
-/*
  * Expr
  */
 
@@ -60,6 +44,20 @@ public:
     Expr(Loc loc)
         : Node(loc)
     {}
+};
+
+class IdExpr : public Expr {
+public:
+    IdExpr(Loc loc, Sym sym)
+        : Expr(loc)
+        , sym_(sym) {}
+
+    Sym sym() const { return sym_; }
+
+    std::ostream& stream(std::ostream& o) const override;
+
+private:
+    Sym sym_;
 };
 
 class UnExpr : public Expr {
@@ -109,6 +107,50 @@ public:
     {}
 
     std::ostream& stream(std::ostream& o) const override;
+};
+
+/*
+ * Stmt
+ */
+
+/// Base class for all @p Expr%essions.
+class Stmt : public Node {
+public:
+    Stmt(Loc loc)
+        : Node(loc)
+    {}
+};
+
+class SelectStmt : public Stmt {
+public:
+    SelectStmt(Loc loc, bool all, Ptr<Expr>&& select, Ptr<Expr>&& from, Ptr<Expr>&& where, Ptr<Expr>&& group, Ptr<Expr>&& having)
+        : Stmt(loc)
+        , all_(all)
+        , select_(std::move(select))
+        , from_(std::move(from))
+        , where_(std::move(where))
+        , group_(std::move(group))
+        , having_(std::move(having)) {}
+
+    bool all() const { return all_; }
+    bool distinct() const { return !all_; }
+    const Expr* select() const { return select_.get(); }
+    const Expr* from() const { return from_.get(); }
+    const Expr* where() const { return where_.get(); }
+    const Expr* group() const { return group_.get(); }
+    const Expr* having() const { return having_.get(); }
+
+    std::ostream& stream(std::ostream& o) const override;
+
+private:
+    bool all_;
+    Ptr<Expr> select_;
+    Ptr<Expr> from_;
+    Ptr<Expr> where_;
+    Ptr<Expr> group_;
+    Ptr<Expr> having_;
+    //Ptr<Expr> order_;
+    //Ptr<Expr> limit_;
 };
 
 }

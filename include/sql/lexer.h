@@ -25,9 +25,9 @@ private:
     /// @return `true` if @p pred holds.
     /// In this case invoke Lexer::next() and append to Lexer::str_.
     template<class Pred>
-    bool accept_if(Pred pred) {
+    bool accept_if(Pred pred, bool lower = false) {
         if (pred(peek())) {
-            str_ += next();
+            str_ += lower ? std::tolower(next()) : next();
             return true;
         }
         return false;
@@ -36,6 +36,7 @@ private:
     bool accept(int val) {
         return accept_if([val] (int p) { return p == val; });
     }
+
 
     /// Get next byte in @p stream_ and increase @p loc_ / @p peek_pos_.
     int next();

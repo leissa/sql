@@ -6,8 +6,6 @@ using namespace std::literals;
 
 namespace sql {
 
-static void tolower(std::string& s) { std::ranges::transform(s, s.begin(), [](char c) { return std::tolower(c); }); }
-
 Lexer::Lexer(Driver& driver, Sym filename, std::istream& stream)
     : driver_(driver)
     , loc_(filename)
@@ -47,6 +45,15 @@ Tok Lexer::lex() {
         if (accept(']')) return tok(Tok::Tag::D_brckt_r);
         if (accept('(')) return tok(Tok::Tag::D_paren_l);
         if (accept(')')) return tok(Tok::Tag::D_paren_r);
+        if (accept('<')) {
+            if (accept('>')) return tok(Tok::Tag::T_ne);
+            if (accept('=')) return tok(Tok::Tag::T_le);
+            return tok(Tok::Tag::T_l);
+        }
+        if (accept('>')) {
+            if (accept('=')) return tok(Tok::Tag::T_ge);
+            return tok(Tok::Tag::T_g);
+        }
         if (accept('=')) return tok(Tok::Tag::T_assign);
         if (accept('.')) return tok(Tok::Tag::T_dot);
         if (accept(';')) return tok(Tok::Tag::T_semicolon);
@@ -65,9 +72,8 @@ Tok Lexer::lex() {
         }
 
         // lex identifier or keyword
-        if (accept_if([](int i) { return i == '_' || isalpha(i); })) {
-            while (accept_if([](int i) { return i == '_' || isalpha(i) || isdigit(i); })) {}
-            tolower(str_);
+        if (accept_if([](int i) { return i == '_' || isalpha(i); }, true)) {
+            while (accept_if([](int i) { return i == '_' || isalpha(i) || isdigit(i); }, true)) {}
             auto sym = driver_.sym(str_);
             if (auto i = keywords_.find(sym); i != keywords_.end()) return tok(i->second); // keyword
             return {loc(), sym};                                                           // identifier

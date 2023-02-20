@@ -10,9 +10,12 @@ public:
     Parser(Driver&, Sym filename, std::istream& stream);
 
     Driver& driver() { return lexer_.driver(); }
-    Ptr<Expr> parse() { return parse_expr("test"); }
+    Ptr<Stmt> parse() { return parse_stmt(); }
 
 private:
+    Ptr<Stmt> parse_stmt();
+    Ptr<Stmt> parse_select_stmt();
+
     Sym parse_sym(std::string_view ctxt);
     Ptr<Expr> parse_expr(std::string_view ctxt, int cur_prec = 0);
     Ptr<Expr> parse_primary_or_unary_expr(std::string_view ctxt);
@@ -42,7 +45,7 @@ private:
     Tok ahead() const { return ahead_; }
 
     /// If Parser::ahead() is a @p tag, Parser::lex(), and return `true`.
-    bool accept(Tok::Tag tag);
+    std::optional<Tok> accept(Tok::Tag tag);
 
     /// Parser::lex Parser::ahead() which must be a @p tag.
     /// Issue Parser::err%or with @p ctxt otherwise.
