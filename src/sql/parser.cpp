@@ -96,7 +96,7 @@ Ptr<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
 }
 
 Ptr<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
-    if (auto tok = accept(Tok::Tag::L_i))  return mk<LitExpr>(tok->loc(), tok->u64());
+    if (auto tok = accept(Tok::Tag::L_i)) return mk<LitExpr>(tok->loc(), tok->u64());
     if (auto tok = accept(Tok::Tag::M_id)) return mk<IdExpr>(tok->loc(), tok->sym());
 
     if (ahead().isa(Tok::Tag::K_TRUE) || ahead().isa(Tok::Tag::K_FALSE) || ahead().isa(Tok::Tag::K_UNKNOWN)) {

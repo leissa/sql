@@ -17,7 +17,7 @@ std::string_view Tok::str(Tok::Tag tag) {
         SQL_LIT(CODE)
         SQL_TOK(CODE)
 #undef CODE
-    case Tok::Tag::K_IS_NOT: return "IS NOT"sv;
+        case Tok::Tag::K_IS_NOT: return "IS NOT"sv;
     }
 
     unreachable();
@@ -52,9 +52,7 @@ std::optional<Tok::Prec> Tok::bin_prec(Tok::Tag tag) {
 }
 // clang-format on
 
-std::ostream& operator<<(std::ostream& o, Tok::Tag tag) {
-    return o << Tok::str(tag);
-}
+std::ostream& operator<<(std::ostream& o, Tok::Tag tag) { return o << Tok::str(tag); }
 
 std::ostream& operator<<(std::ostream& o, Tok tok) {
     if (tok.isa(Tok::Tag::M_id)) return o << *tok.sym();

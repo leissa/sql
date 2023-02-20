@@ -1,6 +1,6 @@
-#include "sql/ast.h"
-
 #include <iostream>
+
+#include "sql/ast.h"
 
 namespace sql {
 

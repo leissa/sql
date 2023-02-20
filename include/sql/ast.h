@@ -181,7 +181,7 @@ public:
 private:
     bool all_;
     Ptr<Expr> select_;
-    //std::deque<Ptr<List>> list_;
+    // std::deque<Ptr<List>> list_;
     Ptr<Expr> from_;
     Ptr<Expr> where_;
     Ptr<Expr> group_;
