@@ -14,12 +14,14 @@ int main(int argc, char** argv) {
         static const auto version = "libsql command-line utility version 0.1\n";
         bool show_help            = false;
         bool show_version         = false;
+        bool dump                 = false;
         std::string input;
 
         // clang-format off
         auto cli = lyra::cli()
             | lyra::help(show_help)
             | lyra::opt(show_version       )["-v"]["--version"]("Display version info and exit.")
+            | lyra::opt(show_version       )["-d"]["--dump"   ]("Dumps the SQL statement again.")
             | lyra::arg(input,       "file")                   ("Input file.")
             ;
         // clang-format on
@@ -56,7 +58,7 @@ int main(int argc, char** argv) {
             stmt = parser.parse();
         }
 
-        stmt->dump();
+        if (dump) stmt->dump();
 
         if (auto num = driver.num_errors()) {
             std::cerr << num << " error(s) encountered" << std::endl;
