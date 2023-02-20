@@ -47,6 +47,26 @@ Sym Parser::parse_sym(std::string_view ctxt) {
 }
 
 /*
+ * Query
+ */
+
+Ptr<TableQuery> Parser::parse_table_query(std::string_view ctxt) {
+    auto track = tracker();
+    expect(Tok::Tag::K_FROM, ctxt);
+
+    auto from = parse_expr("from expression");
+    auto where = accept(Tok::Tag::K_WHERE) ? parse_expr("where expression") : nullptr;
+    Ptr<Expr> group, having;
+
+    if (accept(Tok::Tag::K_GROUP)) {
+        expect(Tok::Tag::K_BY, "group within select statement");
+        group = parse_expr("group expression");
+    }
+
+    return mk<TableQuery>(track, std::move(from), std::move(where), std::move(group));
+}
+
+/*
  * Stmt
  */
 
@@ -61,26 +81,14 @@ Ptr<Stmt> Parser::parse_select_stmt() {
 
     bool all = true;
     if (accept(Tok::Tag::K_ALL)) { /* do nothing */
-    } else if (accept(Tok::Tag::K_DISTINCT))
+    } else if (accept(Tok::Tag::K_DISTINCT)) {
         all = false;
-
-    auto select = parse_expr("select expression");
-
-    expect(Tok::Tag::K_FROM, "select statement");
-    auto from = parse_expr("from expression");
-
-    Ptr<Expr> where, group, having;
-    if (accept(Tok::Tag::K_WHERE)) where = parse_expr("where expression");
-
-    if (accept(Tok::Tag::K_GROUP)) {
-        expect(Tok::Tag::K_BY, "group within select statement");
-        group = parse_expr("group expression");
     }
 
-    if (accept(Tok::Tag::K_HAVING)) having = parse_expr("having expression");
+    auto select = parse_expr("select expression");
+    auto table = parse_table_query("select statement");
 
-    return mk<SelectStmt>(track, all, std::move(select), std::move(from), std::move(where), std::move(group),
-                          std::move(having));
+    return mk<SelectStmt>(track, all, std::move(select), std::move(table));
 }
 
 /*
