@@ -110,9 +110,8 @@ Ptr<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
     // BoolExpr(tok.loc, True   ) if (auto tok = accept(Tag.M_SYM  )) is not None:
     // return SymExpr (tok.loc, tok    )
 
+    if (auto tok = accept(Tok::Tag::L_i)) return mk<LitExpr>(track, tok->u64());
     if (auto tok = accept(Tok::Tag::M_id)) return mk<IdExpr>(track, tok->sym());
-    //
-    // if (auto tok = accept(Tag.M_LIT  )) is
     // not None: return LitExpr (tok.loc, tok.val)
 
     // if self.ahead.tag.is_unary():

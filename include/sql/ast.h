@@ -60,6 +60,20 @@ private:
     Sym sym_;
 };
 
+class LitExpr : public Expr {
+public:
+    LitExpr(Loc loc, uint64_t u64)
+        : Expr(loc)
+        , u64_(u64) {}
+
+    uint64_t u64() const { return u64_; }
+
+    std::ostream& stream(std::ostream& o) const override;
+
+private:
+    uint64_t u64_;
+};
+
 class UnExpr : public Expr {
 public:
     UnExpr(Loc loc, Tok::Tag tag, Ptr<Expr>&& rhs)

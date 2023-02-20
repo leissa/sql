@@ -12,7 +12,10 @@ void Node::dump() const { stream(std::cout) << std::endl; }
  * Expr
  */
 
-std::ostream& IdExpr::stream(std::ostream& o) const { return o << sym(); }
+// clang-format off
+std::ostream& IdExpr ::stream(std::ostream& o) const { return o << sym(); }
+std::ostream& LitExpr::stream(std::ostream& o) const { return o << u64(); }
+// clang-format on
 
 std::ostream& UnExpr::stream(std::ostream& o) const { return o; }
 

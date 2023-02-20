@@ -71,7 +71,7 @@ namespace sql {
     m(K_WHERE,      "where",      "WHERE")      \
 
 #define SQL_LIT(m)                          \
-    m(L_int,        "<interger literal>")   \
+    m(L_i,          "<interger literal>")   \
 
 #define SQL_TOK(m)                      \
     /* misc */                          \
@@ -104,7 +104,8 @@ public:
         SQL_KEY(CODE)
 #undef CODE
 #define CODE(t, _) t,
-            SQL_TOK(CODE)
+        SQL_LIT(CODE)
+        SQL_TOK(CODE)
 #undef CODE
     };
 
@@ -116,20 +117,30 @@ public:
         : loc_(loc)
         , tag_(Tag::M_id)
         , sym_(sym) {}
+    Tok(Loc loc, uint64_t u64)
+        : loc_(loc)
+        , tag_(Tag::L_i)
+        , u64_(u64) {}
 
     Loc loc() const { return loc_; }
     Tag tag() const { return tag_; }
     bool isa(Tag tag) const { return tag == tag_; }
+
     Sym sym() const {
         assert(isa(Tag::M_id));
         return sym_;
     }
+    uint64_t u64() const { return u64_; }
+
     static std::string_view tag2str(Tok::Tag);
 
 private:
     Loc loc_;
     Tag tag_;
-    Sym sym_;
+    union {
+        Sym sym_;
+        uint64_t u64_;
+    };
 };
 
 std::ostream& operator<<(std::ostream&, const Tok&);

@@ -71,6 +71,12 @@ Tok Lexer::lex() {
             continue;
         }
 
+        // integer literal
+        if (accept_if(isdigit)) {
+            while (accept_if(isdigit)) {}
+            return {loc(), std::strtoull(str_.c_str(), nullptr, 10)};
+        }
+
         // lex identifier or keyword
         if (accept_if([](int i) { return i == '_' || isalpha(i); }, true)) {
             while (accept_if([](int i) { return i == '_' || isalpha(i) || isdigit(i); }, true)) {}
