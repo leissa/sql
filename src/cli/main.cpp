@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
         auto cli = lyra::cli()
             | lyra::help(show_help)
             | lyra::opt(show_version       )["-v"]["--version"]("Display version info and exit.")
-            | lyra::opt(show_version       )["-d"]["--dump"   ]("Dumps the SQL statement again.")
+            | lyra::opt(dump               )["-d"]["--dump"   ]("Dumps the SQL statement again.")
             | lyra::arg(input,       "file")                   ("Input file.")
             ;
         // clang-format on
