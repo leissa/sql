@@ -54,7 +54,8 @@ Tok Lexer::lex() {
             if (accept('=')) return tok(Tok::Tag::T_ge);
             return tok(Tok::Tag::T_g);
         }
-        if (accept('=')) return tok(Tok::Tag::T_assign);
+        if (accept('=')) return tok(Tok::Tag::T_eq);
+        if (accept(',')) return tok(Tok::Tag::T_comma);
         if (accept('.')) return tok(Tok::Tag::T_dot);
         if (accept(';')) return tok(Tok::Tag::T_semicolon);
         if (accept('+')) return tok(Tok::Tag::T_add);

@@ -17,8 +17,26 @@ private:
     Ptr<Stmt> parse_select_stmt();
 
     Sym parse_sym(std::string_view ctxt);
+    Ptr<IdExpr> parse_id_expr(std::string_view ctxt);
+    Ptr<IdChain> parse_id_chain(std::string_view ctxt);
+
     Ptr<Expr> parse_expr(std::string_view ctxt, Tok::Prec = Tok::Prec::Bot);
     Ptr<Expr> parse_primary_or_unary_expr(std::string_view ctxt);
+
+    template<class F>
+    void parse_list(F f, Tok::Tag delim, Tok::Tag sep = Tok::Tag::T_comma) {
+        if (!ahead().isa(delim)) {
+            do { f(); } while (accept(sep) && !ahead().isa(delim));
+        }
+    }
+
+    template<class F>
+    void parse_list(std::string ctxt, Tok::Tag delim_l, F f, Tok::Tag sep = Tok::Tag::T_comma) {
+        expect(delim_l, ctxt);
+        auto delim_r = (Tok::Tag)((int)delim_l + 1);
+        parse_list(f, delim_r, sep);
+        expect(delim_r, std::string("closing delimiter of a ") + ctxt);
+    }
 
     /// Trick to easily keep track of Loc%ations.
     class Tracker {
@@ -66,6 +84,7 @@ private:
     Lexer lexer_;
     Loc prev_;
     Tok ahead_;
+    Sym error_;
 };
 
 } // namespace sql

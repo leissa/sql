@@ -10,7 +10,9 @@ namespace sql {
 Parser::Parser(Driver& driver, Sym filename, std::istream& stream)
     : lexer_(driver, filename, stream)
     , prev_(lexer_.loc())
-    , ahead_(lexer_.lex()) {}
+    , ahead_(lexer_.lex())
+    , error_(driver.sym("<error>"s))
+{}
 
 Tok Parser::lex() {
     auto result = ahead();
@@ -31,7 +33,7 @@ bool Parser::expect(Tok::Tag tag, std::string_view ctxt) {
 
     auto what = "'"s;
     what += Tok::str(tag);
-    what += "'";
+    what += '\'';
     err(what, ctxt);
     return false;
 }
@@ -44,6 +46,31 @@ Sym Parser::parse_sym(std::string_view ctxt) {
     if (ahead().isa(Tok::Tag::M_id)) return lex().sym();
     err("identifier", ctxt);
     return driver().sym("<error>");
+}
+
+Ptr<IdExpr> Parser::parse_id_expr(std::string_view ctxt) {
+    if (ahead().isa(Tok::Tag::M_id)) {
+        auto tok = lex();
+        return mk<IdExpr>(tok.loc(), tok.sym());
+    }
+    err("identifier", ctxt);
+    return mk<IdExpr>(prev_, error_);
+}
+
+Ptr<IdChain> Parser::parse_id_chain(std::string_view ctxt) {
+    auto track = tracker();
+    if (!ahead().isa(Tok::Tag::M_id)) {
+        err("identifier", ctxt);
+        return nullptr;
+    }
+
+    std::deque<Ptr<IdExpr>> ids;
+    do {
+        auto sym = parse_sym("identifier");
+        ids.emplace_back(mk<IdExpr>(prev_, sym));
+    } while (accept(Tok::Tag::T_dot));
+
+    return mk<IdChain>(track, std::move(ids));
 }
 
 /*
@@ -63,6 +90,13 @@ Ptr<Stmt> Parser::parse_select_stmt() {
     if (accept(Tok::Tag::K_ALL)) { /* do nothing */
     } else if (accept(Tok::Tag::K_DISTINCT)) {
         all = false;
+    }
+
+    std::deque<Ptr<Select::Item>> items;
+    if (accept(Tok::Tag::T_mul)) {
+        /* do nothing */
+    } else {
+        //parse_list([&]() { return
     }
 
     auto select = parse_expr("select expression");
@@ -118,7 +152,7 @@ Ptr<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
 
     if (!ctxt.empty()) {
         err("primary or unary expression", ctxt);
-        return {};
+        return mk<ErrExpr>(prev_);
     }
     unreachable();
 }

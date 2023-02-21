@@ -333,11 +333,12 @@ namespace sql {
     m(T_ge,         ">=")               \
     m(T_dot,        ".")                \
     m(T_colon,      ":")                \
+    m(T_comma,      ",")                \
     m(T_semicolon,  ";")                \
-    m(T_add,  "+")                \
-    m(T_sub,  "-")                \
-    m(T_mul,  "*")                \
-    m(T_div,  "/")                \
+    m(T_add,        "+")                \
+    m(T_sub,        "-")                \
+    m(T_mul,        "*")                \
+    m(T_div,        "/")                \
 
 class Tok {
 public:

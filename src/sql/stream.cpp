@@ -19,6 +19,15 @@ std::ostream& ErrExpr       ::stream(std::ostream& o) const { return o << "<erro
 std::ostream& TruthValueExpr::stream(std::ostream& o) const { return o << tag(); }
 // clang-format on
 
+std::ostream& IdChain::stream(std::ostream& o) const {
+    const char* sep = "";
+    for (auto&& id : ids()) {
+        id->stream(o) << sep;
+        sep = ".";
+    }
+    return o;
+}
+
 std::ostream& UnExpr::stream(std::ostream& o) const {
     o << '(' << tag();
     rhs()->stream(o);

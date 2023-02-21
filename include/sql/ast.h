@@ -60,6 +60,20 @@ private:
     Sym sym_;
 };
 
+class IdChain : public Expr {
+public:
+    IdChain(Loc loc, std::deque<Ptr<IdExpr>>&& ids)
+        : Expr(loc)
+        , ids_(std::move(ids)) {}
+
+    const auto& ids() const { return ids_; }
+
+    std::ostream& stream(std::ostream&) const override;
+
+private:
+    std::deque<Ptr<IdExpr>> ids_;
+};
+
 class LitExpr : public Expr {
 public:
     LitExpr(Loc loc, uint64_t u64)
@@ -147,19 +161,26 @@ public:
 
 class Select : public Stmt {
 public:
-#if 0
     class Item : public Node {
     public:
-        Item(Loc loc, std::deque<Ptr<Sublist>&& sublist)
-            : Node(loc)
-            , sublist_(std::move(sublist))
-        {}
+        Item(Loc loc)
+            : Node(loc) {}
+    };
 
-        bool astersik() const { return sublist_.empty(); }
+    class DerivedCol : public Item {
+    public:
+        DerivedCol(Loc loc, Ptr<Expr>&& expr, Sym as)
+            : Item(loc)
+            , expr_(std::move(expr))
+            , as_(as) {}
+
+        const Expr* expr() const { return expr_.get(); }
+        Sym as() const { return as_; }
 
     private:
+        Ptr<Expr> expr_;
+        Sym as_;
     };
-#endif
 
     Select(Loc loc, bool all, Ptr<Expr>&& select, Ptr<Expr>&& from, Ptr<Expr>&& where, Ptr<Expr>&& group)
         : Stmt(loc)
