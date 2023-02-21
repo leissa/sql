@@ -10,7 +10,7 @@ public:
     Parser(Driver&, Sym filename, std::istream& stream);
 
     Driver& driver() { return lexer_.driver(); }
-    Ptr<Stmt> parse() { return parse_stmt(); }
+    Ptr<Prog> parse_prog();
 
 private:
     /// Trick to easily keep track of Loc%ations.
@@ -27,7 +27,7 @@ private:
         Pos pos_;
     };
 
-    Ptr<Stmt> parse_stmt();
+    Ptr<Stmt> parse_stmt(std::string_view ctxt);
     Ptr<Stmt> parse_select_stmt();
 
     Sym parse_sym(std::string_view ctxt);
@@ -45,7 +45,7 @@ private:
     }
 
     template<class F>
-    void parse_list(std::string ctxt, Tok::Tag delim_l, F f, Tok::Tag sep = Tok::Tag::T_comma) {
+    void parse_list(std::string ctxt, F f, Tok::Tag delim_l = Tok::Tag::D_paren_l, Tok::Tag sep = Tok::Tag::T_comma) {
         expect(delim_l, ctxt);
         auto delim_r = (Tok::Tag)((int)delim_l + 1);
         parse_list(f, delim_r, sep);

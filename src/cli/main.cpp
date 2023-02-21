@@ -48,17 +48,17 @@ int main(int argc, char** argv) {
         }
 
         sql::Driver driver;
-        sql::Ptr<sql::Stmt> stmt;
+        sql::Ptr<sql::Prog> prog;
         if (input == "-") {
             sql::Parser parser(driver, driver.sym("<stdin>"s), std::cin);
-            stmt = parser.parse();
+            prog = parser.parse_prog();
         } else {
             std::ifstream ifs(input);
             sql::Parser parser(driver, driver.sym(std::move(input)), ifs);
-            stmt = parser.parse();
+            prog = parser.parse_prog();
         }
 
-        if (dump) stmt->dump();
+        if (dump) prog->dump();
 
         if (auto num = driver.num_errors()) {
             std::cerr << num << " error(s) encountered" << std::endl;

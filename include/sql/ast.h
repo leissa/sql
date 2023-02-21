@@ -4,6 +4,7 @@
 #include <ostream>
 #include <unordered_set>
 
+#include "sql/cast.h"
 #include "sql/loc.h"
 #include "sql/sym.h"
 #include "sql/tok.h"
@@ -19,7 +20,7 @@ Ptr<T> mk(Args&&... args) {
 }
 
 /// Base class for all @p Expr%essions.
-class Node {
+class Node : public RuntimeCast<Node> {
 public:
     Node(Loc loc)
         : loc_(loc) {}
@@ -138,7 +139,7 @@ private:
     Tok::Tag tag_;
 };
 
-/// The @p Err%or @p Expr%ression is a dummy that does nothing and will only be constructed during parse errors.
+/// Just a dummy that does nothing and will only be constructed during parse errors.
 class ErrExpr : public Expr {
 public:
     ErrExpr(Loc loc)
@@ -162,32 +163,32 @@ class Select : public Stmt {
 public:
     class Elem : public Node {
     public:
-        Elem(Loc loc, Ptr<Expr>&& expr, Sym as)
+        Elem(Loc loc, Ptr<Expr>&& expr, std::deque<Sym>&& syms)
             : Node(loc)
             , expr_(std::move(expr))
-            , as_(as) {}
+            , syms_(std::move(syms)) {}
 
         const Expr* expr() const { return expr_.get(); }
-        Sym as() const { return as_; }
+        const auto& syms() const { return syms_; }
 
         std::ostream& stream(std::ostream&) const override;
 
     private:
         Ptr<Expr> expr_;
-        Sym as_;
+        std::deque<Sym> syms_;
     };
 
-    Select(Loc loc, bool all, std::deque<Ptr<Elem>>&& target, Ptr<Expr>&& from, Ptr<Expr>&& where, Ptr<Expr>&& group)
+    Select(Loc loc, bool all, std::deque<Ptr<Elem>>&& elems, Ptr<Expr>&& from, Ptr<Expr>&& where, Ptr<Expr>&& group)
         : Stmt(loc)
         , all_(all)
-        , target_(std::move(target))
+        , elems_(std::move(elems))
         , from_(std::move(from))
         , where_(std::move(where))
         , group_(std::move(group)) {}
 
     bool all() const { return all_; }
     bool distinct() const { return !all_; }
-    const auto& target() const { return target_; }
+    const auto& elems() const { return elems_; }
     const Expr* from() const { return from_.get(); }
     const Expr* where() const { return where_.get(); }
     const Expr* group() const { return group_.get(); }
@@ -196,10 +197,38 @@ public:
 
 private:
     bool all_;
-    std::deque<Ptr<Elem>> target_;
+    std::deque<Ptr<Elem>> elems_;
     Ptr<Expr> from_;
     Ptr<Expr> where_;
     Ptr<Expr> group_;
+};
+
+/// Just a dummy that does nothing and will only be constructed during parse errors.
+class ErrStmt : public Stmt {
+public:
+    ErrStmt(Loc loc)
+        : Stmt(loc) {}
+
+    std::ostream& stream(std::ostream&) const override;
+};
+
+/*
+ * Prog
+ */
+
+/// Just a HACK to have a list of Stmt%s.
+class Prog : public Node {
+public:
+    Prog(Loc loc, std::deque<Ptr<Stmt>>&& stmts)
+        : Node(loc)
+        , stmts_(std::move(stmts)) {}
+
+    const auto& stmts() const { return stmts_; }
+
+    std::ostream& stream(std::ostream&) const override;
+
+private:
+    std::deque<Ptr<Stmt>> stmts_;
 };
 
 } // namespace sql

@@ -41,6 +41,25 @@ void Parser::err(const std::string& what, const Tok& tok, std::string_view ctxt)
     driver().err(tok.loc(), "expected {}, got '{}' while parsing {}", what, tok, ctxt);
 }
 
+/*
+ * misc
+ */
+
+Ptr<Prog> Parser::parse_prog() {
+    auto track = tracker();
+    std::deque<Ptr<Stmt>> stmts;
+
+    while (!ahead().isa(Tok::Tag::M_eof)) {
+        auto stmt = parse_stmt("program");
+        if (stmt->isa<ErrStmt>()) lex(); // consume one token to prevent endless loop
+        stmts.emplace_back(std::move(stmt));
+        expect(Tok::Tag::T_semicolon, "statment list");
+    }
+
+    eat(Tok::Tag::M_eof);
+    return mk<Prog>(track, std::move(stmts));
+}
+
 Sym Parser::parse_sym(std::string_view ctxt) {
     if (ahead().isa(Tok::Tag::M_id)) return lex().sym();
     err("identifier", ctxt);
@@ -51,9 +70,17 @@ Sym Parser::parse_sym(std::string_view ctxt) {
  * Stmt
  */
 
-Ptr<Stmt> Parser::parse_stmt() {
-    // TODO
-    return parse_select_stmt();
+Ptr<Stmt> Parser::parse_stmt(std::string_view ctxt) {
+    switch (ahead().tag()) {
+        case Tok::Tag::K_SELECT: return parse_select_stmt();
+        default: break;
+    }
+
+    if (!ctxt.empty()) {
+        err("statement", ctxt);
+        return mk<ErrStmt>(prev_);
+    }
+    unreachable();
 }
 
 Ptr<Stmt> Parser::parse_select_stmt() {
@@ -66,15 +93,25 @@ Ptr<Stmt> Parser::parse_select_stmt() {
         all = false;
     }
 
-    std::deque<Ptr<Select::Elem>> target;
+    std::deque<Ptr<Select::Elem>> elems;
     if (accept(Tok::Tag::T_mul)) {
         /* do nothing */
     } else {
         do {
             auto track = tracker();
-            auto expr  = parse_expr("target of a SELECT statement");
-            Sym as     = accept(Tok::Tag::K_AS) ? parse_sym("AS clause of SELECT statement") : Sym();
-            target.emplace_back(mk<Select::Elem>(track, std::move(expr), as));
+            auto expr  = parse_expr("elem of a SELECT statement");
+            std::deque<Sym> syms;
+
+            if (accept(Tok::Tag::K_AS)) {
+                if (ahead().isa(Tok::Tag::D_paren_l)) {
+                    parse_list("column name list of AS clause", [&]() {
+                        syms.emplace_back(parse_sym("column name within AS clause"));
+                    });
+                } else {
+                    syms.emplace_back(parse_sym("column name within AS clause "));
+                }
+            }
+            elems.emplace_back(mk<Select::Elem>(track, std::move(expr), std::move(syms)));
         } while (accept(Tok::Tag::T_comma));
     }
 
@@ -84,8 +121,13 @@ Ptr<Stmt> Parser::parse_select_stmt() {
     auto group = accept(Tok::Tag::K_GROUP)
                    ? (expect(Tok::Tag::K_BY, "GROUP within SELECT statement"), parse_expr("GROUP expression"))
                    : nullptr;
+    // clang-format off
+    if (accept(Tok::Tag::K_ROLLUP))   assert(false && "TODO");
+    if (accept(Tok::Tag::K_GROUPING)) assert(false && "TODO");
+    if (accept(Tok::Tag::K_CUBE))     assert(false && "TODO");
+    // clang-format on
 
-    return mk<Select>(track, all, std::move(target), std::move(from), std::move(where), std::move(group));
+    return mk<Select>(track, all, std::move(elems), std::move(from), std::move(where), std::move(group));
 }
 
 /*

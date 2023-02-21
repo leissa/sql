@@ -13,14 +13,13 @@ void Node::dump() const { stream(std::cout) << std::endl; }
  */
 
 // clang-format off
-std::ostream& ErrExpr  ::stream(std::ostream& o) const { return o << "<error>"; }
+std::ostream& ErrExpr  ::stream(std::ostream& o) const { return o << "<error expression>"; }
 std::ostream& SimpleVal::stream(std::ostream& o) const { return o << tag(); }
 std::ostream& IntVal   ::stream(std::ostream& o) const { return o << u64(); }
 // clang-format on
 
 std::ostream& IdExpr::stream(std::ostream& o) const {
-    const char* sep = "";
-    for (auto&& sym : syms()) {
+    for (auto sep = ""; auto&& sym : syms()) {
         o << sep << sym;
         sep = ".";
     }
@@ -51,11 +50,10 @@ std::ostream& Select::stream(std::ostream& o) const {
     o << "SELECT ";
     if (distinct()) o << "DISTINCT ";
 
-    if (target().empty()) {
+    if (elems().empty()) {
         o << "*";
     } else {
-        const char* sep = "";
-        for (auto&& elem : target()) {
+        for (auto sep = ""; auto&& elem : elems()) {
             o << sep;
             elem->stream(o);
             sep = ", ";
@@ -69,8 +67,33 @@ std::ostream& Select::stream(std::ostream& o) const {
 
 std::ostream& Select::Elem::stream(std::ostream& o) const {
     expr()->stream(o);
-    if (as()) o << " AS " << as();
+    switch (syms().size()) {
+        case 0: break;
+        case 1: o << " AS " << syms().front(); break;
+        default:
+            o << " AS (";
+            for (auto sep = ""; auto&& sym : syms()) {
+                o << sep << sym;
+                sep = ", ";
+            }
+            o << ")";
+    }
     return o;
 }
+
+std::ostream& ErrStmt::stream(std::ostream& o) const { return o << "<error statement>"; }
+
+/*
+ * Misc
+ */
+
+std::ostream& Prog::stream(std::ostream& o) const {
+    for (auto sep = ""; auto&& stmt : stmts()) {
+        stmt->stream(o << sep);
+        sep = ";\n";
+    }
+    return o;
+}
+
 
 } // namespace sql
