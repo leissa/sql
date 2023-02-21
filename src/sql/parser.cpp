@@ -11,8 +11,7 @@ Parser::Parser(Driver& driver, Sym filename, std::istream& stream)
     : lexer_(driver, filename, stream)
     , prev_(lexer_.loc())
     , ahead_(lexer_.lex())
-    , error_(driver.sym("<error>"s))
-{}
+    , error_(driver.sym("<error>"s)) {}
 
 Tok Parser::lex() {
     auto result = ahead();
@@ -96,7 +95,7 @@ Ptr<Stmt> Parser::parse_select_stmt() {
     if (accept(Tok::Tag::T_mul)) {
         /* do nothing */
     } else {
-        //parse_list([&]() { return
+        // parse_list([&]() { return
     }
 
     auto select = parse_expr("select expression");
