@@ -134,9 +134,7 @@ Ptr<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
 Ptr<IdExpr> Parser::parse_id_expr() {
     auto track = tracker();
     std::deque<Sym> syms;
-    do {
-        syms.emplace_back(parse_sym("identifer chain"));
-    } while (accept(Tok::Tag::T_dot));
+    do { syms.emplace_back(parse_sym("identifer chain")); } while (accept(Tok::Tag::T_dot));
     return mk<IdExpr>(track, std::move(syms));
 }
 
