@@ -14,7 +14,7 @@ std::string_view Tok::str(Tok::Tag tag) {
 #undef CODE
 #define CODE(t, str) \
     case Tok::Tag::t: return str##sv;
-        SQL_LIT(CODE)
+        SQL_VAL(CODE)
         SQL_TOK(CODE)
 #undef CODE
         case Tok::Tag::K_IS_NOT: return "IS NOT"sv;
@@ -56,7 +56,7 @@ std::ostream& operator<<(std::ostream& o, Tok::Tag tag) { return o << Tok::str(t
 
 std::ostream& operator<<(std::ostream& o, Tok tok) {
     if (tok.isa(Tok::Tag::M_id)) return o << *tok.sym();
-    if (tok.isa(Tok::Tag::L_i)) return o << tok.u64();
+    if (tok.isa(Tok::Tag::V_int)) return o << tok.u64();
     return o << Tok::str(tok.tag());
 }
 

@@ -74,7 +74,7 @@ Tok Lexer::lex() {
             return tok(Tok::Tag::T_div);
         }
 
-        // integer literal
+        // integer value
         if (accept_if(isdigit)) {
             while (accept_if(isdigit)) {}
             return {loc(), std::strtoull(str_.c_str(), nullptr, 10)};

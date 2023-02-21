@@ -13,9 +13,9 @@ void Node::dump() const { stream(std::cout) << std::endl; }
  */
 
 // clang-format off
-std::ostream& LitExpr       ::stream(std::ostream& o) const { return o << u64(); }
-std::ostream& ErrExpr       ::stream(std::ostream& o) const { return o << "<error>"; }
-std::ostream& TruthValueExpr::stream(std::ostream& o) const { return o << tag(); }
+std::ostream& ErrExpr  ::stream(std::ostream& o) const { return o << "<error>"; }
+std::ostream& SimpleVal::stream(std::ostream& o) const { return o << tag(); }
+std::ostream& IntVal   ::stream(std::ostream& o) const { return o << u64(); }
 // clang-format on
 
 std::ostream& IdExpr::stream(std::ostream& o) const {

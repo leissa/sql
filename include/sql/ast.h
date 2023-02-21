@@ -60,34 +60,6 @@ private:
     std::deque<Sym> syms_;
 };
 
-class LitExpr : public Expr {
-public:
-    LitExpr(Loc loc, uint64_t u64)
-        : Expr(loc)
-        , u64_(u64) {}
-
-    uint64_t u64() const { return u64_; }
-
-    std::ostream& stream(std::ostream&) const override;
-
-private:
-    uint64_t u64_;
-};
-
-class TruthValueExpr : public Expr {
-public:
-    TruthValueExpr(Loc loc, Tok::Tag tag)
-        : Expr(loc)
-        , tag_(tag) {}
-
-    Tok::Tag tag() const { return tag_; }
-
-    std::ostream& stream(std::ostream&) const override;
-
-private:
-    Tok::Tag tag_;
-};
-
 class UnExpr : public Expr {
 public:
     UnExpr(Loc loc, Tok::Tag tag, Ptr<Expr>&& rhs)
@@ -123,6 +95,41 @@ private:
     Ptr<Expr> lhs_;
     Tok::Tag tag_;
     Ptr<Expr> rhs_;
+};
+
+class Val : public Expr {
+public:
+    Val(Loc loc)
+        : Expr(loc) {}
+};
+
+class IntVal : public Val {
+public:
+    IntVal(Loc loc, uint64_t u64)
+        : Val(loc)
+        , u64_(u64) {}
+
+    uint64_t u64() const { return u64_; }
+
+    std::ostream& stream(std::ostream&) const override;
+
+private:
+    uint64_t u64_;
+};
+
+/// `TRUE`, `FALSE`, `UNKNOWN`, or `NULL`
+class SimpleVal : public Val {
+public:
+    SimpleVal(Loc loc, Tok::Tag tag)
+        : Val(loc)
+        , tag_(tag) {}
+
+    Tok::Tag tag() const { return tag_; }
+
+    std::ostream& stream(std::ostream&) const override;
+
+private:
+    Tok::Tag tag_;
 };
 
 /// The @p Err%or @p Expr%ression is a dummy that does nothing and will only be constructed during parse errors.

@@ -309,8 +309,8 @@ namespace sql {
     m(K_YEAR, "year", "YEAR") \
     m(K_ZONE, "zone", "ZONE") \
 
-#define SQL_LIT(m)                          \
-    m(L_i,          "<interger literal>")   \
+#define SQL_VAL(m)                      \
+    m(V_int,        "<interger value>") \
 
 #define SQL_TOK(m)                      \
     /* misc */                          \
@@ -348,7 +348,7 @@ public:
         SQL_KEY(CODE)
 #undef CODE
 #define CODE(t, _) t,
-        SQL_LIT(CODE)
+        SQL_VAL(CODE)
         SQL_TOK(CODE)
 #undef CODE
         K_IS_NOT ///< Not an actual keyword but we use this for UnExpr::tag.
@@ -376,7 +376,7 @@ public:
         , sym_(sym) {}
     Tok(Loc loc, uint64_t u64)
         : loc_(loc)
-        , tag_(Tag::L_i)
+        , tag_(Tag::V_int)
         , u64_(u64) {}
 
     Loc loc() const { return loc_; }

@@ -104,12 +104,12 @@ Ptr<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
 }
 
 Ptr<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
-    if (auto tok = accept(Tok::Tag::L_i)) return mk<LitExpr>(tok->loc(), tok->u64());
     if (ahead().isa(Tok::Tag::M_id)) return parse_id_expr();
+    if (auto tok = accept(Tok::Tag::V_int)) return mk<IntVal>(tok->loc(), tok->u64());
 
-    if (ahead().isa(Tok::Tag::K_TRUE) || ahead().isa(Tok::Tag::K_FALSE) || ahead().isa(Tok::Tag::K_UNKNOWN)) {
+    if (ahead().isa(Tok::Tag::K_TRUE) || ahead().isa(Tok::Tag::K_FALSE) || ahead().isa(Tok::Tag::K_UNKNOWN) || ahead().isa(Tok::Tag::K_NULL)) {
         auto tok = lex();
-        return mk<TruthValueExpr>(tok.loc(), tok.tag());
+        return mk<SimpleVal>(tok.loc(), tok.tag());
     }
 
     auto track = tracker();
