@@ -72,8 +72,8 @@ Ptr<Stmt> Parser::parse_select_stmt() {
     } else {
         do {
             auto track = tracker();
-            auto expr = parse_expr("target of a SELECT statement");
-            Sym as = accept(Tok::Tag::K_AS) ? parse_sym("AS clause of SELECT statement") : Sym();
+            auto expr  = parse_expr("target of a SELECT statement");
+            Sym as     = accept(Tok::Tag::K_AS) ? parse_sym("AS clause of SELECT statement") : Sym();
             target.emplace_back(mk<Select::Elem>(track, std::move(expr), as));
         } while (accept(Tok::Tag::T_comma));
     }
