@@ -17,11 +17,10 @@ private:
     Ptr<Stmt> parse_select_stmt();
 
     Sym parse_sym(std::string_view ctxt);
-    Ptr<IdExpr> parse_id_expr(std::string_view ctxt);
-    Ptr<IdChain> parse_id_chain(std::string_view ctxt);
 
     Ptr<Expr> parse_expr(std::string_view ctxt, Tok::Prec = Tok::Prec::Bot);
     Ptr<Expr> parse_primary_or_unary_expr(std::string_view ctxt);
+    Ptr<IdExpr> parse_id_expr();
 
     template<class F>
     void parse_list(F f, Tok::Tag delim, Tok::Tag sep = Tok::Tag::T_comma) {

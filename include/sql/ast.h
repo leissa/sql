@@ -48,30 +48,16 @@ public:
 
 class IdExpr : public Expr {
 public:
-    IdExpr(Loc loc, Sym sym)
+    IdExpr(Loc loc, std::deque<Sym>&& syms)
         : Expr(loc)
-        , sym_(sym) {}
+        , syms_(syms) {}
 
-    Sym sym() const { return sym_; }
+    const auto& syms() const { return syms_; }
 
     std::ostream& stream(std::ostream&) const override;
 
 private:
-    Sym sym_;
-};
-
-class IdChain : public Expr {
-public:
-    IdChain(Loc loc, std::deque<Ptr<IdExpr>>&& ids)
-        : Expr(loc)
-        , ids_(std::move(ids)) {}
-
-    const auto& ids() const { return ids_; }
-
-    std::ostream& stream(std::ostream&) const override;
-
-private:
-    std::deque<Ptr<IdExpr>> ids_;
+    std::deque<Sym> syms_;
 };
 
 class LitExpr : public Expr {

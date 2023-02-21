@@ -13,16 +13,15 @@ void Node::dump() const { stream(std::cout) << std::endl; }
  */
 
 // clang-format off
-std::ostream& IdExpr        ::stream(std::ostream& o) const { return o << sym(); }
 std::ostream& LitExpr       ::stream(std::ostream& o) const { return o << u64(); }
 std::ostream& ErrExpr       ::stream(std::ostream& o) const { return o << "<error>"; }
 std::ostream& TruthValueExpr::stream(std::ostream& o) const { return o << tag(); }
 // clang-format on
 
-std::ostream& IdChain::stream(std::ostream& o) const {
+std::ostream& IdExpr::stream(std::ostream& o) const {
     const char* sep = "";
-    for (auto&& id : ids()) {
-        id->stream(o) << sep;
+    for (auto&& sym : syms()) {
+        o << sep << sym;
         sep = ".";
     }
     return o;

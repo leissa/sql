@@ -47,31 +47,6 @@ Sym Parser::parse_sym(std::string_view ctxt) {
     return driver().sym("<error>");
 }
 
-Ptr<IdExpr> Parser::parse_id_expr(std::string_view ctxt) {
-    if (ahead().isa(Tok::Tag::M_id)) {
-        auto tok = lex();
-        return mk<IdExpr>(tok.loc(), tok.sym());
-    }
-    err("identifier", ctxt);
-    return mk<IdExpr>(prev_, error_);
-}
-
-Ptr<IdChain> Parser::parse_id_chain(std::string_view ctxt) {
-    auto track = tracker();
-    if (!ahead().isa(Tok::Tag::M_id)) {
-        err("identifier", ctxt);
-        return nullptr;
-    }
-
-    std::deque<Ptr<IdExpr>> ids;
-    do {
-        auto sym = parse_sym("identifier");
-        ids.emplace_back(mk<IdExpr>(prev_, sym));
-    } while (accept(Tok::Tag::T_dot));
-
-    return mk<IdChain>(track, std::move(ids));
-}
-
 /*
  * Stmt
  */
@@ -130,7 +105,7 @@ Ptr<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
 
 Ptr<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
     if (auto tok = accept(Tok::Tag::L_i)) return mk<LitExpr>(tok->loc(), tok->u64());
-    if (auto tok = accept(Tok::Tag::M_id)) return mk<IdExpr>(tok->loc(), tok->sym());
+    if (ahead().isa(Tok::Tag::M_id)) return parse_id_expr();
 
     if (ahead().isa(Tok::Tag::K_TRUE) || ahead().isa(Tok::Tag::K_FALSE) || ahead().isa(Tok::Tag::K_UNKNOWN)) {
         auto tok = lex();
@@ -154,6 +129,15 @@ Ptr<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
         return mk<ErrExpr>(prev_);
     }
     unreachable();
+}
+
+Ptr<IdExpr> Parser::parse_id_expr() {
+    auto track = tracker();
+    std::deque<Sym> syms;
+    do {
+        syms.emplace_back(parse_sym("identifer chain"));
+    } while (accept(Tok::Tag::T_dot));
+    return mk<IdExpr>(track, std::move(syms));
 }
 
 } // namespace sql
