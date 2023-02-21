@@ -104,9 +104,8 @@ Ptr<Stmt> Parser::parse_select_stmt() {
 
             if (accept(Tok::Tag::K_AS)) {
                 if (ahead().isa(Tok::Tag::D_paren_l)) {
-                    parse_list("column name list of AS clause", [&]() {
-                        syms.emplace_back(parse_sym("column name within AS clause"));
-                    });
+                    parse_list("column name list of AS clause",
+                               [&]() { syms.emplace_back(parse_sym("column name within AS clause")); });
                 } else {
                     syms.emplace_back(parse_sym("column name within AS clause "));
                 }

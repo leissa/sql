@@ -25,4 +25,4 @@ public:
     // clang-format on
 };
 
-}
+} // namespace sql

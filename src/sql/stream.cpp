@@ -95,5 +95,4 @@ std::ostream& Prog::stream(std::ostream& o) const {
     return o;
 }
 
-
 } // namespace sql
