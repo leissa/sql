@@ -44,7 +44,7 @@ void Parser::err(const std::string& what, const Tok& tok, std::string_view ctxt)
 Sym Parser::parse_sym(std::string_view ctxt) {
     if (ahead().isa(Tok::Tag::M_id)) return lex().sym();
     err("identifier", ctxt);
-    return driver().sym("<error>");
+    return error_;
 }
 
 /*
