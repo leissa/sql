@@ -48,16 +48,22 @@ public:
 
 class IdExpr : public Expr {
 public:
-    IdExpr(Loc loc, std::deque<Sym>&& syms)
+    IdExpr(Loc loc, std::deque<Sym>&& syms, bool asterisk)
         : Expr(loc)
-        , syms_(syms) {}
+        , syms_(syms)
+        , asterisk_(asterisk) {}
 
     const auto& syms() const { return syms_; }
+    bool asterisk() const { return asterisk_; }
 
     std::ostream& stream(std::ostream&) const override;
 
 private:
     std::deque<Sym> syms_;
+    bool asterisk_ = false;
+
+public:
+    mutable bool asterisk_allowed_ = false;
 };
 
 class UnExpr : public Expr {
@@ -156,26 +162,22 @@ class Select : public Stmt {
 public:
     class Elem : public Node {
     public:
-        Elem(Loc loc)
-            : Node(loc) {}
-    };
-
-    class DerivedCol : public Elem {
-    public:
-        DerivedCol(Loc loc, Ptr<Expr>&& expr, Sym as)
-            : Elem(loc)
+        Elem(Loc loc, Ptr<Expr>&& expr, Sym as)
+            : Node(loc)
             , expr_(std::move(expr))
             , as_(as) {}
 
         const Expr* expr() const { return expr_.get(); }
         Sym as() const { return as_; }
 
+        std::ostream& stream(std::ostream&) const override;
+
     private:
         Ptr<Expr> expr_;
         Sym as_;
     };
 
-    Select(Loc loc, bool all, Ptr<Expr>&& target, Ptr<Expr>&& from, Ptr<Expr>&& where, Ptr<Expr>&& group)
+    Select(Loc loc, bool all, std::deque<Ptr<Elem>>&& target, Ptr<Expr>&& from, Ptr<Expr>&& where, Ptr<Expr>&& group)
         : Stmt(loc)
         , all_(all)
         , target_(std::move(target))
@@ -185,7 +187,7 @@ public:
 
     bool all() const { return all_; }
     bool distinct() const { return !all_; }
-    const Expr* target() const { return target_.get(); }
+    const auto& target() const { return target_; }
     const Expr* from() const { return from_.get(); }
     const Expr* where() const { return where_.get(); }
     const Expr* group() const { return group_.get(); }
@@ -194,8 +196,7 @@ public:
 
 private:
     bool all_;
-    Ptr<Expr> target_;
-    // std::deque<Ptr<List>> list_;
+    std::deque<Ptr<Elem>> target_;
     Ptr<Expr> from_;
     Ptr<Expr> where_;
     Ptr<Expr> group_;

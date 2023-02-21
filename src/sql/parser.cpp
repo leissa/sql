@@ -66,22 +66,26 @@ Ptr<Stmt> Parser::parse_select_stmt() {
         all = false;
     }
 
-    std::deque<Ptr<Select::Elem>> elems;
+    std::deque<Ptr<Select::Elem>> target;
     if (accept(Tok::Tag::T_mul)) {
         /* do nothing */
     } else {
-        // parse_list([&]() { return
+        do {
+            auto track = tracker();
+            auto expr = parse_expr("target of a SELECT statement");
+            Sym as = accept(Tok::Tag::K_AS) ? parse_sym("AS clause of SELECT statement") : Sym();
+            target.emplace_back(mk<Select::Elem>(track, std::move(expr), as));
+        } while (accept(Tok::Tag::T_comma));
     }
 
-    auto select = parse_expr("select expression");
-    expect(Tok::Tag::K_FROM, "select statement");
-    auto from  = parse_expr("from expression");
-    auto where = accept(Tok::Tag::K_WHERE) ? parse_expr("where expression") : nullptr;
+    expect(Tok::Tag::K_FROM, "SELECT statement");
+    auto from  = parse_expr("FROM expression");
+    auto where = accept(Tok::Tag::K_WHERE) ? parse_expr("WHERE expression") : nullptr;
     auto group = accept(Tok::Tag::K_GROUP)
-                   ? (expect(Tok::Tag::K_BY, "group within select statement"), parse_expr("group expression"))
+                   ? (expect(Tok::Tag::K_BY, "GROUP within SELECT statement"), parse_expr("GROUP expression"))
                    : nullptr;
 
-    return mk<Select>(track, all, std::move(select), std::move(from), std::move(where), std::move(group));
+    return mk<Select>(track, all, std::move(target), std::move(from), std::move(where), std::move(group));
 }
 
 /*
@@ -134,9 +138,21 @@ Ptr<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
 
 Ptr<IdExpr> Parser::parse_id_expr() {
     auto track = tracker();
+    assert(ahead().isa(Tok::Tag::M_id));
+
+    bool asterisk = false;
     std::deque<Sym> syms;
-    do { syms.emplace_back(parse_sym("identifer chain")); } while (accept(Tok::Tag::T_dot));
-    return mk<IdExpr>(track, std::move(syms));
+    syms.emplace_back(lex().sym());
+
+    while (accept(Tok::Tag::T_dot)) {
+        if (accept(Tok::Tag::T_mul)) {
+            asterisk = true;
+            break;
+        }
+        syms.emplace_back(parse_sym("identifer chain"));
+    }
+
+    return mk<IdExpr>(track, std::move(syms), asterisk);
 }
 
 } // namespace sql

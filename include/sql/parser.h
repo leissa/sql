@@ -13,12 +13,27 @@ public:
     Ptr<Stmt> parse() { return parse_stmt(); }
 
 private:
+    /// Trick to easily keep track of Loc%ations.
+    class Tracker {
+    public:
+        Tracker(Parser& parser, const Pos& pos)
+            : parser_(parser)
+            , pos_(pos) {}
+
+        operator Loc() const { return {parser_.prev_.file, pos_, parser_.prev_.finis}; }
+
+    private:
+        Parser& parser_;
+        Pos pos_;
+    };
+
     Ptr<Stmt> parse_stmt();
     Ptr<Stmt> parse_select_stmt();
 
     Sym parse_sym(std::string_view ctxt);
 
     Ptr<Expr> parse_expr(std::string_view ctxt, Tok::Prec = Tok::Prec::Bot);
+    Ptr<Expr> parse_bin_expr(Tracker, Ptr<Expr>&& lhs, Tok::Prec cur_prec);
     Ptr<Expr> parse_primary_or_unary_expr(std::string_view ctxt);
     Ptr<IdExpr> parse_id_expr();
 
@@ -36,20 +51,6 @@ private:
         parse_list(f, delim_r, sep);
         expect(delim_r, std::string("closing delimiter of a ") + ctxt);
     }
-
-    /// Trick to easily keep track of Loc%ations.
-    class Tracker {
-    public:
-        Tracker(Parser& parser, const Pos& pos)
-            : parser_(parser)
-            , pos_(pos) {}
-
-        operator Loc() const { return {parser_.prev_.file, pos_, parser_.prev_.finis}; }
-
-    private:
-        Parser& parser_;
-        Pos pos_;
-    };
 
     /// Factory method to build a Tracker.
     Tracker tracker() { return Tracker(*this, ahead().loc().begin); }
