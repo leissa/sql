@@ -48,7 +48,7 @@ std::ostream& BinExpr::stream(std::ostream& o) const {
 std::ostream& Select::stream(std::ostream& o) const {
     o << "SELECT ";
     if (distinct()) o << "DISTINCT ";
-    select()->stream(o);
+    target()->stream(o);
     from()->stream(o << " FROM ");
     if (where()) where()->stream(o << " WHERE ");
     if (group()) group()->stream(o << " GROUP BY ");

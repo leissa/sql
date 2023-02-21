@@ -154,16 +154,16 @@ public:
 
 class Select : public Stmt {
 public:
-    class Item : public Node {
+    class Elem : public Node {
     public:
-        Item(Loc loc)
+        Elem(Loc loc)
             : Node(loc) {}
     };
 
-    class DerivedCol : public Item {
+    class DerivedCol : public Elem {
     public:
         DerivedCol(Loc loc, Ptr<Expr>&& expr, Sym as)
-            : Item(loc)
+            : Elem(loc)
             , expr_(std::move(expr))
             , as_(as) {}
 
@@ -175,17 +175,17 @@ public:
         Sym as_;
     };
 
-    Select(Loc loc, bool all, Ptr<Expr>&& select, Ptr<Expr>&& from, Ptr<Expr>&& where, Ptr<Expr>&& group)
+    Select(Loc loc, bool all, Ptr<Expr>&& target, Ptr<Expr>&& from, Ptr<Expr>&& where, Ptr<Expr>&& group)
         : Stmt(loc)
         , all_(all)
-        , select_(std::move(select))
+        , target_(std::move(target))
         , from_(std::move(from))
         , where_(std::move(where))
         , group_(std::move(group)) {}
 
     bool all() const { return all_; }
     bool distinct() const { return !all_; }
-    const Expr* select() const { return select_.get(); }
+    const Expr* target() const { return target_.get(); }
     const Expr* from() const { return from_.get(); }
     const Expr* where() const { return where_.get(); }
     const Expr* group() const { return group_.get(); }
@@ -194,7 +194,7 @@ public:
 
 private:
     bool all_;
-    Ptr<Expr> select_;
+    Ptr<Expr> target_;
     // std::deque<Ptr<List>> list_;
     Ptr<Expr> from_;
     Ptr<Expr> where_;

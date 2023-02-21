@@ -66,7 +66,7 @@ Ptr<Stmt> Parser::parse_select_stmt() {
         all = false;
     }
 
-    std::deque<Ptr<Select::Item>> items;
+    std::deque<Ptr<Select::Elem>> elems;
     if (accept(Tok::Tag::T_mul)) {
         /* do nothing */
     } else {
