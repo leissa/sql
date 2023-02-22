@@ -149,6 +149,88 @@ public:
 };
 
 /*
+ * Table
+ */
+
+class Table : public Node {
+public:
+    Table(Loc loc)
+        : Node(loc) {}
+};
+
+class IdTable : public Table {
+public:
+    IdTable(Loc loc, Sym sym)
+        : Table(loc)
+        , sym_(sym) {}
+
+    Sym sym() const { return sym_; }
+
+    std::ostream& stream(std::ostream&) const override;
+
+private:
+    Sym sym_;
+};
+
+class UnTable : public Table {
+public:
+    UnTable(Loc loc, Tok::Tag tag, Ptr<Table>&& rhs)
+        : Table(loc)
+        , tag_(tag)
+        , rhs_(std::move(rhs)) {}
+
+    Tok::Tag tag() const { return tag_; }
+    const Table* rhs() const { return rhs_.get(); }
+
+    std::ostream& stream(std::ostream&) const override;
+
+private:
+    Tok::Tag tag_;
+    Ptr<Table> rhs_;
+};
+
+class Join : public Table {
+public:
+    enum Tag {
+        Inner         = 0x0,
+        Left          = 0x1,           // Outer
+        Right         = 0x2,           // Outer
+        Full          = Left | Right,  // Outer
+        Natural       = 0x4,
+        Natural_Inner = Natural,
+        Natural_Left  = Natural | Left,
+        Natural_Right = Natural | Right,
+        Natural_Full  = Natural | Full,
+        Cross,
+    };
+
+    Join(Loc loc, Ptr<Table>&& lhs, Tag tag, Ptr<Table>&& rhs)
+        : Table(loc)
+        , lhs_(std::move(lhs))
+        , tag_(tag)
+        , rhs_(std::move(rhs)) {}
+
+    const Table* lhs() const { return lhs_.get(); }
+    Tag tag() const { return tag_; }
+    const Table* rhs() const { return rhs_.get(); }
+
+    std::ostream& stream(std::ostream&) const override;
+
+private:
+    Ptr<Table> lhs_;
+    Tag tag_;
+    Ptr<Table> rhs_;
+};
+
+class ErrTable : public Table {
+public:
+    ErrTable(Loc loc)
+        : Table(loc) {}
+
+    std::ostream& stream(std::ostream&) const override;
+};
+
+/*
  * Stmt
  */
 
@@ -178,29 +260,66 @@ public:
         std::deque<Sym> syms_;
     };
 
-    Select(Loc loc, bool all, std::deque<Ptr<Elem>>&& elems, Ptr<Expr>&& from, Ptr<Expr>&& where, Ptr<Expr>&& group)
+    class From : public Node {
+    public:
+        From(Loc loc, Ptr<Table>&& table, std::deque<Sym>&& syms)
+            : Node(loc)
+            , table_(std::move(table))
+            , syms_(std::move(syms)) {}
+
+        const Table* table() const { return table_.get(); }
+        const auto& syms() const { return syms_; }
+
+        std::ostream& stream(std::ostream&) const override;
+
+    private:
+        Ptr<Table> table_;
+        std::deque<Sym> syms_;
+    };
+
+    class Group : public Node {
+    public:
+        Group(Loc loc, Ptr<Expr>&& expr, std::deque<Sym>&& syms)
+            : Node(loc)
+            , expr_(std::move(expr))
+            , syms_(std::move(syms)) {}
+
+        const Expr* expr() const { return expr_.get(); }
+        const auto& syms() const { return syms_; }
+
+        std::ostream& stream(std::ostream&) const override;
+
+    private:
+        Ptr<Expr> expr_;
+        std::deque<Sym> syms_;
+    };
+
+    Select(Loc loc, bool all, std::deque<Ptr<Elem>>&& elems, Ptr<Table>&& from, Ptr<Expr>&& where, Ptr<Expr>&& group, Ptr<Expr>&& having)
         : Stmt(loc)
         , all_(all)
         , elems_(std::move(elems))
         , from_(std::move(from))
         , where_(std::move(where))
-        , group_(std::move(group)) {}
+        , group_(std::move(group))
+        , having_(std::move(having)) {}
 
     bool all() const { return all_; }
     bool distinct() const { return !all_; }
     const auto& elems() const { return elems_; }
-    const Expr* from() const { return from_.get(); }
+    const Table* from() const { return from_.get(); }
     const Expr* where() const { return where_.get(); }
     const Expr* group() const { return group_.get(); }
+    const Expr* having() const { return having_.get(); }
 
     std::ostream& stream(std::ostream&) const override;
 
 private:
     bool all_;
     std::deque<Ptr<Elem>> elems_;
-    Ptr<Expr> from_;
+    Ptr<Table> from_;
     Ptr<Expr> where_;
     Ptr<Expr> group_;
+    Ptr<Expr> having_;
 };
 
 /// Just a dummy that does nothing and will only be constructed during parse errors.

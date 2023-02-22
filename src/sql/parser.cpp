@@ -115,18 +115,19 @@ Ptr<Stmt> Parser::parse_select_stmt() {
     }
 
     expect(Tok::Tag::K_FROM, "SELECT statement");
-    auto from  = parse_expr("FROM expression");
+    auto from  = parse_table("FROM ");
     auto where = accept(Tok::Tag::K_WHERE) ? parse_expr("WHERE expression") : nullptr;
     auto group = accept(Tok::Tag::K_GROUP)
                    ? (expect(Tok::Tag::K_BY, "GROUP within SELECT statement"), parse_expr("GROUP expression"))
                    : nullptr;
+    auto having = accept(Tok::Tag::K_HAVING) ? parse_expr("HAVING expression") : nullptr;
     // clang-format off
     if (accept(Tok::Tag::K_ROLLUP))   assert(false && "TODO");
     if (accept(Tok::Tag::K_GROUPING)) assert(false && "TODO");
     if (accept(Tok::Tag::K_CUBE))     assert(false && "TODO");
     // clang-format on
 
-    return mk<Select>(track, all, std::move(elems), std::move(from), std::move(where), std::move(group));
+    return mk<Select>(track, all, std::move(elems), std::move(from), std::move(where), std::move(group), std::move(having));
 }
 
 /*
@@ -194,6 +195,85 @@ Ptr<IdExpr> Parser::parse_id_expr() {
     }
 
     return mk<IdExpr>(track, std::move(syms), asterisk);
+}
+
+/*
+ * Table
+ */
+
+std::optional<Join::Tag> Parser::parse_join_op() {
+    int tag = 0;
+    bool inner = false;
+    if (accept(Tok::Tag::K_CROSS)) {
+        tag = Join::Cross;
+    } else {
+        tag = accept(Tok::Tag::K_NATURAL) ? Join::Natural : 0;
+
+        // clang-format off
+        if      (accept(Tok::Tag::K_INNER)) inner = true;
+        else if (accept(Tok::Tag::K_LEFT )) tag |= Join::Left;
+        else if (accept(Tok::Tag::K_RIGHT)) tag |= Join::Right;
+        else if (accept(Tok::Tag::K_FULL) ) tag |= Join::Full;
+        // clang-format on
+        if (tag & Join::Left || tag & Join::Right) accept(Tok::Tag::K_OUTER); // or Join::Full
+    }
+
+    if (tag || inner) {
+        expect(Tok::Tag::K_JOIN, "JOIN operator");
+    } else if (accept(Tok::Tag::K_JOIN)) {
+        return Join::Inner;
+    } else {
+        return {};
+    }
+
+    return (Join::Tag)tag;
+}
+
+Ptr<Table> Parser::parse_table(std::string_view ctxt) {
+    auto track = tracker();
+    auto lhs   = parse_primary_or_unary_table(ctxt);
+
+    while (auto tag = parse_join_op()) {
+        auto rhs = parse_table("right-hand side of JOIN operator");
+        lhs      = mk<Join>(track, std::move(lhs), *tag, std::move(rhs));
+    }
+
+    return lhs;
+}
+
+Ptr<Table> Parser::parse_primary_or_unary_table(std::string_view ctxt) {
+    if (auto tok = accept(Tok::Tag::M_id)) return mk<IdTable>(tok->loc(), tok->sym());
+
+    if (accept(Tok::Tag::D_paren_l)) {
+        if (accept(Tok::Tag::K_WITH)) assert(false && "TODO: query expression");
+        auto table = parse_table("parenthesized table reference");
+        expect(Tok::Tag::D_paren_r, "parenthesized table reference");
+        return table;
+    }
+
+    //auto track = tracker();
+    switch (ahead().tag()) {
+        case Tok::Tag::K_LATERAL:
+        case Tok::Tag::K_UNNEST:
+        case Tok::Tag::K_TABLE:
+        case Tok::Tag::K_ONLY:
+        case Tok::Tag::K_DELETE:
+        case Tok::Tag::K_INSERT:
+        case Tok::Tag::K_MERGE:
+        case Tok::Tag::K_UPDATE:
+        case Tok::Tag::K_FINAL:
+        case Tok::Tag::K_NEW:
+        case Tok::Tag::K_OLD:
+            assert(false && "TODO");
+        default:
+            break;
+    }
+
+    if (!ctxt.empty()) {
+        err("primary or unary table reference", ctxt);
+        return mk<ErrTable>(prev_);
+    }
+    unreachable();
 }
 
 } // namespace sql

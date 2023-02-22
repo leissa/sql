@@ -43,6 +43,33 @@ std::ostream& BinExpr::stream(std::ostream& o) const {
 }
 
 /*
+ * Table
+ */
+
+std::ostream& ErrTable::stream(std::ostream& o) const { return o << "<error table reference>"; }
+std::ostream& IdTable ::stream(std::ostream& o) const { return o << sym(); }
+
+std::ostream& Join::stream(std::ostream& o) const {
+    o << '(';
+    lhs()->stream(o);
+
+    if (tag() & Cross) {
+        o << " CROSS";
+    } else {
+        if (tag() & Natural) o << " NATURAL";
+        // clang-format off
+        else if (tag() & Full)  o << " FULL";
+        else if (tag() & Left)  o << " LEFT";
+        else if (tag() & Right) o << " RIGHT";
+        else                    o << " INNER";
+        // clang-format on
+    }
+    o << " JOIN ";
+    rhs()->stream(o);
+    return o << ')';
+}
+
+/*
  * Stmt
  */
 
@@ -62,6 +89,7 @@ std::ostream& Select::stream(std::ostream& o) const {
     from()->stream(o << " FROM ");
     if (where()) where()->stream(o << " WHERE ");
     if (group()) group()->stream(o << " GROUP BY ");
+    if (having()) having()->stream(o << " HAVING ");
     return o;
 }
 

@@ -114,6 +114,7 @@ namespace sql {
     m(K_EXTERNAL, "external", "EXTERNAL") \
     m(K_FALSE, "false", "FALSE") \
     m(K_FETCH, "fetch", "FETCH") \
+    m(K_FINAL, "final", "FINAL") \
     m(K_FIRST, "first", "FIRST") \
     m(K_FLOAT, "float", "FLOAT") \
     m(K_FOR, "for", "FOR") \
@@ -171,6 +172,7 @@ namespace sql {
     m(K_LOCATOR, "locator", "LOCATOR") \
     m(K_MAP, "map", "MAP") \
     m(K_MATCH, "match", "MATCH") \
+    m(K_MERGE, "merge", "MERGE") \
     m(K_MINUTE, "minute", "MINUTE") \
     m(K_MODIFIES, "modifies", "MODIFIES") \
     m(K_MODIFY, "modify", "MODIFY") \
