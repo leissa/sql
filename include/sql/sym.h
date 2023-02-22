@@ -25,10 +25,11 @@ public:
 
 private:
     const std::string* ptr_ = nullptr;
-};
 
-struct SymHash {
-    size_t operator()(Sym sym) const { return absl::Hash<std::string>()(*sym); }
+    template<class H>
+    friend H AbslHashValue(H h, Sym sym) {
+        return H::combine(std::move(h), sym.ptr_);
+    }
 };
 
 std::ostream& operator<<(std::ostream&, Sym);
@@ -54,7 +55,7 @@ private:
 };
 
 template<class V>
-using SymMap = absl::flat_hash_map<Sym, V, SymHash>;
-using SymSet = absl::flat_hash_set<Sym, SymHash>;
+using SymMap = absl::flat_hash_map<Sym, V>;
+using SymSet = absl::flat_hash_set<Sym>;
 
 } // namespace sql
