@@ -193,9 +193,9 @@ class Join : public Table {
 public:
     enum Tag {
         Inner         = 0x0,
-        Left          = 0x1,           // Outer
-        Right         = 0x2,           // Outer
-        Full          = Left | Right,  // Outer
+        Left          = 0x1,          // Outer
+        Right         = 0x2,          // Outer
+        Full          = Left | Right, // Outer
         Natural       = 0x4,
         Natural_Inner = Natural,
         Natural_Left  = Natural | Left,
@@ -294,7 +294,13 @@ public:
         std::deque<Sym> syms_;
     };
 
-    Select(Loc loc, bool all, std::deque<Ptr<Elem>>&& elems, Ptr<Table>&& from, Ptr<Expr>&& where, Ptr<Expr>&& group, Ptr<Expr>&& having)
+    Select(Loc loc,
+           bool all,
+           std::deque<Ptr<Elem>>&& elems,
+           Ptr<Table>&& from,
+           Ptr<Expr>&& where,
+           Ptr<Expr>&& group,
+           Ptr<Expr>&& having)
         : Stmt(loc)
         , all_(all)
         , elems_(std::move(elems))

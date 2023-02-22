@@ -115,11 +115,11 @@ Ptr<Stmt> Parser::parse_select_stmt() {
     }
 
     expect(Tok::Tag::K_FROM, "SELECT statement");
-    auto from  = parse_table("FROM ");
-    auto where = accept(Tok::Tag::K_WHERE) ? parse_expr("WHERE expression") : nullptr;
-    auto group = accept(Tok::Tag::K_GROUP)
-                   ? (expect(Tok::Tag::K_BY, "GROUP within SELECT statement"), parse_expr("GROUP expression"))
-                   : nullptr;
+    auto from   = parse_table("FROM ");
+    auto where  = accept(Tok::Tag::K_WHERE) ? parse_expr("WHERE expression") : nullptr;
+    auto group  = accept(Tok::Tag::K_GROUP)
+                    ? (expect(Tok::Tag::K_BY, "GROUP within SELECT statement"), parse_expr("GROUP expression"))
+                    : nullptr;
     auto having = accept(Tok::Tag::K_HAVING) ? parse_expr("HAVING expression") : nullptr;
     // clang-format off
     if (accept(Tok::Tag::K_ROLLUP))   assert(false && "TODO");
@@ -127,7 +127,8 @@ Ptr<Stmt> Parser::parse_select_stmt() {
     if (accept(Tok::Tag::K_CUBE))     assert(false && "TODO");
     // clang-format on
 
-    return mk<Select>(track, all, std::move(elems), std::move(from), std::move(where), std::move(group), std::move(having));
+    return mk<Select>(track, all, std::move(elems), std::move(from), std::move(where), std::move(group),
+                      std::move(having));
 }
 
 /*
@@ -202,7 +203,7 @@ Ptr<IdExpr> Parser::parse_id_expr() {
  */
 
 std::optional<Join::Tag> Parser::parse_join_op() {
-    int tag = 0;
+    int tag    = 0;
     bool inner = false;
     if (accept(Tok::Tag::K_CROSS)) {
         tag = Join::Cross;
@@ -251,7 +252,7 @@ Ptr<Table> Parser::parse_primary_or_unary_table(std::string_view ctxt) {
         return table;
     }
 
-    //auto track = tracker();
+    // auto track = tracker();
     switch (ahead().tag()) {
         case Tok::Tag::K_LATERAL:
         case Tok::Tag::K_UNNEST:
@@ -263,10 +264,8 @@ Ptr<Table> Parser::parse_primary_or_unary_table(std::string_view ctxt) {
         case Tok::Tag::K_UPDATE:
         case Tok::Tag::K_FINAL:
         case Tok::Tag::K_NEW:
-        case Tok::Tag::K_OLD:
-            assert(false && "TODO");
-        default:
-            break;
+        case Tok::Tag::K_OLD: assert(false && "TODO");
+        default: break;
     }
 
     if (!ctxt.empty()) {
