@@ -260,40 +260,6 @@ public:
         std::deque<Sym> syms_;
     };
 
-    class From : public Node {
-    public:
-        From(Loc loc, Ptr<Table>&& table, std::deque<Sym>&& syms)
-            : Node(loc)
-            , table_(std::move(table))
-            , syms_(std::move(syms)) {}
-
-        const Table* table() const { return table_.get(); }
-        const auto& syms() const { return syms_; }
-
-        std::ostream& stream(std::ostream&) const override;
-
-    private:
-        Ptr<Table> table_;
-        std::deque<Sym> syms_;
-    };
-
-    class Group : public Node {
-    public:
-        Group(Loc loc, Ptr<Expr>&& expr, std::deque<Sym>&& syms)
-            : Node(loc)
-            , expr_(std::move(expr))
-            , syms_(std::move(syms)) {}
-
-        const Expr* expr() const { return expr_.get(); }
-        const auto& syms() const { return syms_; }
-
-        std::ostream& stream(std::ostream&) const override;
-
-    private:
-        Ptr<Expr> expr_;
-        std::deque<Sym> syms_;
-    };
-
     Select(Loc loc,
            bool all,
            std::deque<Ptr<Elem>>&& elems,
