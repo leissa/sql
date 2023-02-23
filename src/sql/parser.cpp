@@ -122,11 +122,6 @@ Ptr<Stmt> Parser::parse_select_stmt() {
                     ? (expect(Tok::Tag::K_BY, "GROUP within SELECT statement"), parse_expr("GROUP expression"))
                     : nullptr;
     auto having = accept(Tok::Tag::K_HAVING) ? parse_expr("HAVING expression") : nullptr;
-    // clang-format off
-    if (accept(Tok::Tag::K_ROLLUP))   assert(false && "TODO");
-    if (accept(Tok::Tag::K_GROUPING)) assert(false && "TODO");
-    if (accept(Tok::Tag::K_CUBE))     assert(false && "TODO");
-    // clang-format on
 
     return mk<Select>(track, all, std::move(elems), std::move(froms), std::move(where), std::move(group),
                       std::move(having));
