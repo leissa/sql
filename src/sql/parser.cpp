@@ -242,9 +242,8 @@ Ptr<Table> Parser::parse_table(std::string_view ctxt) {
             spec = parse_expr("search condition for an ON clause of a JOIN specification");
         } else if (accept(Tok::Tag::K_USING)) {
             std::deque<Sym> syms;
-            parse_list("join column list for a USING clause of a JOIN specification", [&]() {
-                syms.emplace_back(parse_sym("colunm name list"));
-            });
+            parse_list("join column list for a USING clause of a JOIN specification",
+                       [&]() { syms.emplace_back(parse_sym("colunm name list")); });
             spec = std::move(syms);
         }
 
