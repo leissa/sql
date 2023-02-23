@@ -204,15 +204,17 @@ public:
         Cross,
     };
 
-    Join(Loc loc, Ptr<Table>&& lhs, Tag tag, Ptr<Table>&& rhs)
+    Join(Loc loc, Ptr<Table>&& lhs, Tag tag, Ptr<Table>&& rhs, Ptr<Expr>&& on)
         : Table(loc)
         , lhs_(std::move(lhs))
         , tag_(tag)
-        , rhs_(std::move(rhs)) {}
+        , rhs_(std::move(rhs))
+        , on_(std::move(on)) {}
 
     const Table* lhs() const { return lhs_.get(); }
     Tag tag() const { return tag_; }
     const Table* rhs() const { return rhs_.get(); }
+    const Expr* on() const { return on_.get(); }
 
     std::ostream& stream(std::ostream&) const override;
 
@@ -220,6 +222,7 @@ private:
     Ptr<Table> lhs_;
     Tag tag_;
     Ptr<Table> rhs_;
+    Ptr<Expr> on_;
 };
 
 class ErrTable : public Table {

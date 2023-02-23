@@ -66,6 +66,7 @@ std::ostream& Join::stream(std::ostream& o) const {
     }
     o << " JOIN ";
     rhs()->stream(o);
+    if (on()) on()->stream(o << " ON ");
     return o << ')';
 }
 

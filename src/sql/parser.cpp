@@ -236,7 +236,8 @@ Ptr<Table> Parser::parse_table(std::string_view ctxt) {
 
     while (auto tag = parse_join_op()) {
         auto rhs = parse_table("right-hand side of JOIN operator");
-        lhs      = mk<Join>(track, std::move(lhs), *tag, std::move(rhs));
+        auto on  = accept(Tok::Tag::K_ON) ? parse_expr("search condition for an ON clause of a JOIN") : nullptr;
+        lhs      = mk<Join>(track, std::move(lhs), *tag, std::move(rhs), std::move(on));
     }
 
     return lhs;
