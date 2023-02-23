@@ -8,9 +8,6 @@
 
 namespace sql {
 
-// I don't recommend global variables in production code but for our toy project it's fine.
-extern int num_errors;
-
 struct Pos {
     Pos() = default;
     Pos(uint16_t row, uint16_t col)
