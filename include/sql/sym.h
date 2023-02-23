@@ -59,5 +59,4 @@ using SymMap = absl::flat_hash_map<Sym, V>;
 using SymSet = absl::flat_hash_set<Sym>;
 using Syms   = std::deque<Sym>;
 
-
 } // namespace sql

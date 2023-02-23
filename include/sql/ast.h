@@ -12,7 +12,8 @@
 
 namespace sql {
 
-template<class T> using Ptr = std::unique_ptr<const T>;
+template<class T>
+using Ptr = std::unique_ptr<const T>;
 
 template<class T>
 using Ptrs = std::deque<Ptr<T>>;
@@ -21,8 +22,6 @@ template<class T, class... Args>
 Ptr<T> mk(Args&&... args) {
     return std::make_unique<T>(std::forward<Args>(args)...);
 }
-
-
 
 /// Base class for all @p Expr%essions.
 class Node : public RuntimeCast<Node> {
