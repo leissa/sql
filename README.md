@@ -20,6 +20,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
 cmake --build build -j $(nproc)
 ```
 For a `Release` build simply use `-DCMAKE_BUILD_TYPE=Release`.
+
 Test:
 ```sh
  ./build/bin/sql -d test/select.sql
