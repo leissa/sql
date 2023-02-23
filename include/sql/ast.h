@@ -3,6 +3,7 @@
 #include <memory>
 #include <ostream>
 #include <unordered_set>
+#include <variant>
 
 #include "sql/cast.h"
 #include "sql/loc.h"
@@ -191,6 +192,10 @@ private:
 
 class Join : public Table {
 public:
+    using On    = Ptr<Expr>;
+    using Using = std::deque<Sym>;
+    using Spec  = std::variant<std::monostate, On, Using>;
+
     enum Tag {
         Inner         = 0x0,
         Left          = 0x1,          // Outer
@@ -204,17 +209,17 @@ public:
         Cross,
     };
 
-    Join(Loc loc, Ptr<Table>&& lhs, Tag tag, Ptr<Table>&& rhs, Ptr<Expr>&& on)
+    Join(Loc loc, Ptr<Table>&& lhs, Tag tag, Ptr<Table>&& rhs, Spec&& spec)
         : Table(loc)
         , lhs_(std::move(lhs))
         , tag_(tag)
         , rhs_(std::move(rhs))
-        , on_(std::move(on)) {}
+        , spec_(std::move(spec)) {}
 
     const Table* lhs() const { return lhs_.get(); }
     Tag tag() const { return tag_; }
     const Table* rhs() const { return rhs_.get(); }
-    const Expr* on() const { return on_.get(); }
+    const auto& spec() const { return spec_; }
 
     std::ostream& stream(std::ostream&) const override;
 
@@ -222,7 +227,7 @@ private:
     Ptr<Table> lhs_;
     Tag tag_;
     Ptr<Table> rhs_;
-    Ptr<Expr> on_;
+    Spec spec_;
 };
 
 class ErrTable : public Table {

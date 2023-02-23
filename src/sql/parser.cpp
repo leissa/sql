@@ -236,8 +236,19 @@ Ptr<Table> Parser::parse_table(std::string_view ctxt) {
 
     while (auto tag = parse_join_op()) {
         auto rhs = parse_table("right-hand side of JOIN operator");
-        auto on  = accept(Tok::Tag::K_ON) ? parse_expr("search condition for an ON clause of a JOIN") : nullptr;
-        lhs      = mk<Join>(track, std::move(lhs), *tag, std::move(rhs), std::move(on));
+
+        Join::Spec spec;
+        if (accept(Tok::Tag::K_ON)) {
+            spec = parse_expr("search condition for an ON clause of a JOIN specification");
+        } else if (accept(Tok::Tag::K_USING)) {
+            std::deque<Sym> syms;
+            parse_list("join column list for a USING clause of a JOIN specification", [&]() {
+                syms.emplace_back(parse_sym("colunm name list"));
+            });
+            spec = std::move(syms);
+        }
+
+        lhs = mk<Join>(track, std::move(lhs), *tag, std::move(rhs), std::move(spec));
     }
 
     return lhs;

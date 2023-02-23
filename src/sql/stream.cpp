@@ -66,7 +66,17 @@ std::ostream& Join::stream(std::ostream& o) const {
     }
     o << " JOIN ";
     rhs()->stream(o);
-    if (on()) on()->stream(o << " ON ");
+
+    if (auto on = std::get_if<On>(&spec())) {
+        (*on)->stream(o << " ON ");
+    } else if (auto syms = std::get_if<Using>(&spec())) {
+        o << " USING (";
+        for (auto sep = ""; auto sym : *syms) {
+            o << sep << sym;
+            sep = ", ";
+        }
+        o << ")";
+    }
     return o << ')';
 }
 
