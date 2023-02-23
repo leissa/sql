@@ -47,7 +47,14 @@ std::ostream& BinExpr::stream(std::ostream& o) const {
  */
 
 std::ostream& ErrTable::stream(std::ostream& o) const { return o << "<error table reference>"; }
-std::ostream& IdTable ::stream(std::ostream& o) const { return o << sym(); }
+
+std::ostream& IdTable ::stream(std::ostream& o) const {
+    for (auto sep = ""; auto sym : syms()) {
+        o << sep << sym;
+        sep = ".";
+    }
+    return o;
+}
 
 std::ostream& Join::stream(std::ostream& o) const {
     o << '(';
@@ -97,10 +104,17 @@ std::ostream& Select::stream(std::ostream& o) const {
             sep = ", ";
         }
     }
-    from()->stream(o << " FROM ");
+
+    o << " FROM ";
+    for (auto sep = ""; auto&& from : froms()) {
+        from->stream(o << sep);
+        sep = ", ";
+    }
+
     if (where()) where()->stream(o << " WHERE ");
     if (group()) group()->stream(o << " GROUP BY ");
     if (having()) having()->stream(o << " HAVING ");
+
     return o;
 }
 

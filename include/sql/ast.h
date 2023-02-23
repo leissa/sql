@@ -161,16 +161,16 @@ public:
 
 class IdTable : public Table {
 public:
-    IdTable(Loc loc, Sym sym)
+    IdTable(Loc loc, std::deque<Sym>&& syms)
         : Table(loc)
-        , sym_(sym) {}
+        , syms_(std::move(syms)) {}
 
-    Sym sym() const { return sym_; }
+    const auto& syms() const { return syms_; }
 
     std::ostream& stream(std::ostream&) const override;
 
 private:
-    Sym sym_;
+    std::deque<Sym> syms_;
 };
 
 class UnTable : public Table {
@@ -271,14 +271,14 @@ public:
     Select(Loc loc,
            bool all,
            std::deque<Ptr<Elem>>&& elems,
-           Ptr<Table>&& from,
+           std::deque<Ptr<Table>>&& froms,
            Ptr<Expr>&& where,
            Ptr<Expr>&& group,
            Ptr<Expr>&& having)
         : Stmt(loc)
         , all_(all)
         , elems_(std::move(elems))
-        , from_(std::move(from))
+        , froms_(std::move(froms))
         , where_(std::move(where))
         , group_(std::move(group))
         , having_(std::move(having)) {}
@@ -286,7 +286,7 @@ public:
     bool all() const { return all_; }
     bool distinct() const { return !all_; }
     const auto& elems() const { return elems_; }
-    const Table* from() const { return from_.get(); }
+    const auto& froms() const { return froms_; }
     const Expr* where() const { return where_.get(); }
     const Expr* group() const { return group_.get(); }
     const Expr* having() const { return having_.get(); }
@@ -296,7 +296,7 @@ public:
 private:
     bool all_;
     std::deque<Ptr<Elem>> elems_;
-    Ptr<Table> from_;
+    std::deque<Ptr<Table>> froms_;
     Ptr<Expr> where_;
     Ptr<Expr> group_;
     Ptr<Expr> having_;

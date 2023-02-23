@@ -115,7 +115,10 @@ Ptr<Stmt> Parser::parse_select_stmt() {
     }
 
     expect(Tok::Tag::K_FROM, "SELECT statement");
-    auto from   = parse_table("FROM ");
+    std::deque<Ptr<Table>> froms;
+    do {
+        froms.emplace_back(parse_table("FROM clause"));
+    } while (accept(Tok::Tag::T_comma));
     auto where  = accept(Tok::Tag::K_WHERE) ? parse_expr("WHERE expression") : nullptr;
     auto group  = accept(Tok::Tag::K_GROUP)
                     ? (expect(Tok::Tag::K_BY, "GROUP within SELECT statement"), parse_expr("GROUP expression"))
@@ -127,7 +130,7 @@ Ptr<Stmt> Parser::parse_select_stmt() {
     if (accept(Tok::Tag::K_CUBE))     assert(false && "TODO");
     // clang-format on
 
-    return mk<Select>(track, all, std::move(elems), std::move(from), std::move(where), std::move(group),
+    return mk<Select>(track, all, std::move(elems), std::move(froms), std::move(where), std::move(group),
                       std::move(having));
 }
 
@@ -254,29 +257,19 @@ Ptr<Table> Parser::parse_table(std::string_view ctxt) {
 }
 
 Ptr<Table> Parser::parse_primary_or_unary_table(std::string_view ctxt) {
-    if (auto tok = accept(Tok::Tag::M_id)) return mk<IdTable>(tok->loc(), tok->sym());
+    auto track = tracker();
 
     if (accept(Tok::Tag::D_paren_l)) {
         if (accept(Tok::Tag::K_WITH)) assert(false && "TODO: query expression");
         auto table = parse_table("parenthesized table reference");
         expect(Tok::Tag::D_paren_r, "parenthesized table reference");
         return table;
-    }
-
-    // auto track = tracker();
-    switch (ahead().tag()) {
-        case Tok::Tag::K_LATERAL:
-        case Tok::Tag::K_UNNEST:
-        case Tok::Tag::K_TABLE:
-        case Tok::Tag::K_ONLY:
-        case Tok::Tag::K_DELETE:
-        case Tok::Tag::K_INSERT:
-        case Tok::Tag::K_MERGE:
-        case Tok::Tag::K_UPDATE:
-        case Tok::Tag::K_FINAL:
-        case Tok::Tag::K_NEW:
-        case Tok::Tag::K_OLD: assert(false && "TODO");
-        default: break;
+    } else if (auto tok = accept(Tok::Tag::M_id)) {
+        std::deque<Sym> syms;
+        syms.emplace_back(tok->sym());
+        while (accept(Tok::Tag::T_dot))
+            syms.emplace_back(parse_sym("identifer chain"));
+        return mk<IdTable>(track, std::move(syms));
     }
 
     if (!ctxt.empty()) {
