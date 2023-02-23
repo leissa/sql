@@ -34,18 +34,18 @@ private:
 
 std::ostream& operator<<(std::ostream&, Sym);
 
-class Syms {
+class Pool {
 public:
-    Syms()            = default;
-    Syms(const Syms&) = delete;
-    Syms(Syms&& other)
+    Pool()            = default;
+    Pool(const Pool&) = delete;
+    Pool(Pool&& other)
         : pool_(std::move(other.pool_)) {}
 
     Sym sym(std::string_view s) { return &*pool_.emplace(s).first; }
     Sym sym(const char* s) { return &*pool_.emplace(s).first; }
     Sym sym(std::string&& s) { return &*pool_.emplace(std::move(s)).first; }
 
-    friend void swap(Syms& p1, Syms& p2) {
+    friend void swap(Pool& p1, Pool& p2) {
         using std::swap;
         swap(p1.pool_, p2.pool_);
     }
@@ -57,5 +57,7 @@ private:
 template<class V>
 using SymMap = absl::flat_hash_map<Sym, V>;
 using SymSet = absl::flat_hash_set<Sym>;
+using Syms   = std::deque<Sym>;
+
 
 } // namespace sql

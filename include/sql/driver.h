@@ -6,7 +6,7 @@
 
 namespace sql {
 
-struct Driver : public Syms {
+struct Driver : public Pool {
 public:
     /// @name diagnostics
     ///@{

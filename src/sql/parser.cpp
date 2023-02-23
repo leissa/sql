@@ -47,7 +47,7 @@ void Parser::err(const std::string& what, const Tok& tok, std::string_view ctxt)
 
 Ptr<Prog> Parser::parse_prog() {
     auto track = tracker();
-    std::deque<Ptr<Stmt>> stmts;
+    Ptrs<Stmt> stmts;
 
     while (!ahead().isa(Tok::Tag::M_eof)) {
         auto stmt = parse_stmt("program");
@@ -93,14 +93,14 @@ Ptr<Stmt> Parser::parse_select_stmt() {
         all = false;
     }
 
-    std::deque<Ptr<Select::Elem>> elems;
+    Ptrs<Select::Elem> elems;
     if (accept(Tok::Tag::T_mul)) {
         /* do nothing */
     } else {
         do {
             auto track = tracker();
             auto expr  = parse_expr("elem of a SELECT statement");
-            std::deque<Sym> syms;
+            Syms syms;
 
             if (accept(Tok::Tag::K_AS)) {
                 if (ahead().isa(Tok::Tag::D_paren_l)) {
@@ -115,7 +115,7 @@ Ptr<Stmt> Parser::parse_select_stmt() {
     }
 
     expect(Tok::Tag::K_FROM, "SELECT statement");
-    std::deque<Ptr<Table>> froms;
+    Ptrs<Table> froms;
     do { froms.emplace_back(parse_table("FROM clause")); } while (accept(Tok::Tag::T_comma));
     auto where  = accept(Tok::Tag::K_WHERE) ? parse_expr("WHERE expression") : nullptr;
     auto group  = accept(Tok::Tag::K_GROUP)
@@ -185,7 +185,7 @@ Ptr<IdExpr> Parser::parse_id_expr() {
     assert(ahead().isa(Tok::Tag::M_id));
 
     bool asterisk = false;
-    std::deque<Sym> syms;
+    Syms syms;
     syms.emplace_back(lex().sym());
 
     while (accept(Tok::Tag::T_dot)) {
@@ -242,7 +242,7 @@ Ptr<Table> Parser::parse_table(std::string_view ctxt) {
         if (accept(Tok::Tag::K_ON)) {
             spec = parse_expr("search condition for an ON clause of a JOIN specification");
         } else if (accept(Tok::Tag::K_USING)) {
-            std::deque<Sym> syms;
+            Syms syms;
             parse_list("join column list for a USING clause of a JOIN specification",
                        [&]() { syms.emplace_back(parse_sym("colunm name list")); });
             spec = std::move(syms);
@@ -263,7 +263,7 @@ Ptr<Table> Parser::parse_primary_or_unary_table(std::string_view ctxt) {
         expect(Tok::Tag::D_paren_r, "parenthesized table reference");
         return table;
     } else if (auto tok = accept(Tok::Tag::M_id)) {
-        std::deque<Sym> syms;
+        Syms syms;
         syms.emplace_back(tok->sym());
         while (accept(Tok::Tag::T_dot)) syms.emplace_back(parse_sym("identifer chain"));
         return mk<IdTable>(track, std::move(syms));

@@ -12,13 +12,17 @@
 
 namespace sql {
 
+template<class T> using Ptr = std::unique_ptr<const T>;
+
 template<class T>
-using Ptr = std::unique_ptr<const T>;
+using Ptrs = std::deque<Ptr<T>>;
 
 template<class T, class... Args>
 Ptr<T> mk(Args&&... args) {
     return std::make_unique<T>(std::forward<Args>(args)...);
 }
+
+
 
 /// Base class for all @p Expr%essions.
 class Node : public RuntimeCast<Node> {
@@ -50,7 +54,7 @@ public:
 
 class IdExpr : public Expr {
 public:
-    IdExpr(Loc loc, std::deque<Sym>&& syms, bool asterisk)
+    IdExpr(Loc loc, Syms&& syms, bool asterisk)
         : Expr(loc)
         , syms_(syms)
         , asterisk_(asterisk) {}
@@ -61,7 +65,7 @@ public:
     std::ostream& stream(std::ostream&) const override;
 
 private:
-    std::deque<Sym> syms_;
+    Syms syms_;
     bool asterisk_ = false;
 
 public:
@@ -161,7 +165,7 @@ public:
 
 class IdTable : public Table {
 public:
-    IdTable(Loc loc, std::deque<Sym>&& syms)
+    IdTable(Loc loc, Syms&& syms)
         : Table(loc)
         , syms_(std::move(syms)) {}
 
@@ -170,7 +174,7 @@ public:
     std::ostream& stream(std::ostream&) const override;
 
 private:
-    std::deque<Sym> syms_;
+    Syms syms_;
 };
 
 class UnTable : public Table {
@@ -193,7 +197,7 @@ private:
 class Join : public Table {
 public:
     using On    = Ptr<Expr>;
-    using Using = std::deque<Sym>;
+    using Using = Syms;
     using Spec  = std::variant<std::monostate, On, Using>;
 
     enum Tag {
@@ -253,7 +257,7 @@ class Select : public Stmt {
 public:
     class Elem : public Node {
     public:
-        Elem(Loc loc, Ptr<Expr>&& expr, std::deque<Sym>&& syms)
+        Elem(Loc loc, Ptr<Expr>&& expr, Syms&& syms)
             : Node(loc)
             , expr_(std::move(expr))
             , syms_(std::move(syms)) {}
@@ -265,13 +269,13 @@ public:
 
     private:
         Ptr<Expr> expr_;
-        std::deque<Sym> syms_;
+        Syms syms_;
     };
 
     Select(Loc loc,
            bool all,
-           std::deque<Ptr<Elem>>&& elems,
-           std::deque<Ptr<Table>>&& froms,
+           Ptrs<Elem>&& elems,
+           Ptrs<Table>&& froms,
            Ptr<Expr>&& where,
            Ptr<Expr>&& group,
            Ptr<Expr>&& having)
@@ -295,8 +299,8 @@ public:
 
 private:
     bool all_;
-    std::deque<Ptr<Elem>> elems_;
-    std::deque<Ptr<Table>> froms_;
+    Ptrs<Elem> elems_;
+    Ptrs<Table> froms_;
     Ptr<Expr> where_;
     Ptr<Expr> group_;
     Ptr<Expr> having_;
@@ -318,7 +322,7 @@ public:
 /// Just a HACK to have a list of Stmt%s.
 class Prog : public Node {
 public:
-    Prog(Loc loc, std::deque<Ptr<Stmt>>&& stmts)
+    Prog(Loc loc, Ptrs<Stmt>&& stmts)
         : Node(loc)
         , stmts_(std::move(stmts)) {}
 
@@ -327,7 +331,7 @@ public:
     std::ostream& stream(std::ostream&) const override;
 
 private:
-    std::deque<Ptr<Stmt>> stmts_;
+    Ptrs<Stmt> stmts_;
 };
 
 } // namespace sql
