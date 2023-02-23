@@ -116,9 +116,7 @@ Ptr<Stmt> Parser::parse_select_stmt() {
 
     expect(Tok::Tag::K_FROM, "SELECT statement");
     std::deque<Ptr<Table>> froms;
-    do {
-        froms.emplace_back(parse_table("FROM clause"));
-    } while (accept(Tok::Tag::T_comma));
+    do { froms.emplace_back(parse_table("FROM clause")); } while (accept(Tok::Tag::T_comma));
     auto where  = accept(Tok::Tag::K_WHERE) ? parse_expr("WHERE expression") : nullptr;
     auto group  = accept(Tok::Tag::K_GROUP)
                     ? (expect(Tok::Tag::K_BY, "GROUP within SELECT statement"), parse_expr("GROUP expression"))
@@ -267,8 +265,7 @@ Ptr<Table> Parser::parse_primary_or_unary_table(std::string_view ctxt) {
     } else if (auto tok = accept(Tok::Tag::M_id)) {
         std::deque<Sym> syms;
         syms.emplace_back(tok->sym());
-        while (accept(Tok::Tag::T_dot))
-            syms.emplace_back(parse_sym("identifer chain"));
+        while (accept(Tok::Tag::T_dot)) syms.emplace_back(parse_sym("identifer chain"));
         return mk<IdTable>(track, std::move(syms));
     }
 
