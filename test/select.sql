@@ -10,3 +10,7 @@ SELECT * FROM test CROSS x  GROUP BY bar HAVING x < 5;
 SELECT *
 FROM Customers
 WHERE last_name = doe AND country = usa;
+
+SELECT *
+FROM students
+WHERE x > (SELECT asdf FROM students);

@@ -47,17 +47,17 @@ void Parser::err(const std::string& what, const Tok& tok, std::string_view ctxt)
 
 Ptr<Prog> Parser::parse_prog() {
     auto track = tracker();
-    Ptrs<Stmt> stmts;
+    Ptrs<Expr> exprs;
 
     while (!ahead().isa(Tok::Tag::M_eof)) {
-        auto stmt = parse_stmt("program");
-        if (stmt->isa<ErrStmt>()) lex(); // consume one token to prevent endless loop
-        stmts.emplace_back(std::move(stmt));
-        expect(Tok::Tag::T_semicolon, "statment list");
+        auto expr = parse_expr("program");
+        if (expr->isa<ErrExpr>()) lex(); // consume one token to prevent endless loop
+        exprs.emplace_back(std::move(expr));
+        expect(Tok::Tag::T_semicolon, "expression list");
     }
 
     eat(Tok::Tag::M_eof);
-    return mk<Prog>(track, std::move(stmts));
+    return mk<Prog>(track, std::move(exprs));
 }
 
 Sym Parser::parse_sym(std::string_view ctxt) {
@@ -67,23 +67,81 @@ Sym Parser::parse_sym(std::string_view ctxt) {
 }
 
 /*
- * Stmt
+ * Expr
  */
 
-Ptr<Stmt> Parser::parse_stmt(std::string_view ctxt) {
+Ptr<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
+    auto track = tracker();
+    auto lhs   = parse_primary_or_unary_expr(ctxt);
+
+    while (auto prec = Tok::bin_prec(ahead().tag())) {
+        if (*prec < cur_prec) break;
+
+        auto op  = lex().tag();
+        auto rhs = parse_expr("right-hand side of binary expression", *prec);
+        lhs      = mk<BinExpr>(track, std::move(lhs), op, std::move(rhs));
+    }
+
+    return lhs;
+}
+
+Ptr<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
     switch (ahead().tag()) {
-        case Tok::Tag::K_SELECT: return parse_select_stmt();
+        case Tok::Tag::M_id: return parse_id();
+        case Tok::Tag::K_SELECT: return parse_select();
+        case Tok::Tag::V_int: {
+            auto tok = lex();
+            return mk<IntVal>(tok.loc(), tok.u64());
+        }
+        case Tok::Tag::K_TRUE:
+        case Tok::Tag::K_FALSE:
+        case Tok::Tag::K_UNKNOWN:
+        case Tok::Tag::K_NULL: {
+            auto tok = lex();
+            return mk<SimpleVal>(tok.loc(), tok.tag());
+        }
         default: break;
     }
 
+    auto track = tracker();
+    if (auto prec = Tok::un_prec(ahead().tag())) {
+        auto op = lex().tag();
+        return mk<UnExpr>(track, op, parse_expr("operand of unary expression", *prec));
+    }
+
+    if (accept(Tok::Tag::D_paren_l)) {
+        auto expr = parse_expr("parenthesized expression");
+        expect(Tok::Tag::D_paren_r, "parenthesized expression");
+        return expr;
+    }
+
     if (!ctxt.empty()) {
-        err("statement", ctxt);
-        return mk<ErrStmt>(prev_);
+        err("primary or unary expression", ctxt);
+        return mk<ErrExpr>(prev_);
     }
     unreachable();
 }
 
-Ptr<Stmt> Parser::parse_select_stmt() {
+Ptr<Expr> Parser::parse_id() {
+    auto track = tracker();
+    assert(ahead().isa(Tok::Tag::M_id));
+
+    bool asterisk = false;
+    Syms syms;
+    syms.emplace_back(lex().sym());
+
+    while (accept(Tok::Tag::T_dot)) {
+        if (accept(Tok::Tag::T_mul)) {
+            asterisk = true;
+            break;
+        }
+        syms.emplace_back(parse_sym("identifer chain"));
+    }
+
+    return mk<Id>(track, std::move(syms), asterisk);
+}
+
+Ptr<Expr> Parser::parse_select() {
     auto track = tracker();
     eat(Tok::Tag::K_SELECT);
 
@@ -125,73 +183,6 @@ Ptr<Stmt> Parser::parse_select_stmt() {
 
     return mk<Select>(track, all, std::move(elems), std::move(froms), std::move(where), std::move(group),
                       std::move(having));
-}
-
-/*
- * Expr
- */
-
-Ptr<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
-    auto track = tracker();
-    auto lhs   = parse_primary_or_unary_expr(ctxt);
-
-    while (auto prec = Tok::bin_prec(ahead().tag())) {
-        if (*prec < cur_prec) break;
-
-        auto op  = lex().tag();
-        auto rhs = parse_expr("right-hand side of binary expression", *prec);
-        lhs      = mk<BinExpr>(track, std::move(lhs), op, std::move(rhs));
-    }
-
-    return lhs;
-}
-
-Ptr<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
-    if (ahead().isa(Tok::Tag::M_id)) return parse_id_expr();
-    if (auto tok = accept(Tok::Tag::V_int)) return mk<IntVal>(tok->loc(), tok->u64());
-
-    if (ahead().isa(Tok::Tag::K_TRUE) || ahead().isa(Tok::Tag::K_FALSE) || ahead().isa(Tok::Tag::K_UNKNOWN) ||
-        ahead().isa(Tok::Tag::K_NULL)) {
-        auto tok = lex();
-        return mk<SimpleVal>(tok.loc(), tok.tag());
-    }
-
-    auto track = tracker();
-    if (auto prec = Tok::un_prec(ahead().tag())) {
-        auto op = lex().tag();
-        return mk<UnExpr>(track, op, parse_expr("operand of unary expression", *prec));
-    }
-
-    if (accept(Tok::Tag::D_paren_l)) {
-        auto expr = parse_expr("parenthesized expression");
-        expect(Tok::Tag::D_paren_r, "parenthesized expression");
-        return expr;
-    }
-
-    if (!ctxt.empty()) {
-        err("primary or unary expression", ctxt);
-        return mk<ErrExpr>(prev_);
-    }
-    unreachable();
-}
-
-Ptr<IdExpr> Parser::parse_id_expr() {
-    auto track = tracker();
-    assert(ahead().isa(Tok::Tag::M_id));
-
-    bool asterisk = false;
-    Syms syms;
-    syms.emplace_back(lex().sym());
-
-    while (accept(Tok::Tag::T_dot)) {
-        if (accept(Tok::Tag::T_mul)) {
-            asterisk = true;
-            break;
-        }
-        syms.emplace_back(parse_sym("identifer chain"));
-    }
-
-    return mk<IdExpr>(track, std::move(syms), asterisk);
 }
 
 /*

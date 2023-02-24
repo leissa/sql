@@ -27,14 +27,12 @@ private:
         Pos pos_;
     };
 
-    Ptr<Stmt> parse_stmt(std::string_view ctxt);
-    Ptr<Stmt> parse_select_stmt();
-
     Sym parse_sym(std::string_view ctxt);
 
     Ptr<Expr> parse_expr(std::string_view ctxt, Tok::Prec = Tok::Prec::Bot);
     Ptr<Expr> parse_primary_or_unary_expr(std::string_view ctxt);
-    Ptr<IdExpr> parse_id_expr();
+    Ptr<Expr> parse_id();
+    Ptr<Expr> parse_select();
 
     std::optional<Join::Tag> parse_join_op();
     Ptr<Table> parse_table(std::string_view ctxt);

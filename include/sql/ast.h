@@ -51,9 +51,9 @@ public:
         : Node(loc) {}
 };
 
-class IdExpr : public Expr {
+class Id : public Expr {
 public:
-    IdExpr(Loc loc, Syms&& syms, bool asterisk)
+    Id(Loc loc, Syms&& syms, bool asterisk)
         : Expr(loc)
         , syms_(syms)
         , asterisk_(asterisk) {}
@@ -241,18 +241,7 @@ public:
     std::ostream& stream(std::ostream&) const override;
 };
 
-/*
- * Stmt
- */
-
-/// Base class for all @p Stmt%s
-class Stmt : public Node {
-public:
-    Stmt(Loc loc)
-        : Node(loc) {}
-};
-
-class Select : public Stmt {
+class Select : public Expr {
 public:
     class Elem : public Node {
     public:
@@ -278,7 +267,7 @@ public:
            Ptr<Expr>&& where,
            Ptr<Expr>&& group,
            Ptr<Expr>&& having)
-        : Stmt(loc)
+        : Expr(loc)
         , all_(all)
         , elems_(std::move(elems))
         , froms_(std::move(froms))
@@ -305,15 +294,6 @@ private:
     Ptr<Expr> having_;
 };
 
-/// Just a dummy that does nothing and will only be constructed during parse errors.
-class ErrStmt : public Stmt {
-public:
-    ErrStmt(Loc loc)
-        : Stmt(loc) {}
-
-    std::ostream& stream(std::ostream&) const override;
-};
-
 /*
  * Prog
  */
@@ -321,16 +301,16 @@ public:
 /// Just a HACK to have a list of Stmt%s.
 class Prog : public Node {
 public:
-    Prog(Loc loc, Ptrs<Stmt>&& stmts)
+    Prog(Loc loc, Ptrs<Expr>&& exprs)
         : Node(loc)
-        , stmts_(std::move(stmts)) {}
+        , exprs_(std::move(exprs)) {}
 
-    const auto& stmts() const { return stmts_; }
+    const auto& exprs() const { return exprs_; }
 
     std::ostream& stream(std::ostream&) const override;
 
 private:
-    Ptrs<Stmt> stmts_;
+    Ptrs<Expr> exprs_;
 };
 
 } // namespace sql

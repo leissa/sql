@@ -18,7 +18,7 @@ std::ostream& SimpleVal::stream(std::ostream& o) const { return o << tag(); }
 std::ostream& IntVal   ::stream(std::ostream& o) const { return o << u64(); }
 // clang-format on
 
-std::ostream& IdExpr::stream(std::ostream& o) const {
+std::ostream& Id::stream(std::ostream& o) const {
     for (auto sep = ""; auto&& sym : syms()) {
         o << sep << sym;
         sep = ".";
@@ -134,15 +134,13 @@ std::ostream& Select::Elem::stream(std::ostream& o) const {
     return o;
 }
 
-std::ostream& ErrStmt::stream(std::ostream& o) const { return o << "<error statement>"; }
-
 /*
  * Misc
  */
 
 std::ostream& Prog::stream(std::ostream& o) const {
-    for (auto sep = ""; auto&& stmt : stmts()) {
-        stmt->stream(o << sep);
+    for (auto sep = ""; auto&& expr : exprs()) {
+        expr->stream(o << sep);
         sep = ";\n";
     }
     return o;
