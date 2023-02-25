@@ -87,9 +87,7 @@ std::ostream& Join::stream(std::ostream& o) const {
     return o << ')';
 }
 
-std::ostream& Create::stream(std::ostream& o) const {
-    return o << "CREATE TABLE " << sym();
-}
+std::ostream& Create::stream(std::ostream& o) const { return o << "CREATE TABLE " << sym(); }
 
 std::ostream& Select::stream(std::ostream& o) const {
     o << "SELECT ";
