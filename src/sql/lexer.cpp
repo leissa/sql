@@ -6,6 +6,12 @@ using namespace std::literals;
 
 namespace sql {
 
+static std::string to_lower(std::string_view sv) {
+    std::string res;
+    for (auto c : sv) res += tolower(c);
+    return res;
+}
+
 Lexer::Lexer(Driver& driver, Sym filename, std::istream& stream)
     : driver_(driver)
     , loc_(filename)
@@ -13,7 +19,7 @@ Lexer::Lexer(Driver& driver, Sym filename, std::istream& stream)
     , stream_(stream) {
     if (!stream_) throw std::runtime_error("stream is bad");
 
-#define CODE(t, str, _) keywords_[driver_.sym(str##s)] = Tok::Tag::t;
+#define CODE(t, str) keywords_[driver_.sym(to_lower(str##s))] = Tok::Tag::t;
     SQL_KEY(CODE)
 #undef CODE
 }

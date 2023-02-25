@@ -8,12 +8,9 @@ namespace sql {
 
 std::string_view Tok::str(Tok::Tag tag) {
     switch (tag) {
-#define CODE(t, _, str) \
-    case Tok::Tag::t: return str##sv;
-        SQL_KEY(CODE)
-#undef CODE
 #define CODE(t, str) \
     case Tok::Tag::t: return str##sv;
+        SQL_KEY(CODE)
         SQL_VAL(CODE)
         SQL_TOK(CODE)
 #undef CODE
