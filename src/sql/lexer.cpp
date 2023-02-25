@@ -18,7 +18,6 @@ Lexer::Lexer(Driver& driver, Sym filename, std::istream& stream)
     , peek_pos_({1, 1})
     , stream_(stream) {
     if (!stream_) throw std::runtime_error("stream is bad");
-
 #define CODE(t, str) keywords_[driver_.sym(to_lower(str##s))] = Tok::Tag::t;
     SQL_KEY(CODE)
 #undef CODE

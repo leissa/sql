@@ -143,6 +143,20 @@ private:
     Tok::Tag tag_;
 };
 
+class Create : public Expr {
+public:
+    Create(Loc loc, Sym sym)
+        : Expr(loc)
+        , sym_(sym) {}
+
+    Sym sym() const { return sym_; }
+
+    std::ostream& stream(std::ostream&) const override;
+
+private:
+    Sym sym_;
+};
+
 /// Just a dummy that does nothing and will only be constructed during parse errors.
 class ErrExpr : public Expr {
 public:
@@ -240,6 +254,10 @@ public:
 
     std::ostream& stream(std::ostream&) const override;
 };
+
+/*
+ * Depends on Table
+ */
 
 class Select : public Expr {
 public:

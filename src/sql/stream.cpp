@@ -87,9 +87,9 @@ std::ostream& Join::stream(std::ostream& o) const {
     return o << ')';
 }
 
-/*
- * Stmt
- */
+std::ostream& Create::stream(std::ostream& o) const {
+    return o << "CREATE TABLE " << sym();
+}
 
 std::ostream& Select::stream(std::ostream& o) const {
     o << "SELECT ";
@@ -140,8 +140,8 @@ std::ostream& Select::Elem::stream(std::ostream& o) const {
 
 std::ostream& Prog::stream(std::ostream& o) const {
     for (auto sep = ""; auto&& expr : exprs()) {
-        expr->stream(o << sep);
-        sep = ";\n";
+        expr->stream(o << sep) << ';';
+        sep = "\n";
     }
     return o;
 }

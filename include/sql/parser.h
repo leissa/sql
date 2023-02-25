@@ -32,6 +32,7 @@ private:
     Ptr<Expr> parse_expr(std::string_view ctxt, Tok::Prec = Tok::Prec::Bot);
     Ptr<Expr> parse_primary_or_unary_expr(std::string_view ctxt);
     Ptr<Expr> parse_id();
+    Ptr<Expr> parse_create();
     Ptr<Expr> parse_select();
 
     std::optional<Join::Tag> parse_join_op();

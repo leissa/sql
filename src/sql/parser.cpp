@@ -88,6 +88,7 @@ Ptr<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
 Ptr<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
     switch (ahead().tag()) {
         case Tok::Tag::M_id: return parse_id();
+        case Tok::Tag::K_CREATE: return parse_create();
         case Tok::Tag::K_SELECT: return parse_select();
         case Tok::Tag::V_int: {
             auto tok = lex();
@@ -141,6 +142,15 @@ Ptr<Expr> Parser::parse_id() {
     return mk<Id>(track, std::move(syms), asterisk);
 }
 
+Ptr<Expr> Parser::parse_create() {
+    auto track = tracker();
+    eat(Tok::Tag::K_CREATE);
+
+    expect(Tok::Tag::K_TABLE, "CREATE expression");
+    auto sym = parse_sym("table name");
+    return mk<Create>(track, sym);
+}
+
 Ptr<Expr> Parser::parse_select() {
     auto track = tracker();
     eat(Tok::Tag::K_SELECT);
@@ -157,7 +167,7 @@ Ptr<Expr> Parser::parse_select() {
     } else {
         do {
             auto track = tracker();
-            auto expr  = parse_expr("elem of a SELECT statement");
+            auto expr  = parse_expr("elem of a SELECT expression");
             Syms syms;
 
             if (accept(Tok::Tag::K_AS)) {
@@ -172,12 +182,12 @@ Ptr<Expr> Parser::parse_select() {
         } while (accept(Tok::Tag::T_comma));
     }
 
-    expect(Tok::Tag::K_FROM, "SELECT statement");
+    expect(Tok::Tag::K_FROM, "SELECT expression");
     Ptrs<Table> froms;
     do { froms.emplace_back(parse_table("FROM clause")); } while (accept(Tok::Tag::T_comma));
     auto where  = accept(Tok::Tag::K_WHERE) ? parse_expr("WHERE expression") : nullptr;
     auto group  = accept(Tok::Tag::K_GROUP)
-                    ? (expect(Tok::Tag::K_BY, "GROUP within SELECT statement"), parse_expr("GROUP expression"))
+                    ? (expect(Tok::Tag::K_BY, "GROUP within SELECT expression"), parse_expr("GROUP expression"))
                     : nullptr;
     auto having = accept(Tok::Tag::K_HAVING) ? parse_expr("HAVING expression") : nullptr;
 
