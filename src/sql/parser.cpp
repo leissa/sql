@@ -80,10 +80,10 @@ Ptr<Type> Parser::parse_type(std::string_view ctxt) {
             auto tok = lex();
             return mk<SimpleType>(tok.loc(), tok.tag(), false);
         }
-        case Tok::Tag::K_NUMERIC:   assert(false && "TODO");
-        case Tok::Tag::K_DECIMAL:   assert(false && "TODO");
-        case Tok::Tag::K_DEC:       assert(false && "TODO");
-        case Tok::Tag::K_TIME:      assert(false && "TODO");
+        case Tok::Tag::K_NUMERIC: assert(false && "TODO");
+        case Tok::Tag::K_DECIMAL: assert(false && "TODO");
+        case Tok::Tag::K_DEC: assert(false && "TODO");
+        case Tok::Tag::K_TIME: assert(false && "TODO");
         case Tok::Tag::K_TIMESTAMP: assert(false && "TODO");
         default: break;
     }

@@ -48,8 +48,7 @@ class Type : public Node {
 public:
     Type(Loc loc, bool not_null)
         : Node(loc)
-        , not_null_(not_null)
-    {}
+        , not_null_(not_null) {}
 
     bool not_null() const { return not_null_; }
 
@@ -61,8 +60,7 @@ class SimpleType : public Type {
 public:
     SimpleType(Loc loc, Tok::Tag tag, bool not_null)
         : Type(loc, not_null)
-        , tag_(tag)
-    {}
+        , tag_(tag) {}
 
     Tok::Tag tag() const { return tag_; }
 
