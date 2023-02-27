@@ -41,6 +41,38 @@ private:
 };
 
 /*
+ * Type
+ */
+
+class Type : public Node {
+public:
+    Type(Loc loc, bool not_null)
+        : Node(loc)
+        , not_null_(not_null)
+    {}
+
+    bool not_null() const { return not_null_; }
+
+private:
+    bool not_null_;
+};
+
+class SimpleType : public Type {
+public:
+    SimpleType(Loc loc, Tok::Tag tag, bool not_null)
+        : Type(loc, not_null)
+        , tag_(tag)
+    {}
+
+    Tok::Tag tag() const { return tag_; }
+
+    std::ostream& stream(std::ostream&) const override;
+
+private:
+    Tok::Tag tag_;
+};
+
+/*
  * Expr (<value expression>)
  */
 
@@ -145,16 +177,36 @@ private:
 
 class Create : public Expr {
 public:
-    Create(Loc loc, Sym sym)
+    class Elem : public Node {
+    public:
+        Elem(Loc loc, Sym sym, Ptr<Type>&& type)
+            : Node(loc)
+            , sym_(sym)
+            , type_(std::move(type)) {}
+
+        Sym sym() const { return sym_; }
+        const Type* type() const { return type_.get(); }
+
+        std::ostream& stream(std::ostream&) const override;
+
+    private:
+        Sym sym_;
+        Ptr<Type> type_;
+    };
+
+    Create(Loc loc, Sym sym, Ptrs<Elem>&& elems)
         : Expr(loc)
-        , sym_(sym) {}
+        , sym_(sym)
+        , elems_(std::move(elems)) {}
 
     Sym sym() const { return sym_; }
+    const auto& elems() const { return elems_; }
 
     std::ostream& stream(std::ostream&) const override;
 
 private:
     Sym sym_;
+    Ptrs<Elem> elems_;
 };
 
 /// Just a dummy that does nothing and will only be constructed during parse errors.

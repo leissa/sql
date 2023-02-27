@@ -9,6 +9,16 @@ namespace sql {
 void Node::dump() const { stream(std::cout) << std::endl; }
 
 /*
+ * Type
+ */
+
+std::ostream& SimpleType::stream(std::ostream& o) const {
+    o << tag();
+    if (not_null()) o << " NOT NULL";
+    return o;
+}
+
+/*
  * Expr
  */
 
@@ -87,7 +97,19 @@ std::ostream& Join::stream(std::ostream& o) const {
     return o << ')';
 }
 
-std::ostream& Create::stream(std::ostream& o) const { return o << "CREATE TABLE " << sym(); }
+std::ostream& Create::stream(std::ostream& o) const {
+    o << "CREATE TABLE " << sym() << " (";
+    for (auto sep = ""; auto&& elem : elems()) {
+        elem->stream(o << sep);
+        sep = ", ";
+    }
+    return o << ")";
+}
+
+std::ostream& Create::Elem::stream(std::ostream& o) const {
+    o << sym() << " ";
+    return type()->stream(o);
+}
 
 std::ostream& Select::stream(std::ostream& o) const {
     o << "SELECT ";

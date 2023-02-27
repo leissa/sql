@@ -67,6 +67,36 @@ Sym Parser::parse_sym(std::string_view ctxt) {
 }
 
 /*
+ * Type
+ */
+Ptr<Type> Parser::parse_type(std::string_view ctxt) {
+    switch (ahead().tag()) {
+        case Tok::Tag::K_INT:
+        case Tok::Tag::K_INTEGER:
+        case Tok::Tag::K_SMALLINT:
+        case Tok::Tag::K_BIGINT:
+        case Tok::Tag::K_BOOLEAN:
+        case Tok::Tag::K_DATE: {
+            auto tok = lex();
+            return mk<SimpleType>(tok.loc(), tok.tag(), false);
+        }
+        case Tok::Tag::K_NUMERIC:   assert(false && "TODO");
+        case Tok::Tag::K_DECIMAL:   assert(false && "TODO");
+        case Tok::Tag::K_DEC:       assert(false && "TODO");
+        case Tok::Tag::K_TIME:      assert(false && "TODO");
+        case Tok::Tag::K_TIMESTAMP: assert(false && "TODO");
+        default: break;
+    }
+
+    if (!ctxt.empty()) {
+        err("type", ctxt);
+        return nullptr; // Error Type
+    }
+
+    return nullptr;
+}
+
+/*
  * Expr
  */
 
@@ -148,7 +178,14 @@ Ptr<Expr> Parser::parse_create() {
 
     expect(Tok::Tag::K_TABLE, "CREATE expression");
     auto sym = parse_sym("table name");
-    return mk<Create>(track, sym);
+    Ptrs<Create::Elem> elems;
+    parse_list("table element list", [&]() {
+        auto track = tracker();
+        auto sym   = parse_sym("column name");
+        auto type  = parse_type("column type");
+        elems.emplace_back(mk<Create::Elem>(track, sym, std::move(type)));
+    });
+    return mk<Create>(track, sym, std::move(elems));
 }
 
 Ptr<Expr> Parser::parse_select() {

@@ -14,4 +14,6 @@ WHERE last_name = doe AND country = usa;
 SELECT *
 FROM students
 WHERE x > (SELECT asdf FROM students);
-CREATE TABLE foobar;
+CREATE TABLE foobar (
+    x INT,
+    y SMALLINT);
