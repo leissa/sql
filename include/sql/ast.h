@@ -207,57 +207,7 @@ private:
     Ptrs<Elem> elems_;
 };
 
-/// Just a dummy that does nothing and will only be constructed during parse errors.
-class ErrExpr : public Expr {
-public:
-    ErrExpr(Loc loc)
-        : Expr(loc) {}
-
-    std::ostream& stream(std::ostream&) const override;
-};
-
-/*
- * Table
- */
-
-class Table : public Node {
-public:
-    Table(Loc loc)
-        : Node(loc) {}
-};
-
-class IdTable : public Table {
-public:
-    IdTable(Loc loc, Syms&& syms)
-        : Table(loc)
-        , syms_(std::move(syms)) {}
-
-    const auto& syms() const { return syms_; }
-
-    std::ostream& stream(std::ostream&) const override;
-
-private:
-    Syms syms_;
-};
-
-class UnTable : public Table {
-public:
-    UnTable(Loc loc, Tok::Tag tag, Ptr<Table>&& rhs)
-        : Table(loc)
-        , tag_(tag)
-        , rhs_(std::move(rhs)) {}
-
-    Tok::Tag tag() const { return tag_; }
-    const Table* rhs() const { return rhs_.get(); }
-
-    std::ostream& stream(std::ostream&) const override;
-
-private:
-    Tok::Tag tag_;
-    Ptr<Table> rhs_;
-};
-
-class Join : public Table {
+class Join : public Expr {
 public:
     using On    = Ptr<Expr>;
     using Using = Syms;
@@ -276,38 +226,26 @@ public:
         Cross,
     };
 
-    Join(Loc loc, Ptr<Table>&& lhs, Tag tag, Ptr<Table>&& rhs, Spec&& spec)
-        : Table(loc)
+    Join(Loc loc, Ptr<Expr>&& lhs, Tag tag, Ptr<Expr>&& rhs, Spec&& spec)
+        : Expr(loc)
         , lhs_(std::move(lhs))
         , tag_(tag)
         , rhs_(std::move(rhs))
         , spec_(std::move(spec)) {}
 
-    const Table* lhs() const { return lhs_.get(); }
+    const Expr* lhs() const { return lhs_.get(); }
     Tag tag() const { return tag_; }
-    const Table* rhs() const { return rhs_.get(); }
+    const Expr* rhs() const { return rhs_.get(); }
     const auto& spec() const { return spec_; }
 
     std::ostream& stream(std::ostream&) const override;
 
 private:
-    Ptr<Table> lhs_;
+    Ptr<Expr> lhs_;
     Tag tag_;
-    Ptr<Table> rhs_;
+    Ptr<Expr> rhs_;
     Spec spec_;
 };
-
-class ErrTable : public Table {
-public:
-    ErrTable(Loc loc)
-        : Table(loc) {}
-
-    std::ostream& stream(std::ostream&) const override;
-};
-
-/*
- * Depends on Table
- */
 
 class Select : public Expr {
 public:
@@ -331,7 +269,7 @@ public:
     Select(Loc loc,
            bool all,
            Ptrs<Elem>&& elems,
-           Ptrs<Table>&& froms,
+           Ptrs<Expr>&& froms,
            Ptr<Expr>&& where,
            Ptr<Expr>&& group,
            Ptr<Expr>&& having)
@@ -356,10 +294,19 @@ public:
 private:
     bool all_;
     Ptrs<Elem> elems_;
-    Ptrs<Table> froms_;
+    Ptrs<Expr> froms_;
     Ptr<Expr> where_;
     Ptr<Expr> group_;
     Ptr<Expr> having_;
+};
+
+/// Just a dummy that does nothing and will only be constructed during parse errors.
+class ErrExpr : public Expr {
+public:
+    ErrExpr(Loc loc)
+        : Expr(loc) {}
+
+    std::ostream& stream(std::ostream&) const override;
 };
 
 /*

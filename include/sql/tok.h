@@ -384,6 +384,7 @@ public:
 
     enum class Prec {
         Bot,
+        Join,
         Or,
         And,
         Not,

@@ -52,20 +52,6 @@ std::ostream& BinExpr::stream(std::ostream& o) const {
     return o << ')';
 }
 
-/*
- * Table
- */
-
-std::ostream& ErrTable::stream(std::ostream& o) const { return o << "<error table reference>"; }
-
-std::ostream& IdTable::stream(std::ostream& o) const {
-    for (auto sep = ""; auto sym : syms()) {
-        o << sep << sym;
-        sep = ".";
-    }
-    return o;
-}
-
 std::ostream& Join::stream(std::ostream& o) const {
     o << '(';
     lhs()->stream(o);

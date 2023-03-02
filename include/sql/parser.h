@@ -36,10 +36,7 @@ private:
     Ptr<Expr> parse_id();
     Ptr<Expr> parse_create();
     Ptr<Expr> parse_select();
-
     std::optional<Join::Tag> parse_join_op();
-    Ptr<Table> parse_table(std::string_view ctxt);
-    Ptr<Table> parse_primary_or_unary_table(std::string_view ctxt);
 
     template<class F>
     void parse_list(F f, Tok::Tag delim, Tok::Tag sep = Tok::Tag::T_comma) {

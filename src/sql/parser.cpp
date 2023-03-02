@@ -100,17 +100,66 @@ Ptr<Type> Parser::parse_type(std::string_view ctxt) {
  * Expr
  */
 
+std::optional<Join::Tag> Parser::parse_join_op() {
+    int tag    = 0;
+    bool inner = false;
+    if (accept(Tok::Tag::K_CROSS)) {
+        tag = Join::Cross;
+    } else {
+        tag = accept(Tok::Tag::K_NATURAL) ? Join::Natural : 0;
+
+        // clang-format off
+        if      (accept(Tok::Tag::K_INNER)) inner = true;
+        else if (accept(Tok::Tag::K_LEFT )) tag |= Join::Left;
+        else if (accept(Tok::Tag::K_RIGHT)) tag |= Join::Right;
+        else if (accept(Tok::Tag::K_FULL) ) tag |= Join::Full;
+        // clang-format on
+        if (tag & Join::Left || tag & Join::Right) accept(Tok::Tag::K_OUTER); // or Join::Full
+    }
+
+    if (tag || inner) {
+        expect(Tok::Tag::K_JOIN, "JOIN operator");
+    } else if (accept(Tok::Tag::K_JOIN)) {
+        return Join::Inner;
+    } else {
+        return {};
+    }
+
+    return (Join::Tag)tag;
+}
+
 Ptr<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
     auto track = tracker();
     auto lhs   = parse_primary_or_unary_expr(ctxt);
 
-    while (auto prec = Tok::bin_prec(ahead().tag())) {
-        if (*prec < cur_prec) break;
+    while (true) {
+        if (auto prec = Tok::bin_prec(ahead().tag())) {
+            if (*prec < cur_prec) break;
 
-        auto op  = lex().tag();
-        auto rhs = parse_expr("right-hand side of binary expression", *prec);
-        lhs      = mk<BinExpr>(track, std::move(lhs), op, std::move(rhs));
+            auto op  = lex().tag();
+            auto rhs = parse_expr("right-hand side of binary expression", *prec);
+            lhs      = mk<BinExpr>(track, std::move(lhs), op, std::move(rhs));
+        } else if (auto tag = parse_join_op()) {
+            auto rhs = parse_expr("right-hand side of JOIN operator", Tok::Prec::Join);
+
+            Join::Spec spec;
+            if (accept(Tok::Tag::K_ON)) {
+                spec = parse_expr("search condition for an ON clause of a JOIN specification");
+            } else if (accept(Tok::Tag::K_USING)) {
+                Syms syms;
+                parse_list("join column list for a USING clause of a JOIN specification",
+                        [&]() { syms.emplace_back(parse_sym("colunm name list")); });
+                spec = std::move(syms);
+            }
+
+            lhs = mk<Join>(track, std::move(lhs), *tag, std::move(rhs), std::move(spec));
+        } else {
+            break;
+        }
     }
+
+
+
 
     return lhs;
 }
@@ -220,8 +269,8 @@ Ptr<Expr> Parser::parse_select() {
     }
 
     expect(Tok::Tag::K_FROM, "SELECT expression");
-    Ptrs<Table> froms;
-    do { froms.emplace_back(parse_table("FROM clause")); } while (accept(Tok::Tag::T_comma));
+    Ptrs<Expr> froms;
+    do { froms.emplace_back(parse_expr("FROM clause")); } while (accept(Tok::Tag::T_comma));
     auto where  = accept(Tok::Tag::K_WHERE) ? parse_expr("WHERE expression") : nullptr;
     auto group  = accept(Tok::Tag::K_GROUP)
                     ? (expect(Tok::Tag::K_BY, "GROUP within SELECT expression"), parse_expr("GROUP expression"))
@@ -230,83 +279,6 @@ Ptr<Expr> Parser::parse_select() {
 
     return mk<Select>(track, all, std::move(elems), std::move(froms), std::move(where), std::move(group),
                       std::move(having));
-}
-
-/*
- * Table
- */
-
-std::optional<Join::Tag> Parser::parse_join_op() {
-    int tag    = 0;
-    bool inner = false;
-    if (accept(Tok::Tag::K_CROSS)) {
-        tag = Join::Cross;
-    } else {
-        tag = accept(Tok::Tag::K_NATURAL) ? Join::Natural : 0;
-
-        // clang-format off
-        if      (accept(Tok::Tag::K_INNER)) inner = true;
-        else if (accept(Tok::Tag::K_LEFT )) tag |= Join::Left;
-        else if (accept(Tok::Tag::K_RIGHT)) tag |= Join::Right;
-        else if (accept(Tok::Tag::K_FULL) ) tag |= Join::Full;
-        // clang-format on
-        if (tag & Join::Left || tag & Join::Right) accept(Tok::Tag::K_OUTER); // or Join::Full
-    }
-
-    if (tag || inner) {
-        expect(Tok::Tag::K_JOIN, "JOIN operator");
-    } else if (accept(Tok::Tag::K_JOIN)) {
-        return Join::Inner;
-    } else {
-        return {};
-    }
-
-    return (Join::Tag)tag;
-}
-
-Ptr<Table> Parser::parse_table(std::string_view ctxt) {
-    auto track = tracker();
-    auto lhs   = parse_primary_or_unary_table(ctxt);
-
-    while (auto tag = parse_join_op()) {
-        auto rhs = parse_table("right-hand side of JOIN operator");
-
-        Join::Spec spec;
-        if (accept(Tok::Tag::K_ON)) {
-            spec = parse_expr("search condition for an ON clause of a JOIN specification");
-        } else if (accept(Tok::Tag::K_USING)) {
-            Syms syms;
-            parse_list("join column list for a USING clause of a JOIN specification",
-                       [&]() { syms.emplace_back(parse_sym("colunm name list")); });
-            spec = std::move(syms);
-        }
-
-        lhs = mk<Join>(track, std::move(lhs), *tag, std::move(rhs), std::move(spec));
-    }
-
-    return lhs;
-}
-
-Ptr<Table> Parser::parse_primary_or_unary_table(std::string_view ctxt) {
-    auto track = tracker();
-
-    if (accept(Tok::Tag::D_paren_l)) {
-        if (accept(Tok::Tag::K_WITH)) assert(false && "TODO: query expression");
-        auto table = parse_table("parenthesized table reference");
-        expect(Tok::Tag::D_paren_r, "parenthesized table reference");
-        return table;
-    } else if (auto tok = accept(Tok::Tag::M_id)) {
-        Syms syms;
-        syms.emplace_back(tok->sym());
-        while (accept(Tok::Tag::T_dot)) syms.emplace_back(parse_sym("identifer chain"));
-        return mk<IdTable>(track, std::move(syms));
-    }
-
-    if (!ctxt.empty()) {
-        err("primary or unary table reference", ctxt);
-        return mk<ErrTable>(prev_);
-    }
-    unreachable();
 }
 
 } // namespace sql
