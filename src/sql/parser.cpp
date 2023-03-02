@@ -148,7 +148,7 @@ Ptr<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
             } else if (accept(Tok::Tag::K_USING)) {
                 Syms syms;
                 parse_list("join column list for a USING clause of a JOIN specification",
-                        [&]() { syms.emplace_back(parse_sym("colunm name list")); });
+                           [&]() { syms.emplace_back(parse_sym("colunm name list")); });
                 spec = std::move(syms);
             }
 
@@ -157,9 +157,6 @@ Ptr<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
             break;
         }
     }
-
-
-
 
     return lhs;
 }
