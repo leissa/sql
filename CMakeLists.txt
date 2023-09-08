@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
+project(SQLParser)
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type (default Debug)" FORCE)
