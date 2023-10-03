@@ -1,6 +1,6 @@
 #include "sql/tok.h"
 
-#include "sql/assert.h"
+#include <fe/assert.h>
 
 using namespace std::literals;
 
@@ -17,7 +17,7 @@ std::string_view Tok::str(Tok::Tag tag) {
         case Tok::Tag::K_IS_NOT: return "IS NOT"sv;
     }
 
-    unreachable();
+    fe::unreachable();
 }
 
 // clang-format off

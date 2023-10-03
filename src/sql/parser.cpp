@@ -9,32 +9,8 @@ namespace sql {
 
 Parser::Parser(Driver& driver, std::istream& istream, const std::filesystem::path* path)
     : lexer_(driver, istream, path)
-    , prev_(lexer_.loc())
-    , ahead_(lexer_.lex())
-    , error_(driver.sym("<error>"s)) {}
-
-Tok Parser::lex() {
-    auto result = ahead();
-    ahead_      = lexer_.lex();
-    return result;
-}
-
-std::optional<Tok> Parser::accept(Tok::Tag tag) {
-    if (tag != ahead().tag()) return std::nullopt;
-    return lex();
-}
-
-bool Parser::expect(Tok::Tag tag, std::string_view ctxt) {
-    if (ahead().tag() == tag) {
-        lex();
-        return true;
-    }
-
-    auto what = "'"s;
-    what += Tok::str(tag);
-    what += '\'';
-    err(what, ctxt);
-    return false;
+    , error_(driver.sym("<error>"s)) {
+    init(path);
 }
 
 void Parser::err(const std::string& what, const Tok& tok, std::string_view ctxt) {
@@ -196,7 +172,7 @@ Ptr<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
         err("primary or unary expression", ctxt);
         return mk<ErrExpr>(prev_);
     }
-    unreachable();
+    fe::unreachable();
 }
 
 Ptr<Expr> Parser::parse_id() {

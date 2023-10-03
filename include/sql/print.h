@@ -7,7 +7,7 @@
 #include <sstream>
 #include <string>
 
-#include "sql/assert.h"
+#include <fe/assert.h>
 
 // original from thorin2
 
@@ -27,9 +27,9 @@ struct Elem {
 namespace detail {
 template<typename T>
 concept Elemable = requires(T elem) {
-                       elem.range;
-                       elem.f;
-                   };
+    elem.range;
+    elem.f;
+};
 
 template<class R, class F>
 std::ostream& range(std::ostream& os, const R& r, F f, const char* sep = ", ") {
@@ -120,13 +120,13 @@ std::ostream& print(std::ostream& os, const char* s, T&& t, Args&&... args) {
             case '}':
                 if (detail::match2nd(os, next, s, '}')) continue;
                 assert(false && "unmatched/unescaped closing brace '}' in format string");
-                unreachable();
+                fe::unreachable();
             default: os << *s++;
         }
     }
 
     assert(false && "invalid format string for 's'");
-    unreachable();
+    fe::unreachable();
 }
 
 /// Wraps print to output a formatted `std:string`.

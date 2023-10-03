@@ -1,32 +1,21 @@
 #pragma once
 
+#include <fe/parser.h>
+
 #include "sql/ast.h"
 #include "sql/lexer.h"
 
 namespace sql {
 
-class Parser {
+class Parser : public fe::Parser<Tok, Tok::Tag, 1, Parser> {
 public:
     Parser(Driver&, std::istream&, const std::filesystem::path* = nullptr);
 
     Driver& driver() { return lexer_.driver(); }
     Ptr<Prog> parse_prog();
+    Lexer& lexer() { return lexer_; }
 
 private:
-    /// Trick to easily keep track of Loc%ations.
-    class Tracker {
-    public:
-        Tracker(Parser& parser, const Pos& pos)
-            : parser_(parser)
-            , pos_(pos) {}
-
-        operator Loc() const { return {parser_.prev_.path, pos_, parser_.prev_.finis}; }
-
-    private:
-        Parser& parser_;
-        Pos pos_;
-    };
-
     Sym parse_sym(std::string_view ctxt);
 
     Ptr<Type> parse_type(std::string_view ctxt);
@@ -53,28 +42,6 @@ private:
         expect(delim_r, std::string("closing delimiter of a ") + ctxt);
     }
 
-    /// Factory method to build a Tracker.
-    Tracker tracker() { return Tracker(*this, ahead().loc().begin); }
-
-    /// Invoke Lexer to retrieve next Tok%en.
-    Tok lex();
-
-    /// Get lookahead.
-    Tok ahead() const { return ahead_; }
-
-    /// If Parser::ahead() is a @p tag, Parser::lex(), and return `true`.
-    std::optional<Tok> accept(Tok::Tag tag);
-
-    /// Parser::lex Parser::ahead() which must be a @p tag.
-    /// Issue Parser::err%or with @p ctxt otherwise.
-    bool expect(Tok::Tag tag, std::string_view ctxt);
-
-    /// Consume Parser::ahead which must be a @p tag; `assert`s otherwise.
-    Tok eat([[maybe_unused]] Tok::Tag tag) {
-        assert(tag == ahead().tag() && "internal parser error");
-        return lex();
-    }
-
     /// Issue an error message of the form:
     /// `expected <what>, got '<tok>' while parsing <ctxt>`
     void err(const std::string& what, const Tok& tok, std::string_view ctxt);
@@ -82,10 +49,16 @@ private:
     /// Same above but uses Parser::ahead() as Tok%en.
     void err(const std::string& what, std::string_view ctxt) { err(what, ahead(), ctxt); }
 
+    void syntax_err(Tok::Tag tag, std::string_view ctxt) {
+        std::string msg("'");
+        msg.append(Tok::str(tag)).append("'");
+        err(msg, ctxt);
+    }
+
     Lexer lexer_;
-    Loc prev_;
-    Tok ahead_;
     Sym error_;
+
+    friend class fe::Parser<Tok, Tok::Tag, 1, Parser>;
 };
 
 } // namespace sql
