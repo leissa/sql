@@ -27,7 +27,7 @@ Tok Lexer::lex() {
     while (true) {
         begin();
 
-        if (accept(fe::utf8::EoF)) return {loc_, Tok::Tag::M_eof};
+        if (accept(fe::utf8::EoF)) return {loc_, Tok::Tag::EoF};
         if (accept_if(isspace)) continue;
         if (accept('{')) return {loc_, Tok::Tag::D_brace_l};
         if (accept('}')) return {loc_, Tok::Tag::D_brace_r};

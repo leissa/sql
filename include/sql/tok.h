@@ -338,36 +338,34 @@ using fe::Sym;
     m(K_WITHOUT, "WITHOUT") \
     m(K_YEAR, "YEAR") \
 
-#define SQL_VAL(m)                      \
-    m(V_int,        "<interger value>") \
-
-#define SQL_TOK(m)                      \
-    /* misc */                          \
-    m(M_eof,        "<end of file>")    \
-    m(M_id,         "<identifier>")     \
-    /* delimiter */                     \
-    m(D_brace_l,    "{")                \
-    m(D_brace_r,    "}")                \
-    m(D_brckt_l,    "[")                \
-    m(D_brckt_r,    "]")                \
-    m(D_paren_l,    "(")                \
-    m(D_paren_r,    ")")                \
-    /* further tokens */                \
-    m(T_assign,     ":=")               \
-    m(T_eq,         "=")                \
-    m(T_ne,         "<>")               \
-    m(T_l,          "<")                \
-    m(T_g,          ">")                \
-    m(T_le,         "<=")               \
-    m(T_ge,         ">=")               \
-    m(T_dot,        ".")                \
-    m(T_colon,      ":")                \
-    m(T_comma,      ",")                \
-    m(T_semicolon,  ";")                \
-    m(T_add,        "+")                \
-    m(T_sub,        "-")                \
-    m(T_mul,        "*")                \
-    m(T_div,        "/")                \
+#define SQL_TOK(m)                              \
+    m(EoF,          "<end of file>")            \
+    /* value: contains sth beyond the tag */    \
+    m(V_int,        "<interger value>")         \
+    m(V_id,         "<identifier>")             \
+    /* delimiter */                             \
+    m(D_brace_l,    "{")                        \
+    m(D_brace_r,    "}")                        \
+    m(D_brckt_l,    "[")                        \
+    m(D_brckt_r,    "]")                        \
+    m(D_paren_l,    "(")                        \
+    m(D_paren_r,    ")")                        \
+    /* further tokens */                        \
+    m(T_assign,     ":=")                       \
+    m(T_eq,         "=")                        \
+    m(T_ne,         "<>")                       \
+    m(T_l,          "<")                        \
+    m(T_g,          ">")                        \
+    m(T_le,         "<=")                       \
+    m(T_ge,         ">=")                       \
+    m(T_dot,        ".")                        \
+    m(T_colon,      ":")                        \
+    m(T_comma,      ",")                        \
+    m(T_semicolon,  ";")                        \
+    m(T_add,        "+")                        \
+    m(T_sub,        "-")                        \
+    m(T_mul,        "*")                        \
+    m(T_div,        "/")                        \
 
 #define CODE(t, str) + 1
 constexpr auto Num_Keys = 0 SQL_KEY(CODE);
@@ -379,7 +377,6 @@ public:
     enum class Tag {
 #define CODE(t, _) t,
         SQL_KEY(CODE)
-        SQL_VAL(CODE)
         SQL_TOK(CODE)
 #undef CODE
         K_IS_NOT ///< Not an actual keyword but we use this for UnExpr::tag.
@@ -404,7 +401,7 @@ public:
         , tag_(tag) {}
     Tok(Loc loc, Sym sym)
         : loc_(loc)
-        , tag_(Tag::M_id)
+        , tag_(Tag::V_id)
         , sym_(sym) {}
     Tok(Loc loc, uint64_t u64)
         : loc_(loc)
@@ -417,7 +414,7 @@ public:
     bool isa_key() const { return (int)tag() < Num_Keys; }
 
     Sym sym() const {
-        assert(isa(Tag::M_id));
+        assert(isa(Tag::V_id));
         return sym_;
     }
     uint64_t u64() const { return u64_; }

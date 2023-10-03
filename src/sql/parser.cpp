@@ -25,19 +25,19 @@ Ptr<Prog> Parser::parse_prog() {
     auto track = tracker();
     Ptrs<Expr> exprs;
 
-    while (!ahead().isa(Tok::Tag::M_eof)) {
+    while (!ahead().isa(Tok::Tag::EoF)) {
         auto expr = parse_expr("program");
         if (expr->isa<ErrExpr>()) lex(); // consume one token to prevent endless loop
         exprs.emplace_back(std::move(expr));
         expect(Tok::Tag::T_semicolon, "expression list");
     }
 
-    eat(Tok::Tag::M_eof);
+    eat(Tok::Tag::EoF);
     return mk<Prog>(track, std::move(exprs));
 }
 
 Sym Parser::parse_sym(std::string_view ctxt) {
-    if (ahead().isa(Tok::Tag::M_id)) return lex().sym();
+    if (ahead().isa(Tok::Tag::V_id)) return lex().sym();
     err("identifier", ctxt);
     return error_;
 }
@@ -139,7 +139,7 @@ Ptr<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
 
 Ptr<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
     switch (ahead().tag()) {
-        case Tok::Tag::M_id: return parse_id();
+        case Tok::Tag::V_id: return parse_id();
         case Tok::Tag::K_CREATE: return parse_create();
         case Tok::Tag::K_SELECT: return parse_select();
         case Tok::Tag::V_int: {
@@ -177,7 +177,7 @@ Ptr<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
 
 Ptr<Expr> Parser::parse_id() {
     auto track = tracker();
-    assert(ahead().isa(Tok::Tag::M_id));
+    assert(ahead().isa(Tok::Tag::V_id));
 
     bool asterisk = false;
     Syms syms;
