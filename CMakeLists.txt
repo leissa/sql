@@ -37,8 +37,3 @@ add_subdirectory(external/abseil-cpp)
 add_subdirectory(external/lyra EXCLUDE_FROM_ALL)
 add_subdirectory(external/fe)
 add_subdirectory(src)
-
-if(BUILD_TESTING AND THORIN_BUILD_TESTING)
-    add_subdirectory(gtest)
-    add_subdirectory(lit)
-endif()
