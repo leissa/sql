@@ -15,95 +15,78 @@ static std::string to_lower(std::string_view sv) {
 }
 
 Lexer::Lexer(Driver& driver, std::istream& istream, const std::filesystem::path* path)
-    : driver_(driver)
-    , loc_(path, {0, 0})
-    , peek_pos_({1, 1})
-    , stream_(istream) {
-    if (!stream_) throw std::runtime_error("stream is bad");
+    : fe::Lexer<1, Lexer>(istream, path)
+    , driver_(driver) {
+    if (!istream_) throw std::runtime_error("stream is bad");
 #define CODE(t, str) keywords_[driver_.sym(to_lower(str##s))] = Tok::Tag::t;
     SQL_KEY(CODE)
 #undef CODE
 }
 
-int Lexer::next() {
-    loc_.finis = peek_pos_;
-    int c      = stream_.get();
-
-    if (c == '\n') {
-        ++peek_pos_.row;
-        peek_pos_.col = 1;
-    } else {
-        ++peek_pos_.col;
-    }
-
-    return c;
-}
-
 Tok Lexer::lex() {
     while (true) {
-        loc_.begin = peek_pos_;
-        str_.clear();
+        begin();
 
-        if (eof()) return tok(Tok::Tag::M_eof);
+        if (accept(fe::utf8::EoF)) return {loc_, Tok::Tag::M_eof};
         if (accept_if(isspace)) continue;
-        if (accept('{')) return tok(Tok::Tag::D_brace_l);
-        if (accept('}')) return tok(Tok::Tag::D_brace_r);
-        if (accept('[')) return tok(Tok::Tag::D_brckt_l);
-        if (accept(']')) return tok(Tok::Tag::D_brckt_r);
-        if (accept('(')) return tok(Tok::Tag::D_paren_l);
-        if (accept(')')) return tok(Tok::Tag::D_paren_r);
+        if (accept('{')) return {loc_, Tok::Tag::D_brace_l};
+        if (accept('}')) return {loc_, Tok::Tag::D_brace_r};
+        if (accept('[')) return {loc_, Tok::Tag::D_brckt_l};
+        if (accept(']')) return {loc_, Tok::Tag::D_brckt_r};
+        if (accept('(')) return {loc_, Tok::Tag::D_paren_l};
+        if (accept(')')) return {loc_, Tok::Tag::D_paren_r};
         if (accept('<')) {
-            if (accept('>')) return tok(Tok::Tag::T_ne);
-            if (accept('=')) return tok(Tok::Tag::T_le);
-            return tok(Tok::Tag::T_l);
+            if (accept('>')) return {loc_, Tok::Tag::T_ne};
+            if (accept('=')) return {loc_, Tok::Tag::T_le};
+            return {loc_, Tok::Tag::T_l};
         }
         if (accept('>')) {
-            if (accept('=')) return tok(Tok::Tag::T_ge);
-            return tok(Tok::Tag::T_g);
+            if (accept('=')) return {loc_, Tok::Tag::T_ge};
+            return {loc_, Tok::Tag::T_g};
         }
-        if (accept('=')) return tok(Tok::Tag::T_eq);
-        if (accept(',')) return tok(Tok::Tag::T_comma);
-        if (accept('.')) return tok(Tok::Tag::T_dot);
-        if (accept(';')) return tok(Tok::Tag::T_semicolon);
-        if (accept('+')) return tok(Tok::Tag::T_add);
-        if (accept('-')) return tok(Tok::Tag::T_sub);
-        if (accept('*')) return tok(Tok::Tag::T_mul);
+        if (accept('=')) return {loc_, Tok::Tag::T_eq};
+        if (accept(',')) return {loc_, Tok::Tag::T_comma};
+        if (accept('.')) return {loc_, Tok::Tag::T_dot};
+        if (accept(';')) return {loc_, Tok::Tag::T_semicolon};
+        if (accept('+')) return {loc_, Tok::Tag::T_add};
+        if (accept('-')) return {loc_, Tok::Tag::T_sub};
+        if (accept('*')) return {loc_, Tok::Tag::T_mul};
         if (accept('/')) {
             if (accept('*')) {
                 eat_comments();
                 continue;
             }
             if (accept('/')) {
-                while (!eof() && peek() != '\n') next();
+                while (ahead() != fe::utf8::EoF && ahead() != '\n') next();
                 continue;
             }
 
-            return tok(Tok::Tag::T_div);
+            return {loc_, Tok::Tag::T_div};
         }
 
         // integer value
         if (accept_if(isdigit)) {
             while (accept_if(isdigit)) {}
-            return {loc(), std::strtoull(str_.c_str(), nullptr, 10)};
+            return {loc_, std::strtoull(str_.c_str(), nullptr, 10)};
         }
 
         // lex identifier or keyword
-        if (accept_if([](int i) { return i == '_' || isalpha(i); }, true)) {
-            while (accept_if([](int i) { return i == '_' || isalpha(i) || isdigit(i); }, true)) {}
+        if (accept_if<Append::Lower>([](int i) { return i == '_' || isalpha(i); })) {
+            while (accept_if<Append::Lower>([](int i) { return i == '_' || isalpha(i) || isdigit(i); })) {}
             auto sym = driver_.sym(str_);
-            if (auto i = keywords_.find(sym); i != keywords_.end()) return tok(i->second); // keyword
-            return {loc(), sym};                                                           // identifier
+            if (auto i = keywords_.find(sym); i != keywords_.end()) return {loc_, i->second}; // keyword
+            return {loc_, sym};                                                               // identifier
         }
 
-        driver_.err({loc_.path, peek_pos_}, "invalid input char: '{}'", (char)peek());
+        driver_.err({loc_.path, peek_}, "invalid input char: '{}'", (char)ahead());
         next();
     }
 }
 
 void Lexer::eat_comments() {
     while (true) {
-        while (!eof() && peek() != '*') next();
-        if (eof()) {
+        while (ahead() != fe::utf8::EoF && ahead() != '*') next();
+        if (ahead() == fe::utf8::EoF) {
             driver_.err(loc_, "non-terminated multiline comment");
             return;
         }
