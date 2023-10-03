@@ -2,12 +2,9 @@ add_library(libsql
     lexer.cpp
     parser.cpp
     print.cpp
-    loc.cpp
     stream.cpp
-    sym.cpp
     tok.cpp
 )
-
 set_target_properties(libsql PROPERTIES PREFIX "")
 
 target_include_directories(libsql
@@ -15,15 +12,12 @@ target_include_directories(libsql
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
 )
-
 target_link_libraries(libsql
     PUBLIC
-        absl::flat_hash_map
-        absl::flat_hash_set
-        absl::node_hash_map
-        absl::node_hash_set
+        absl::flat_hash_map absl::flat_hash_set
+        absl::node_hash_map absl::node_hash_set
+        fe
 )
-
 target_compile_features(libsql PUBLIC cxx_std_${CMAKE_CXX_STANDARD}) # make property public.
 
 if (MSVC AND BUILD_SHARED_LIBS)

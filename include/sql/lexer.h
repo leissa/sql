@@ -2,18 +2,18 @@
 
 #include <cassert>
 
+#include <filesystem>
 #include <istream>
 #include <unordered_map>
 
 #include "sql/driver.h"
-#include "sql/sym.h"
 #include "sql/tok.h"
 
 namespace sql {
 
 class Lexer {
 public:
-    Lexer(Driver& drv, Sym filename, std::istream&);
+    Lexer(Driver&, std::istream&, const std::filesystem::path*);
 
     Loc loc() const { return loc_; }
     Tok lex(); ///< Get next Tok in stream.
@@ -51,7 +51,7 @@ private:
     Pos peek_pos_; ///< Pos%ition of the current Lexer::peek().
     std::istream& stream_;
     std::string str_;
-    SymMap<Tok::Tag> keywords_;
+    fe::SymMap<Tok::Tag> keywords_;
 };
 
 } // namespace sql

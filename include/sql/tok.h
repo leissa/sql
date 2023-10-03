@@ -2,10 +2,14 @@
 
 #include <cassert>
 
-#include "sql/loc.h"
-#include "sql/sym.h"
+#include <fe/loc.h>
+#include <fe/sym.h>
 
 namespace sql {
+
+using fe::Loc;
+using fe::Pos;
+using fe::Sym;
 
 // clang-format off
 #define SQL_KEY(m) \

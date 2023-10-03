@@ -1,12 +1,17 @@
 #pragma once
 
-#include "sql/loc.h"
+#include <fe/loc.h>
+#include <fe/sym.h>
+
 #include "sql/print.h"
-#include "sql/sym.h"
 
 namespace sql {
 
-struct Driver : public Pool {
+using fe::Loc;
+using fe::Pos;
+using fe::Sym;
+
+struct Driver : public fe::SymPool {
 public:
     /// @name diagnostics
     ///@{

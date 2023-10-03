@@ -7,7 +7,7 @@ namespace sql {
 
 class Parser {
 public:
-    Parser(Driver&, Sym filename, std::istream& stream);
+    Parser(Driver&, std::istream&, const std::filesystem::path* = nullptr);
 
     Driver& driver() { return lexer_.driver(); }
     Ptr<Prog> parse_prog();
@@ -20,7 +20,7 @@ private:
             : parser_(parser)
             , pos_(pos) {}
 
-        operator Loc() const { return {parser_.prev_.file, pos_, parser_.prev_.finis}; }
+        operator Loc() const { return {parser_.prev_.path, pos_, parser_.prev_.finis}; }
 
     private:
         Parser& parser_;

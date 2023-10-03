@@ -2,6 +2,8 @@
 
 #include <ranges>
 
+#include <fe/loc.cpp.h>
+
 using namespace std::literals;
 
 namespace sql {
@@ -12,11 +14,11 @@ static std::string to_lower(std::string_view sv) {
     return res;
 }
 
-Lexer::Lexer(Driver& driver, Sym filename, std::istream& stream)
+Lexer::Lexer(Driver& driver, std::istream& istream, const std::filesystem::path* path)
     : driver_(driver)
-    , loc_(filename)
+    , loc_(path, {0, 0})
     , peek_pos_({1, 1})
-    , stream_(stream) {
+    , stream_(istream) {
     if (!stream_) throw std::runtime_error("stream is bad");
 #define CODE(t, str) keywords_[driver_.sym(to_lower(str##s))] = Tok::Tag::t;
     SQL_KEY(CODE)
@@ -93,7 +95,7 @@ Tok Lexer::lex() {
             return {loc(), sym};                                                           // identifier
         }
 
-        driver_.err({loc_.file, peek_pos_}, "invalid input char: '{}'", (char)peek());
+        driver_.err({loc_.path, peek_pos_}, "invalid input char: '{}'", (char)peek());
         next();
     }
 }

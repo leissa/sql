@@ -5,18 +5,17 @@
 #include <unordered_set>
 #include <variant>
 
-#include "sql/cast.h"
-#include "sql/loc.h"
-#include "sql/sym.h"
+#include <fe/cast.h>
+
 #include "sql/tok.h"
 
 namespace sql {
 
 template<class T>
 using Ptr = std::unique_ptr<const T>;
-
 template<class T>
 using Ptrs = std::deque<Ptr<T>>;
+using Syms = std::deque<Sym>;
 
 template<class T, class... Args>
 Ptr<T> mk(Args&&... args) {
@@ -24,7 +23,7 @@ Ptr<T> mk(Args&&... args) {
 }
 
 /// Base class for all @p Expr%essions.
-class Node : public RuntimeCast<Node> {
+class Node : public fe::RuntimeCast<Node> {
 public:
     Node(Loc loc)
         : loc_(loc) {}

@@ -32,8 +32,10 @@ endif()
 
 set(ABSL_PROPAGATE_CXX_STD ON)
 set(ABSL_ENABLE_INSTALL ON)
+set(FE_ABSL ON)
 add_subdirectory(external/abseil-cpp)
-add_subdirectory(external/Lyra EXCLUDE_FROM_ALL)
+add_subdirectory(external/lyra EXCLUDE_FROM_ALL)
+add_subdirectory(external/fe)
 add_subdirectory(src)
 
 if(BUILD_TESTING AND THORIN_BUILD_TESTING)

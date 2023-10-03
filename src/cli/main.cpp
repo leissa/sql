@@ -41,7 +41,8 @@ int main(int argc, char** argv) {
 
         if (input.empty()) throw std::invalid_argument("error: no input given");
 
-        std::ifstream ifs(input);
+        auto path = std::filesystem::path(input);
+        auto ifs  = std::ifstream(path);
         if (!ifs) {
             // errln("error: cannot read file '{}'", input);
             return EXIT_FAILURE;
@@ -50,11 +51,11 @@ int main(int argc, char** argv) {
         sql::Driver driver;
         sql::Ptr<sql::Prog> prog;
         if (input == "-") {
-            sql::Parser parser(driver, driver.sym("<stdin>"s), std::cin);
+            sql::Parser parser(driver, std::cin);
             prog = parser.parse_prog();
         } else {
             std::ifstream ifs(input);
-            sql::Parser parser(driver, driver.sym(std::move(input)), ifs);
+            sql::Parser parser(driver, ifs, &path);
             prog = parser.parse_prog();
         }
 
