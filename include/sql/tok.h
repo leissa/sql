@@ -2,6 +2,7 @@
 
 #include <cassert>
 
+#include <fe/format.h>
 #include <fe/loc.h>
 #include <fe/sym.h>
 
@@ -436,3 +437,5 @@ std::ostream& operator<<(std::ostream&, Tok::Tag);
 std::ostream& operator<<(std::ostream&, Tok);
 
 } // namespace sql
+
+template<> struct std::formatter<sql::Tok> : fe::ostream_formatter {};

@@ -7,7 +7,7 @@ using namespace std::literals;
 
 namespace sql {
 
-Parser::Parser(Driver& driver, std::istream& istream, const std::filesystem::path* path)
+Parser::Parser(fe::Driver& driver, std::istream& istream, const std::filesystem::path* path)
     : lexer_(driver, istream, path)
     , error_(driver.sym("<error>"s)) {
     init(path);

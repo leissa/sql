@@ -5,24 +5,24 @@
 #include <istream>
 #include <unordered_map>
 
+#include <fe/driver.h>
 #include <fe/lexer.h>
 
-#include "sql/driver.h"
 #include "sql/tok.h"
 
 namespace sql {
 
 class Lexer : public fe::Lexer<1, Lexer> {
 public:
-    Lexer(Driver&, std::istream&, const std::filesystem::path*);
+    Lexer(fe::Driver&, std::istream&, const std::filesystem::path*);
 
     Tok lex(); ///< Get next Tok in stream.
-    Driver& driver() { return driver_; }
+    fe::Driver& driver() { return driver_; }
 
 private:
     void eat_comments();
 
-    Driver& driver_;
+    fe::Driver& driver_;
     fe::SymMap<Tok::Tag> keywords_;
 };
 

@@ -9,9 +9,9 @@ namespace sql {
 
 class Parser : public fe::Parser<Tok, Tok::Tag, 1, Parser> {
 public:
-    Parser(Driver&, std::istream&, const std::filesystem::path* = nullptr);
+    Parser(fe::Driver&, std::istream&, const std::filesystem::path* = nullptr);
 
-    Driver& driver() { return lexer_.driver(); }
+    fe::Driver& driver() { return lexer_.driver(); }
     Ptr<Prog> parse_prog();
     Lexer& lexer() { return lexer_; }
 
