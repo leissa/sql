@@ -15,7 +15,6 @@ git clone --recurse-submodules https://github.com/leissa/sql.git
 Then, build with:
 ```sh
 cd sql
-mkdir build
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
 cmake --build build -j $(nproc)
 ```
