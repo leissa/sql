@@ -1,9 +1,9 @@
 [submodule "external/abseil-cpp"]
 	path = external/abseil-cpp
-	url = git@github.com:abseil/abseil-cpp.git
+	url = ../../abseil/abseil-cpp.git
 [submodule "external/Lyra"]
 	path = external/lyra
-	url = git@github.com:bfgroup/Lyra.git
+	url = ../../bfgroup/Lyra.git
 [submodule "external/fe"]
 	path = external/fe
 	url = ../fe
