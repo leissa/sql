@@ -1,8 +1,6 @@
 #pragma once
 
-#include <memory>
 #include <ostream>
-#include <unordered_set>
 #include <variant>
 
 #include <fe/cast.h>
@@ -10,7 +8,6 @@
 #include "sql/tok.h"
 
 namespace sql {
-
 
 template<class T> using AST  = fe::Arena::Ptr<const T>;
 template<class T> using ASTs = std::deque<AST<T>>;
