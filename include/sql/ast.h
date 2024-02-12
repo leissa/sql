@@ -11,16 +11,10 @@
 
 namespace sql {
 
-template<class T>
-using Ptr = std::unique_ptr<const T>;
-template<class T>
-using Ptrs = std::deque<Ptr<T>>;
-using Syms = std::deque<Sym>;
 
-template<class T, class... Args>
-Ptr<T> mk(Args&&... args) {
-    return std::make_unique<T>(std::forward<Args>(args)...);
-}
+template<class T> using AST  = fe::Arena::Ptr<const T>;
+template<class T> using ASTs = std::deque<AST<T>>;
+using Syms = std::deque<Sym>;
 
 /// Base class for all @p Expr%essions.
 class Node : public fe::RuntimeCast<Node> {
@@ -102,7 +96,7 @@ public:
 
 class UnExpr : public Expr {
 public:
-    UnExpr(Loc loc, Tok::Tag tag, Ptr<Expr>&& rhs)
+    UnExpr(Loc loc, Tok::Tag tag, AST<Expr>&& rhs)
         : Expr(loc)
         , tag_(tag)
         , rhs_(std::move(rhs)) {}
@@ -114,12 +108,12 @@ public:
 
 private:
     Tok::Tag tag_;
-    Ptr<Expr> rhs_;
+    AST<Expr> rhs_;
 };
 
 class BinExpr : public Expr {
 public:
-    BinExpr(Loc loc, Ptr<Expr>&& lhs, Tok::Tag tag, Ptr<Expr>&& rhs)
+    BinExpr(Loc loc, AST<Expr>&& lhs, Tok::Tag tag, AST<Expr>&& rhs)
         : Expr(loc)
         , lhs_(std::move(lhs))
         , tag_(tag)
@@ -132,9 +126,9 @@ public:
     std::ostream& stream(std::ostream&) const override;
 
 private:
-    Ptr<Expr> lhs_;
+    AST<Expr> lhs_;
     Tok::Tag tag_;
-    Ptr<Expr> rhs_;
+    AST<Expr> rhs_;
 };
 
 class Val : public Expr {
@@ -176,7 +170,7 @@ class Create : public Expr {
 public:
     class Elem : public Node {
     public:
-        Elem(Loc loc, Sym sym, Ptr<Type>&& type)
+        Elem(Loc loc, Sym sym, AST<Type>&& type)
             : Node(loc)
             , sym_(sym)
             , type_(std::move(type)) {}
@@ -188,10 +182,10 @@ public:
 
     private:
         Sym sym_;
-        Ptr<Type> type_;
+        AST<Type> type_;
     };
 
-    Create(Loc loc, Sym sym, Ptrs<Elem>&& elems)
+    Create(Loc loc, Sym sym, ASTs<Elem>&& elems)
         : Expr(loc)
         , sym_(sym)
         , elems_(std::move(elems)) {}
@@ -203,12 +197,12 @@ public:
 
 private:
     Sym sym_;
-    Ptrs<Elem> elems_;
+    ASTs<Elem> elems_;
 };
 
 class Join : public Expr {
 public:
-    using On    = Ptr<Expr>;
+    using On    = AST<Expr>;
     using Using = Syms;
     using Spec  = std::variant<std::monostate, On, Using>;
 
@@ -225,7 +219,7 @@ public:
         Cross,
     };
 
-    Join(Loc loc, Ptr<Expr>&& lhs, Tag tag, Ptr<Expr>&& rhs, Spec&& spec)
+    Join(Loc loc, AST<Expr>&& lhs, Tag tag, AST<Expr>&& rhs, Spec&& spec)
         : Expr(loc)
         , lhs_(std::move(lhs))
         , tag_(tag)
@@ -240,9 +234,9 @@ public:
     std::ostream& stream(std::ostream&) const override;
 
 private:
-    Ptr<Expr> lhs_;
+    AST<Expr> lhs_;
     Tag tag_;
-    Ptr<Expr> rhs_;
+    AST<Expr> rhs_;
     Spec spec_;
 };
 
@@ -250,7 +244,7 @@ class Select : public Expr {
 public:
     class Elem : public Node {
     public:
-        Elem(Loc loc, Ptr<Expr>&& expr, Syms&& syms)
+        Elem(Loc loc, AST<Expr>&& expr, Syms&& syms)
             : Node(loc)
             , expr_(std::move(expr))
             , syms_(std::move(syms)) {}
@@ -261,17 +255,17 @@ public:
         std::ostream& stream(std::ostream&) const override;
 
     private:
-        Ptr<Expr> expr_;
+        AST<Expr> expr_;
         Syms syms_;
     };
 
     Select(Loc loc,
            bool all,
-           Ptrs<Elem>&& elems,
-           Ptrs<Expr>&& froms,
-           Ptr<Expr>&& where,
-           Ptr<Expr>&& group,
-           Ptr<Expr>&& having)
+           ASTs<Elem>&& elems,
+           ASTs<Expr>&& froms,
+           AST<Expr>&& where,
+           AST<Expr>&& group,
+           AST<Expr>&& having)
         : Expr(loc)
         , all_(all)
         , elems_(std::move(elems))
@@ -292,11 +286,11 @@ public:
 
 private:
     bool all_;
-    Ptrs<Elem> elems_;
-    Ptrs<Expr> froms_;
-    Ptr<Expr> where_;
-    Ptr<Expr> group_;
-    Ptr<Expr> having_;
+    ASTs<Elem> elems_;
+    ASTs<Expr> froms_;
+    AST<Expr> where_;
+    AST<Expr> group_;
+    AST<Expr> having_;
 };
 
 /// Just a dummy that does nothing and will only be constructed during parse errors.
@@ -315,7 +309,7 @@ public:
 /// Just a HACK to have a list of Stmt%s.
 class Prog : public Node {
 public:
-    Prog(Loc loc, Ptrs<Expr>&& exprs)
+    Prog(Loc loc, ASTs<Expr>&& exprs)
         : Node(loc)
         , exprs_(std::move(exprs)) {}
 
@@ -324,7 +318,7 @@ public:
     std::ostream& stream(std::ostream&) const override;
 
 private:
-    Ptrs<Expr> exprs_;
+    ASTs<Expr> exprs_;
 };
 
 } // namespace sql

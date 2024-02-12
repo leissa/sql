@@ -9,22 +9,27 @@ namespace sql {
 
 class Parser : public fe::Parser<Tok, Tok::Tag, 1, Parser> {
 public:
-    Parser(fe::Driver&, std::istream&, const std::filesystem::path* = nullptr);
+    Parser(Driver&, std::istream&, const std::filesystem::path* = nullptr);
 
-    fe::Driver& driver() { return lexer_.driver(); }
-    Ptr<Prog> parse_prog();
+    Driver& driver() { return lexer_.driver(); }
+    AST<Prog> parse_prog();
     Lexer& lexer() { return lexer_; }
 
 private:
+    template<class T, class... Args>
+    auto ast(Args&&... args) {
+        return driver().ast<T>(std::forward<Args&&>(args)...);
+    }
+
     Sym parse_sym(std::string_view ctxt);
 
-    Ptr<Type> parse_type(std::string_view ctxt);
+    AST<Type> parse_type(std::string_view ctxt);
 
-    Ptr<Expr> parse_expr(std::string_view ctxt, Tok::Prec = Tok::Prec::Bot);
-    Ptr<Expr> parse_primary_or_unary_expr(std::string_view ctxt);
-    Ptr<Expr> parse_id();
-    Ptr<Expr> parse_create();
-    Ptr<Expr> parse_select();
+    AST<Expr> parse_expr(std::string_view ctxt, Tok::Prec = Tok::Prec::Bot);
+    AST<Expr> parse_primary_or_unary_expr(std::string_view ctxt);
+    AST<Expr> parse_id();
+    AST<Expr> parse_create();
+    AST<Expr> parse_select();
     std::optional<Join::Tag> parse_join_op();
 
     template<class F>

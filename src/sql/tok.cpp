@@ -14,6 +14,7 @@ std::string_view Tok::str(Tok::Tag tag) {
         SQL_TOK(CODE)
 #undef CODE
         case Tok::Tag::K_IS_NOT: return "IS NOT"sv;
+        case Tok::Tag::Nil: return "<nil>"sv;
     }
 
     fe::unreachable();

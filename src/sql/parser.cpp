@@ -7,7 +7,7 @@ using namespace std::literals;
 
 namespace sql {
 
-Parser::Parser(fe::Driver& driver, std::istream& istream, const std::filesystem::path* path)
+Parser::Parser(Driver& driver, std::istream& istream, const std::filesystem::path* path)
     : lexer_(driver, istream, path)
     , error_(driver.sym("<error>"s)) {
     init(path);
@@ -21,9 +21,9 @@ void Parser::err(const std::string& what, const Tok& tok, std::string_view ctxt)
  * misc
  */
 
-Ptr<Prog> Parser::parse_prog() {
+AST<Prog> Parser::parse_prog() {
     auto track = tracker();
-    Ptrs<Expr> exprs;
+    ASTs<Expr> exprs;
 
     while (!ahead().isa(Tok::Tag::EoF)) {
         auto expr = parse_expr("program");
@@ -33,7 +33,7 @@ Ptr<Prog> Parser::parse_prog() {
     }
 
     eat(Tok::Tag::EoF);
-    return mk<Prog>(track, std::move(exprs));
+    return ast<Prog>(track, std::move(exprs));
 }
 
 Sym Parser::parse_sym(std::string_view ctxt) {
@@ -45,7 +45,7 @@ Sym Parser::parse_sym(std::string_view ctxt) {
 /*
  * Type
  */
-Ptr<Type> Parser::parse_type(std::string_view ctxt) {
+AST<Type> Parser::parse_type(std::string_view ctxt) {
     switch (ahead().tag()) {
         case Tok::Tag::K_INT:
         case Tok::Tag::K_INTEGER:
@@ -54,7 +54,7 @@ Ptr<Type> Parser::parse_type(std::string_view ctxt) {
         case Tok::Tag::K_BOOLEAN:
         case Tok::Tag::K_DATE: {
             auto tok = lex();
-            return mk<SimpleType>(tok.loc(), tok.tag(), false);
+            return ast<SimpleType>(tok.loc(), tok.tag(), false);
         }
         case Tok::Tag::K_NUMERIC: assert(false && "TODO");
         case Tok::Tag::K_DECIMAL: assert(false && "TODO");
@@ -104,7 +104,7 @@ std::optional<Join::Tag> Parser::parse_join_op() {
     return (Join::Tag)tag;
 }
 
-Ptr<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
+AST<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
     auto track = tracker();
     auto lhs   = parse_primary_or_unary_expr(ctxt);
 
@@ -114,7 +114,7 @@ Ptr<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
 
             auto op  = lex().tag();
             auto rhs = parse_expr("right-hand side of binary expression", *prec);
-            lhs      = mk<BinExpr>(track, std::move(lhs), op, std::move(rhs));
+            lhs      = ast<BinExpr>(track, std::move(lhs), op, std::move(rhs));
         } else if (auto tag = parse_join_op()) {
             auto rhs = parse_expr("right-hand side of JOIN operator", Tok::Prec::Join);
 
@@ -128,7 +128,7 @@ Ptr<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
                 spec = std::move(syms);
             }
 
-            lhs = mk<Join>(track, std::move(lhs), *tag, std::move(rhs), std::move(spec));
+            lhs = ast<Join>(track, std::move(lhs), *tag, std::move(rhs), std::move(spec));
         } else {
             break;
         }
@@ -137,21 +137,21 @@ Ptr<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
     return lhs;
 }
 
-Ptr<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
+AST<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
     switch (ahead().tag()) {
         case Tok::Tag::V_id: return parse_id();
         case Tok::Tag::K_CREATE: return parse_create();
         case Tok::Tag::K_SELECT: return parse_select();
         case Tok::Tag::V_int: {
             auto tok = lex();
-            return mk<IntVal>(tok.loc(), tok.u64());
+            return ast<IntVal>(tok.loc(), tok.u64());
         }
         case Tok::Tag::K_TRUE:
         case Tok::Tag::K_FALSE:
         case Tok::Tag::K_UNKNOWN:
         case Tok::Tag::K_NULL: {
             auto tok = lex();
-            return mk<SimpleVal>(tok.loc(), tok.tag());
+            return ast<SimpleVal>(tok.loc(), tok.tag());
         }
         default: break;
     }
@@ -159,7 +159,7 @@ Ptr<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
     auto track = tracker();
     if (auto prec = Tok::un_prec(ahead().tag())) {
         auto op = lex().tag();
-        return mk<UnExpr>(track, op, parse_expr("operand of unary expression", *prec));
+        return ast<UnExpr>(track, op, parse_expr("operand of unary expression", *prec));
     }
 
     if (accept(Tok::Tag::D_paren_l)) {
@@ -170,12 +170,12 @@ Ptr<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
 
     if (!ctxt.empty()) {
         err("primary or unary expression", ctxt);
-        return mk<ErrExpr>(prev_);
+        return ast<ErrExpr>(prev_);
     }
     fe::unreachable();
 }
 
-Ptr<Expr> Parser::parse_id() {
+AST<Expr> Parser::parse_id() {
     auto track = tracker();
     assert(ahead().isa(Tok::Tag::V_id));
 
@@ -191,26 +191,26 @@ Ptr<Expr> Parser::parse_id() {
         syms.emplace_back(parse_sym("identifer chain"));
     }
 
-    return mk<Id>(track, std::move(syms), asterisk);
+    return ast<Id>(track, std::move(syms), asterisk);
 }
 
-Ptr<Expr> Parser::parse_create() {
+AST<Expr> Parser::parse_create() {
     auto track = tracker();
     eat(Tok::Tag::K_CREATE);
 
     expect(Tok::Tag::K_TABLE, "CREATE expression");
     auto sym = parse_sym("table name");
-    Ptrs<Create::Elem> elems;
+    ASTs<Create::Elem> elems;
     parse_list("table element list", [&]() {
         auto track = tracker();
         auto sym   = parse_sym("column name");
         auto type  = parse_type("column type");
-        elems.emplace_back(mk<Create::Elem>(track, sym, std::move(type)));
+        elems.emplace_back(ast<Create::Elem>(track, sym, std::move(type)));
     });
-    return mk<Create>(track, sym, std::move(elems));
+    return ast<Create>(track, sym, std::move(elems));
 }
 
-Ptr<Expr> Parser::parse_select() {
+AST<Expr> Parser::parse_select() {
     auto track = tracker();
     eat(Tok::Tag::K_SELECT);
 
@@ -220,7 +220,7 @@ Ptr<Expr> Parser::parse_select() {
         all = false;
     }
 
-    Ptrs<Select::Elem> elems;
+    ASTs<Select::Elem> elems;
     if (accept(Tok::Tag::T_mul)) {
         /* do nothing */
     } else {
@@ -237,12 +237,12 @@ Ptr<Expr> Parser::parse_select() {
                     syms.emplace_back(parse_sym("column name within AS clause "));
                 }
             }
-            elems.emplace_back(mk<Select::Elem>(track, std::move(expr), std::move(syms)));
+            elems.emplace_back(ast<Select::Elem>(track, std::move(expr), std::move(syms)));
         } while (accept(Tok::Tag::T_comma));
     }
 
     expect(Tok::Tag::K_FROM, "SELECT expression");
-    Ptrs<Expr> froms;
+    ASTs<Expr> froms;
     do { froms.emplace_back(parse_expr("FROM clause")); } while (accept(Tok::Tag::T_comma));
     auto where  = accept(Tok::Tag::K_WHERE) ? parse_expr("WHERE expression") : nullptr;
     auto group  = accept(Tok::Tag::K_GROUP)
@@ -250,7 +250,7 @@ Ptr<Expr> Parser::parse_select() {
                     : nullptr;
     auto having = accept(Tok::Tag::K_HAVING) ? parse_expr("HAVING expression") : nullptr;
 
-    return mk<Select>(track, all, std::move(elems), std::move(froms), std::move(where), std::move(group),
+    return ast<Select>(track, all, std::move(elems), std::move(froms), std::move(where), std::move(group),
                       std::move(having));
 }
 

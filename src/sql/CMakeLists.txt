@@ -1,4 +1,5 @@
 add_library(libsql
+    driver.cpp
     lexer.cpp
     parser.cpp
     print.cpp

@@ -16,7 +16,7 @@ static std::string to_lower(std::string_view sv) {
     return res;
 }
 
-Lexer::Lexer(fe::Driver& driver, std::istream& istream, const std::filesystem::path* path)
+Lexer::Lexer(Driver& driver, std::istream& istream, const std::filesystem::path* path)
     : fe::Lexer<1, Lexer>(istream, path)
     , driver_(driver) {
     if (!istream_) throw std::runtime_error("stream is bad");

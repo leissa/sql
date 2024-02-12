@@ -48,8 +48,8 @@ int main(int argc, char** argv) {
             return EXIT_FAILURE;
         }
 
-        fe::Driver driver;
-        sql::Ptr<sql::Prog> prog;
+        sql::Driver driver;
+        sql::AST<sql::Prog> prog;
         if (input == "-") {
             sql::Parser parser(driver, std::cin);
             prog = parser.parse_prog();
