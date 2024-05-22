@@ -80,6 +80,14 @@ Tok Lexer::lex() {
             return {loc_, sym};                                                               // identifier
         }
 
+        // lex string
+        if (accept('\'')){
+            while (accept<Append::Lower>([](char32_t c) { return c == '_' || utf8::isalpha(c) || utf8::isdigit(c); })) {}
+            accept('\'');
+            auto sym = driver_.sym(str_);
+            return {loc_, sym};
+        }
+
         if (accept(utf8::Null)) {
             driver().err(loc_, "invalid UTF-8 character");
             continue;
