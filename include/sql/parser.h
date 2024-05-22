@@ -30,6 +30,7 @@ private:
     AST<Expr> parse_id();
     AST<Expr> parse_create();
     AST<Expr> parse_select();
+    AST<Expr> parse_min();
     std::optional<Join::Tag> parse_join_op();
 
     template<class F>

@@ -108,6 +108,23 @@ private:
     AST<Expr> rhs_;
 };
 
+class Func : public Expr{
+public:
+    Func(Loc loc, Tok::Tag tag, ASTs<Expr>&& args)
+        : Expr(loc)
+        , tag_(tag)
+        , args_(std::move(args)) {}
+
+    Tok::Tag tag() const { return tag_; }
+    const auto& args() const { return args_; }
+
+    std::ostream& stream(std::ostream&) const override;
+
+private:
+    Tok::Tag tag_;
+    ASTs<Expr> args_;
+};
+
 class BinExpr : public Expr {
 public:
     BinExpr(Loc loc, AST<Expr>&& lhs, Tok::Tag tag, AST<Expr>&& rhs)

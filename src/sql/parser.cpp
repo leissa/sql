@@ -139,6 +139,7 @@ AST<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
 
 AST<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
     switch (ahead().tag()) {
+        case Tok::Tag::K_MIN: return parse_min();
         case Tok::Tag::V_id: return parse_id();
         case Tok::Tag::K_CREATE: return parse_create();
         case Tok::Tag::K_SELECT: return parse_select();
@@ -208,6 +209,23 @@ AST<Expr> Parser::parse_create() {
         elems.emplace_back(ast<Create::Elem>(track, sym, std::move(type)));
     });
     return ast<Create>(track, sym, std::move(elems));
+}
+
+AST<Expr> Parser::parse_min() {
+    auto track = tracker();
+
+    auto tag = lex().tag();
+    //eat(Tok::Tag::K_MIN);
+
+    ASTs<Expr> args;
+    parse_list("table element list", [&]() {
+        auto arg = parse_expr("argument of function");
+        args.emplace_back(std::move(arg));
+    });
+
+
+
+    return ast<Func>(track, tag, std::move(args));
 }
 
 AST<Expr> Parser::parse_select() {
