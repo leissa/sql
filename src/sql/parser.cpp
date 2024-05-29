@@ -263,11 +263,30 @@ AST<Expr> Parser::parse_select() {
     expect(Tok::Tag::K_FROM, "SELECT expression");
     ASTs<Expr> froms;
     do { froms.emplace_back(parse_expr("FROM clause")); } while (accept(Tok::Tag::T_comma));
+
+
+    //From x as y
+    Syms syms;
+    if (accept(Tok::Tag::K_AS)) {
+        if (ahead().isa(Tok::Tag::D_paren_l)) {
+            parse_list("column name list of AS clause",
+                       [&]() { syms.emplace_back(parse_sym("column name within AS clause")); });
+        } else {
+            syms.emplace_back(parse_sym("column name within AS clause "));
+        }
+    }
+
+
+
     auto where  = accept(Tok::Tag::K_WHERE) ? parse_expr("WHERE expression") : nullptr;
     auto group  = accept(Tok::Tag::K_GROUP)
                     ? (expect(Tok::Tag::K_BY, "GROUP within SELECT expression"), parse_expr("GROUP expression"))
                     : nullptr;
     auto having = accept(Tok::Tag::K_HAVING) ? parse_expr("HAVING expression") : nullptr;
+
+
+    
+
 
     return ast<Select>(track, all, std::move(elems), std::move(froms), std::move(where), std::move(group),
                       std::move(having));
