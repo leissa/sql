@@ -273,6 +273,20 @@ public:
         Syms syms_;
     };
 
+    class From : public Node {
+    public:
+        From(Loc loc, AST<Expr>&& from, AST<Expr>&& as)
+            : Node(loc)
+            , from_(std::move(from))
+            , as_(std::move(as)) {}
+        const Expr* from() const {return from_.get();}
+        const Expr* as() const {return as_.get();}
+        std::ostream& stream(std::ostream&) const override;
+    private:
+        AST<Expr> from_;
+        AST<Expr> as_;
+    };
+
     Select(Loc loc,
            bool all,
            ASTs<Elem>&& elems,
