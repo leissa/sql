@@ -1,6 +1,5 @@
 #include "sql/parser.h"
 
-#include <fstream>
 #include <iostream>
 
 using namespace std::literals;
@@ -261,8 +260,14 @@ AST<Expr> Parser::parse_select() {
     }
 
     expect(Tok::Tag::K_FROM, "SELECT expression");
-    ASTs<Expr> froms;
-    do { froms.emplace_back(parse_expr("FROM clause")); } while (accept(Tok::Tag::T_comma));
+    ASTs<Select::From> froms;
+    do {
+        auto track = tracker();
+        auto from = parse_sym("FROM clause");
+        Sym as;
+        if (accept(Tok::Tag::K_AS)) as = parse_sym("AS clause");
+        froms.emplace_back(ast<Select::From>(track, from, as));
+    } while (accept(Tok::Tag::T_comma));
 
 
     //From x as y
@@ -285,7 +290,7 @@ AST<Expr> Parser::parse_select() {
     auto having = accept(Tok::Tag::K_HAVING) ? parse_expr("HAVING expression") : nullptr;
 
 
-    
+
 
 
     return ast<Select>(track, all, std::move(elems), std::move(froms), std::move(where), std::move(group),

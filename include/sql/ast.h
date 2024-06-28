@@ -275,16 +275,18 @@ public:
 
     class From : public Node {
     public:
-        From(Loc loc, AST<Expr>&& from, AST<Expr>&& as)
+        From(Loc loc, Sym from, Sym as)
             : Node(loc)
-            , from_(std::move(from))
-            , as_(std::move(as)) {}
-        const Expr* from() const {return from_.get();}
-        const Expr* as() const {return as_.get();}
+            , from_(from)
+            , as_(as) {}
+
+        Sym from() const { return from_; }
+        Sym as() const { return as_; }
         std::ostream& stream(std::ostream&) const override;
+
     private:
-        AST<Expr> from_;
-        AST<Expr> as_;
+        Sym from_;
+        Sym as_;
     };
 
     Select(Loc loc,

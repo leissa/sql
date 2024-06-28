@@ -150,6 +150,12 @@ std::ostream& Select::Elem::stream(std::ostream& o) const {
     return o;
 }
 
+std::ostream& Select::From::stream(std::ostream& o) const {
+    o << from();
+    if (as()) o << " as " << as();
+    return o;
+}
+
 /*
  * Misc
  */
