@@ -290,7 +290,7 @@ public:
     Select(Loc loc,
            bool all,
            ASTs<Elem>&& elems,
-           ASTs<Expr>&& froms,
+           ASTs<From>&& froms,
            AST<Expr>&& where,
            AST<Expr>&& group,
            AST<Expr>&& having)
@@ -315,7 +315,7 @@ public:
 private:
     bool all_;
     ASTs<Elem> elems_;
-    ASTs<Expr> froms_;
+    ASTs<From> froms_;
     AST<Expr> where_;
     AST<Expr> group_;
     AST<Expr> having_;
