@@ -82,14 +82,14 @@ Tok Lexer::lex() {
 
         // lex string
         if (accept('\'')){
-            while (accept([](char32_t c) { return c != '\''; })) {}
-            accept('\'');
+            while (lex_char() != '\'') {}
+            str_.pop_back(); // remove final '
             auto sym = driver_.sym(str_);
             return {loc_, sym};
         } 
         if (accept('\"')){
-            while (accept([](char32_t c) { return c != '\"'; })) {}
-            accept('\"');
+            while (lex_char() != '"') {}
+            str_.pop_back(); // remove final "
             auto sym = driver_.sym(str_);
             return {loc_, sym};
         }
@@ -102,6 +102,31 @@ Tok Lexer::lex() {
         driver_.err({loc_.path, peek_}, "invalid input char: '{}'", (char)ahead());
         next();
     }
+}
+
+char8_t Lexer::lex_char() {
+    if (accept<Append::Off>('\\')) {
+        // clang-format off
+        if (false) {}
+        else if (accept<Append::Off>('\'')) str_ += '\'';
+        else if (accept<Append::Off>('\\')) str_ += '\\';
+        else if (accept<Append::Off>( '"')) str_ += '\"';
+        else if (accept<Append::Off>( '0')) str_ += '\0';
+        else if (accept<Append::Off>( 'a')) str_ += '\a';
+        else if (accept<Append::Off>( 'b')) str_ += '\b';
+        else if (accept<Append::Off>( 'f')) str_ += '\f';
+        else if (accept<Append::Off>( 'n')) str_ += '\n';
+        else if (accept<Append::Off>( 'r')) str_ += '\r';
+        else if (accept<Append::Off>( 't')) str_ += '\t';
+        else if (accept<Append::Off>( 'v')) str_ += '\v';
+        else driver_.err(loc_.anew_finis(), "invalid escape character '\\{}'", (char)ahead());
+        // clang-format on
+        return str_.back();
+    }
+    auto c = next();
+    str_ += c;
+    if (utf8::isascii(c)) return c;
+    driver_.err(loc_, "invalid character '{}'", (char)c);
 }
 
 void Lexer::eat_comments() {

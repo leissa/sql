@@ -20,6 +20,7 @@ public:
 
 private:
     void eat_comments();
+    char8_t lex_char();
 
     Driver& driver_;
     fe::SymMap<Tok::Tag> keywords_;
