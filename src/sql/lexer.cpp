@@ -82,13 +82,13 @@ Tok Lexer::lex() {
 
         // lex string
         if (accept('\'')){
-            while (accept<Append::Lower>([](char32_t c) { return c == '_' || utf8::isalpha(c) || utf8::isdigit(c); })) {}
+            while (accept([](char32_t c) { return c != '\''; })) {}
             accept('\'');
             auto sym = driver_.sym(str_);
             return {loc_, sym};
-        } //TODO string should be able to contain spaces
+        } 
         if (accept('\"')){
-            while (accept<Append::Lower>([](char32_t c) { return c == '_' || utf8::isalpha(c) || utf8::isdigit(c); })) {}
+            while (accept([](char32_t c) { return c != '\"'; })) {}
             accept('\"');
             auto sym = driver_.sym(str_);
             return {loc_, sym};
