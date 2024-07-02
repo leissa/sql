@@ -1,3 +1,3 @@
 SELECT note
 FROM ct
-WHERE kind like 'abc';
+WHERE kind like 'ab"c';

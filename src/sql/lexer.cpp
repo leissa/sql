@@ -83,13 +83,13 @@ Tok Lexer::lex() {
         // lex string
         if (accept('\'')){
             while (lex_char() != '\'') {}
-            str_.pop_back(); // remove final '
+            //str_.pop_back(); // remove final '
             auto sym = driver_.sym(str_);
             return {loc_, sym};
         } 
         if (accept('\"')){
             while (lex_char() != '"') {}
-            str_.pop_back(); // remove final "
+            //str_.pop_back(); // remove final "
             auto sym = driver_.sym(str_);
             return {loc_, sym};
         }
