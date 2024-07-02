@@ -32,6 +32,7 @@ std::optional<Tok::Prec> Tok::un_prec(Tok::Tag tag) {
 
 std::optional<Tok::Prec> Tok::bin_prec(Tok::Tag tag) {
     switch (tag) {
+        case Tok::Tag::K_LIKE:
         case Tok::Tag::K_OR:  return Prec::Or;
         case Tok::Tag::K_AND: return Prec::And;
         case Tok::Tag::T_eq:
