@@ -108,6 +108,12 @@ AST<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
     auto lhs   = parse_primary_or_unary_expr(ctxt);
 
     while (true) {
+        if (accept(Tok::Tag::K_NOT)){
+            if(accept(Tok::Tag::K_LIKE)){
+                auto rhs = parse_expr("right-hand side of binary expression", *Tok::bin_prec(Tok::Tag::K_LIKE));
+                lhs      = ast<BinExpr>(track, std::move(lhs), Tok::Tag::K_LIKE, std::move(rhs));
+            }
+        } else
         if (auto prec = Tok::bin_prec(ahead().tag())) {
             if (*prec < cur_prec) break;
 
