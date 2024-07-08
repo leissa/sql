@@ -61,6 +61,13 @@ std::ostream& BinExpr::stream(std::ostream& o) const {
     rhs()->stream(o);
     return o << ')';
 }
+std::ostream& BinExprWithPreTag::stream(std::ostream& o) const {
+    o << '(';
+    lhs()->stream(o);
+    o << ' ' << pretag() << ' ' << tag() <<' ';
+    rhs()->stream(o);
+    return o << ')';
+}
 
 std::ostream& Join::stream(std::ostream& o) const {
     o << '(';

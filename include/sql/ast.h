@@ -145,6 +145,18 @@ private:
     AST<Expr> rhs_;
 };
 
+class BinExprWithPreTag : public BinExpr {
+public:
+    BinExprWithPreTag(Loc loc, AST<Expr>&& lhs, Tok::Tag pretag, Tok::Tag tag, AST<Expr>&& rhs)
+        : BinExpr(loc, std::move(lhs), tag, std::move(rhs))
+        , pretag_(pretag) {}
+    Tok::Tag pretag() const {return pretag_;}
+
+    std::ostream& stream(std::ostream&) const override;
+private:
+    Tok::Tag pretag_;
+};
+
 class Val : public Expr {
 public:
     Val(Loc loc)
