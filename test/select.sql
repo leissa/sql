@@ -1,3 +1,3 @@
 SELECT note
-FROM ct
-WHERE kind not like 'abc' and not bb;
+FROM company_type
+WHERE production_year between 2005 and 2010;

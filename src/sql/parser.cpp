@@ -110,8 +110,11 @@ AST<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
     while (true) {
         if (accept(Tok::Tag::K_NOT)){
             if(accept(Tok::Tag::K_LIKE)){
-                auto rhs = parse_expr("right-hand side of binary expression", *Tok::bin_prec(Tok::Tag::K_LIKE));
+                auto rhs = parse_expr("right-hand side of binary expression with NOT in front of operator", *Tok::bin_prec(Tok::Tag::K_LIKE));
                 lhs      = ast<BinExprWithPreTag>(track, std::move(lhs), Tok::Tag::K_NOT, Tok::Tag::K_LIKE, std::move(rhs));
+            } else if(accept(Tok::Tag::K_BETWEEN)){
+                auto rhs = parse_expr("right-hand side of binary expression with NOT in front of operator", *Tok::bin_prec(Tok::Tag::K_BETWEEN));
+                lhs      = ast<BinExprWithPreTag>(track, std::move(lhs), Tok::Tag::K_NOT, Tok::Tag::K_BETWEEN, std::move(rhs));
             }
         } else
         if (auto prec = Tok::bin_prec(ahead().tag())) {
