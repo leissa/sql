@@ -109,13 +109,19 @@ AST<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
 
     while (true) {
         if (accept(Tok::Tag::K_NOT)){
-            if(accept(Tok::Tag::K_LIKE)){
-                auto rhs = parse_expr("right-hand side of binary expression with NOT in front of operator", *Tok::bin_prec(Tok::Tag::K_LIKE));
-                lhs      = ast<BinExprWithPreTag>(track, std::move(lhs), Tok::Tag::K_NOT, Tok::Tag::K_LIKE, std::move(rhs));
-            } else if(accept(Tok::Tag::K_BETWEEN)){
-                auto rhs = parse_expr("right-hand side of binary expression with NOT in front of operator", *Tok::bin_prec(Tok::Tag::K_BETWEEN));
-                lhs      = ast<BinExprWithPreTag>(track, std::move(lhs), Tok::Tag::K_NOT, Tok::Tag::K_BETWEEN, std::move(rhs));
+            switch(ahead().tag()){
+                case Tok::Tag::K_LIKE:
+                case Tok::Tag::K_BETWEEN: {
+                    auto tag = lex().tag();
+                    auto rhs = parse_expr("right-hand side of binary expression with NOT in front of operator", *Tok::bin_prec(tag));
+                    lhs      = ast<BinExprWithPreTag>(track, std::move(lhs), Tok::Tag::K_NOT, tag, std::move(rhs));
+                    break;
+                }
+                default:
+                err("binary expr with NOT", ctxt);
+                return nullptr;
             }
+            
         } else
         if (auto prec = Tok::bin_prec(ahead().tag())) {
             if (*prec < cur_prec) break;
