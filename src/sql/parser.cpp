@@ -153,6 +153,7 @@ AST<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
 
 AST<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
     switch (ahead().tag()) {
+        case Tok::Tag::K_COUNT:
         case Tok::Tag::K_MAX:
         case Tok::Tag::K_MIN: return parse_func();
         case Tok::Tag::V_id: return parse_id();
@@ -162,6 +163,7 @@ AST<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
             auto tok = lex();
             return ast<IntVal>(tok.loc(), tok.u64());
         }
+        case Tok::Tag::T_mul:
         case Tok::Tag::K_TRUE:
         case Tok::Tag::K_FALSE:
         case Tok::Tag::K_UNKNOWN:
