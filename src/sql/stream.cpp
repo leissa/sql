@@ -54,6 +54,16 @@ std::ostream& Func::stream(std::ostream& o) const {
     return o << ')';
 }
 
+std::ostream& ParenExprList::stream(std::ostream& o) const {
+    o << '(';
+    for(auto sep=""; const auto& arg: args()){
+        o << sep;
+        arg->stream(o);
+        sep=", ";
+    }
+    return o << ')';
+}
+
 std::ostream& BinExpr::stream(std::ostream& o) const {
     o << '(';
     lhs()->stream(o);

@@ -180,13 +180,21 @@ AST<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
         auto op = lex().tag();
         return ast<UnExpr>(track, op, parse_expr("operand of unary expression", *prec));
     }
-
+    if(ahead().isa(Tok::Tag::D_paren_l)){
+        ASTs<Expr> args;
+        parse_list("parenthesized expression list", [&]() {
+            auto arg = parse_expr("argument of function");
+            args.emplace_back(std::move(arg));
+        });
+        return ast<ParenExprList>(track, std::move(args));
+    }
+/*
     if (accept(Tok::Tag::D_paren_l)) {
         auto expr = parse_expr("parenthesized expression");
         expect(Tok::Tag::D_paren_r, "parenthesized expression");
         return expr;
     }
-
+*/
     if (!ctxt.empty()) {
         err("primary or unary expression", ctxt);
         return ast<ErrExpr>(prev_);

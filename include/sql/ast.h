@@ -71,6 +71,20 @@ public:
         : Node(loc) {}
 };
 
+class ParenExprList : public Expr{
+public:
+    ParenExprList(Loc loc, ASTs<Expr>&& args)
+        : Expr(loc)
+        , args_(std::move(args)) {}
+
+    const auto& args() const { return args_; }
+
+    std::ostream& stream(std::ostream&) const override;
+
+private:
+    ASTs<Expr> args_;
+};
+
 class Id : public Expr {
 public:
     Id(Loc loc, Syms&& syms, bool asterisk)
