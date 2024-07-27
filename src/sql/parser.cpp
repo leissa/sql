@@ -111,6 +111,7 @@ AST<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
         if (accept(Tok::Tag::K_NOT)){
             switch(ahead().tag()){
                 case Tok::Tag::K_LIKE:
+                case Tok::Tag::K_IN:
                 case Tok::Tag::K_BETWEEN: {
                     auto tag = lex().tag();
                     auto rhs = parse_expr("right-hand side of binary expression with NOT in front of operator", *Tok::bin_prec(tag));
