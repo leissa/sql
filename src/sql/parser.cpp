@@ -236,7 +236,7 @@ AST<Expr> Parser::parse_func() {
     //eat(Tok::Tag::K_MIN);
 
     ASTs<Expr> args;
-    parse_list("table element list", [&]() {
+    parse_list("function argument list", [&]() {
         auto arg = parse_expr("argument of function");
         args.emplace_back(std::move(arg));
     });
