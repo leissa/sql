@@ -7,19 +7,23 @@ print(os.getcwd())
 
 job_files = glob.glob("./job/*.sql")
 
-successes = 0
-failures = 0
-segfaults = 0
+successes = []
+failures = []
+segfaults = []
 
 for file in job_files:
     tmp = subprocess.call(f'./build/bin/sql -d {file}', shell=True)
     print(tmp)
     if tmp == 0:
-        successes += 1
+        successes.append(file)
     elif tmp == 1:
-        failures += 1
+        failures.append(file)
     elif tmp == 139:
-        segfaults += 1
+        segfaults.append(file)
 
 print("Job's done")
-print(f'Successes: {successes} Failures: {failures} Segfaults: {segfaults}')
+print(f'Successes: {len(successes)} Failures: {len(failures)} Segfaults: {len(segfaults)}')
+
+print("Failed:")
+for file in sorted(failures):
+    print(file)
