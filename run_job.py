@@ -27,3 +27,7 @@ print(f'Successes: {len(successes)} Failures: {len(failures)} Segfaults: {len(se
 print("Failed:")
 for file in sorted(failures):
     print(file)
+
+print("Segfaults:")
+for file in sorted(segfaults):
+    print(file)
