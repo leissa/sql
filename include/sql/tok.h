@@ -32,6 +32,7 @@ using fe::Sym;
     m(T_g,          ">")                        \
     m(T_le,         "<=")                       \
     m(T_ge,         ">=")                       \
+    m(T_ue,         "!=")                       \
     m(T_dot,        ".")                        \
     m(T_colon,      ":")                        \
     m(T_comma,      ",")                        \

@@ -1,1 +1,28 @@
-SELECT MIN(n.name) AS cast_member_name, MIN(pi.info) AS cast_member_info FROM aka_name AS an, cast_info AS ci, info_type AS it, link_type AS lt, movie_link AS ml, name AS n, person_info AS pi, title AS t WHERE an.name  is not NULL and (an.name LIKE '%a%' or an.name LIKE 'A%') AND it.info ='mini biography' AND lt.link  in ('references', 'referenced in', 'features', 'featured in') AND n.name_pcode_cf BETWEEN 'A' AND 'F' AND (n.gender='m' OR (n.gender = 'f' AND n.name LIKE 'A%')) AND pi.note  is not NULL AND t.production_year BETWEEN 1980 AND 2010 AND n.id = an.person_id AND n.id = pi.person_id AND ci.person_id = n.id AND t.id = ci.movie_id AND ml.linked_movie_id = t.id AND lt.id = ml.link_type_id AND it.id = pi.info_type_id AND pi.person_id = an.person_id AND pi.person_id = ci.person_id AND an.person_id = ci.person_id AND ci.movie_id = ml.linked_movie_id;
+SELECT MIN(cn.name) AS from_company, 
+       MIN(lt.link) AS movie_link_type, 
+       MIN(t.title) AS non_polish_sequel_movie 
+FROM company_name AS cn, 
+     company_type AS ct, 
+     keyword AS k, 
+     link_type AS lt, 
+     movie_companies AS mc, 
+     movie_keyword AS mk, 
+     movie_link AS ml, 
+     title AS t 
+WHERE cn.country_code !='[pl]' AND 
+      (cn.name LIKE '%Film%' OR cn.name LIKE '%Warner%') AND 
+      ct.kind ='production companies' AND 
+      k.keyword ='sequel' AND 
+      lt.link LIKE '%follow%' AND 
+      mc.note IS NULL AND 
+      t.production_year BETWEEN 1950 AND 2000 AND 
+      lt.id = ml.link_type_id AND 
+      ml.movie_id = t.id AND 
+      t.id = mk.movie_id AND 
+      mk.keyword_id = k.id 
+      AND t.id = mc.movie_id 
+      AND mc.company_type_id = ct.id 
+      AND mc.company_id = cn.id 
+      AND ml.movie_id = mk.movie_id 
+      AND ml.movie_id = mc.movie_id 
+      AND mk.movie_id = mc.movie_id;

@@ -42,6 +42,10 @@ Tok Lexer::lex() {
             if (accept('=')) return {loc_, Tok::Tag::T_le};
             return {loc_, Tok::Tag::T_l};
         }
+        if (accept('!')){
+            if(accept('=')) return{loc_, Tok::Tag::T_ue};
+            driver_.err({loc_.path, peek_}, "invalid input following '!': '{}'", (char)ahead());
+        }
         if (accept('>')) {
             if (accept('=')) return {loc_, Tok::Tag::T_ge};
             return {loc_, Tok::Tag::T_g};
