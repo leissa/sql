@@ -621,6 +621,7 @@ public:
         Join,
         Or,
         And,
+        Between,
         Not,
         Comp,
         Add,
