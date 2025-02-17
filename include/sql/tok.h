@@ -12,6 +12,7 @@ using fe::Loc;
 using fe::Pos;
 using fe::Sym;
 
+// clang-format off
 #define SQL_TOK(m)                              \
     m(EoF,          "<end of file>")            \
     /* value: contains sth beyond the tag */    \
@@ -32,6 +33,7 @@ using fe::Sym;
     m(T_g,          ">")                        \
     m(T_le,         "<=")                       \
     m(T_ge,         ">=")                       \
+    m(T_ue,         "!=")                       \
     m(T_dot,        ".")                        \
     m(T_colon,      ":")                        \
     m(T_comma,      ",")                        \
@@ -41,7 +43,6 @@ using fe::Sym;
     m(T_mul,        "*")                        \
     m(T_div,        "/")                        \
 
-// clang-format off
 // These are the *real* keywords - "reserved words"
 #define SQL_KEY(m) \
     m(K_ABS, "ABS") \
@@ -590,6 +591,7 @@ using fe::Sym;
     m(N_WORK, "WORK") \
     m(N_WRITE, "WRITE") \
     m(N_ZONE, "ZONE")
+// clang-format on
 
 enum class NonKey {
 #define CODE(t, _) t,
@@ -620,6 +622,7 @@ public:
         Join,
         Or,
         And,
+        Between,
         Not,
         Comp,
         Add,

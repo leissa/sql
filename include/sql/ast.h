@@ -11,7 +11,7 @@ namespace sql {
 
 template<class T> using AST  = fe::Arena::Ptr<const T>;
 template<class T> using ASTs = std::deque<AST<T>>;
-using Syms = std::deque<Sym>;
+using Syms                   = std::deque<Sym>;
 
 /// Base class for all @p Expr%essions.
 class Node : public fe::RuntimeCast<Node> {
@@ -71,6 +71,20 @@ public:
         : Node(loc) {}
 };
 
+class ParenExprList : public Expr {
+public:
+    ParenExprList(Loc loc, ASTs<Expr>&& args)
+        : Expr(loc)
+        , args_(std::move(args)) {}
+
+    const auto& args() const { return args_; }
+
+    std::ostream& stream(std::ostream&) const override;
+
+private:
+    ASTs<Expr> args_;
+};
+
 class Id : public Expr {
 public:
     Id(Loc loc, Syms&& syms, bool asterisk)
@@ -108,6 +122,23 @@ private:
     AST<Expr> rhs_;
 };
 
+class Func : public Expr {
+public:
+    Func(Loc loc, Tok::Tag tag, ASTs<Expr>&& args)
+        : Expr(loc)
+        , tag_(tag)
+        , args_(std::move(args)) {}
+
+    Tok::Tag tag() const { return tag_; }
+    const auto& args() const { return args_; }
+
+    std::ostream& stream(std::ostream&) const override;
+
+private:
+    Tok::Tag tag_;
+    ASTs<Expr> args_;
+};
+
 class BinExpr : public Expr {
 public:
     BinExpr(Loc loc, AST<Expr>&& lhs, Tok::Tag tag, AST<Expr>&& rhs)
@@ -126,6 +157,19 @@ private:
     AST<Expr> lhs_;
     Tok::Tag tag_;
     AST<Expr> rhs_;
+};
+
+class BinExprWithPreTag : public BinExpr {
+public:
+    BinExprWithPreTag(Loc loc, AST<Expr>&& lhs, Tok::Tag pretag, Tok::Tag tag, AST<Expr>&& rhs)
+        : BinExpr(loc, std::move(lhs), tag, std::move(rhs))
+        , pretag_(pretag) {}
+    Tok::Tag pretag() const { return pretag_; }
+
+    std::ostream& stream(std::ostream&) const override;
+
+private:
+    Tok::Tag pretag_;
 };
 
 class Val : public Expr {
@@ -256,10 +300,26 @@ public:
         Syms syms_;
     };
 
+    class From : public Node {
+    public:
+        From(Loc loc, Sym from, Sym as)
+            : Node(loc)
+            , from_(from)
+            , as_(as) {}
+
+        Sym from() const { return from_; }
+        Sym as() const { return as_; }
+        std::ostream& stream(std::ostream&) const override;
+
+    private:
+        Sym from_;
+        Sym as_;
+    };
+
     Select(Loc loc,
            bool all,
            ASTs<Elem>&& elems,
-           ASTs<Expr>&& froms,
+           ASTs<From>&& froms,
            AST<Expr>&& where,
            AST<Expr>&& group,
            AST<Expr>&& having)
@@ -284,7 +344,7 @@ public:
 private:
     bool all_;
     ASTs<Elem> elems_;
-    ASTs<Expr> froms_;
+    ASTs<From> froms_;
     AST<Expr> where_;
     AST<Expr> group_;
     AST<Expr> having_;

@@ -16,10 +16,7 @@ public:
     Lexer& lexer() { return lexer_; }
 
 private:
-    template<class T, class... Args>
-    auto ast(Args&&... args) {
-        return driver().ast<T>(std::forward<Args&&>(args)...);
-    }
+    template<class T, class... Args> auto ast(Args&&... args) { return driver().ast<T>(std::forward<Args&&>(args)...); }
 
     Sym parse_sym(std::string_view ctxt);
 
@@ -30,10 +27,10 @@ private:
     AST<Expr> parse_id();
     AST<Expr> parse_create();
     AST<Expr> parse_select();
+    AST<Expr> parse_func();
     std::optional<Join::Tag> parse_join_op();
 
-    template<class F>
-    void parse_list(F f, Tok::Tag delim, Tok::Tag sep = Tok::Tag::T_comma) {
+    template<class F> void parse_list(F f, Tok::Tag delim, Tok::Tag sep = Tok::Tag::T_comma) {
         if (!ahead().isa(delim)) {
             do { f(); } while (accept(sep) && !ahead().isa(delim));
         }

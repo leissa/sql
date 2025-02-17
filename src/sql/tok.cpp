@@ -34,8 +34,13 @@ std::optional<Tok::Prec> Tok::bin_prec(Tok::Tag tag) {
     switch (tag) {
         case Tok::Tag::K_OR:  return Prec::Or;
         case Tok::Tag::K_AND: return Prec::And;
+        case Tok::Tag::K_BETWEEN: return Prec::Between;
+        case Tok::Tag::K_IN:
+        case Tok::Tag::K_LIKE:
+        case Tok::Tag::K_IS:
         case Tok::Tag::T_eq:
         case Tok::Tag::T_ne:
+        case Tok::Tag::T_ue:
         case Tok::Tag::T_l:
         case Tok::Tag::T_le:
         case Tok::Tag::T_g:
