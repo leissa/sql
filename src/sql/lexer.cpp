@@ -55,18 +55,23 @@ Tok Lexer::lex() {
         if (accept('.')) return {loc_, Tok::Tag::T_dot};
         if (accept(';')) return {loc_, Tok::Tag::T_semicolon};
         if (accept('+')) return {loc_, Tok::Tag::T_add};
-        if (accept('-')) return {loc_, Tok::Tag::T_sub};
         if (accept('*')) return {loc_, Tok::Tag::T_mul};
+
+        // sub or single-line comment
+        if (accept('-')) {
+            if (accept('-')) {
+                while (ahead() != utf8::EoF && ahead() != '\n') next();
+                continue;
+            }
+            return {loc_, Tok::Tag::T_sub};
+        }
+
+        // div or multi-line comment
         if (accept('/')) {
             if (accept('*')) {
                 eat_comments();
                 continue;
             }
-            if (accept('/')) {
-                while (ahead() != utf8::EoF && ahead() != '\n') next();
-                continue;
-            }
-
             return {loc_, Tok::Tag::T_div};
         }
 
