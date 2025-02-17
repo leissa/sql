@@ -1,9 +1,10 @@
+#!/usr/bin/env python
+
 import subprocess
 import os
 import glob
 
 print(os.getcwd())
-
 
 job_files = glob.glob("./job/*.sql")
 
