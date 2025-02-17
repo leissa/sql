@@ -42,8 +42,8 @@ Tok Lexer::lex() {
             if (accept('=')) return {loc_, Tok::Tag::T_le};
             return {loc_, Tok::Tag::T_l};
         }
-        if (accept('!')){
-            if(accept('=')) return{loc_, Tok::Tag::T_ue};
+        if (accept('!')) {
+            if (accept('=')) return {loc_, Tok::Tag::T_ue};
             driver_.err({loc_.path, peek_}, "invalid input following '!': '{}'", (char)ahead());
         }
         if (accept('>')) {
@@ -78,22 +78,23 @@ Tok Lexer::lex() {
 
         // lex identifier or keyword
         if (accept<Append::Lower>([](char32_t c) { return c == '_' || utf8::isalpha(c); })) {
-            while (accept<Append::Lower>([](char32_t c) { return c == '_' || utf8::isalpha(c) || utf8::isdigit(c); })) {}
+            while (accept<Append::Lower>([](char32_t c) { return c == '_' || utf8::isalpha(c) || utf8::isdigit(c); })) {
+            }
             auto sym = driver_.sym(str_);
             if (auto i = keywords_.find(sym); i != keywords_.end()) return {loc_, i->second}; // keyword
             return {loc_, sym};                                                               // identifier
         }
 
         // lex string
-        if (accept('\'')){
+        if (accept('\'')) {
             while (lex_char() != '\'') {}
-            //str_.pop_back(); // remove final '
+            // str_.pop_back(); // remove final '
             auto sym = driver_.sym(str_);
             return {loc_, sym};
-        } 
-        if (accept('\"')){
+        }
+        if (accept('\"')) {
             while (lex_char() != '"') {}
-            //str_.pop_back(); // remove final "
+            // str_.pop_back(); // remove final "
             auto sym = driver_.sym(str_);
             return {loc_, sym};
         }
@@ -131,6 +132,7 @@ char8_t Lexer::lex_char() {
     str_ += c;
     if (utf8::isascii(c)) return c;
     driver_.err(loc_, "invalid character '{}'", (char)c);
+    return 0;
 }
 
 void Lexer::eat_comments() {

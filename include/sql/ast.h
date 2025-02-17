@@ -11,7 +11,7 @@ namespace sql {
 
 template<class T> using AST  = fe::Arena::Ptr<const T>;
 template<class T> using ASTs = std::deque<AST<T>>;
-using Syms = std::deque<Sym>;
+using Syms                   = std::deque<Sym>;
 
 /// Base class for all @p Expr%essions.
 class Node : public fe::RuntimeCast<Node> {
@@ -71,7 +71,7 @@ public:
         : Node(loc) {}
 };
 
-class ParenExprList : public Expr{
+class ParenExprList : public Expr {
 public:
     ParenExprList(Loc loc, ASTs<Expr>&& args)
         : Expr(loc)
@@ -122,7 +122,7 @@ private:
     AST<Expr> rhs_;
 };
 
-class Func : public Expr{
+class Func : public Expr {
 public:
     Func(Loc loc, Tok::Tag tag, ASTs<Expr>&& args)
         : Expr(loc)
@@ -164,9 +164,10 @@ public:
     BinExprWithPreTag(Loc loc, AST<Expr>&& lhs, Tok::Tag pretag, Tok::Tag tag, AST<Expr>&& rhs)
         : BinExpr(loc, std::move(lhs), tag, std::move(rhs))
         , pretag_(pretag) {}
-    Tok::Tag pretag() const {return pretag_;}
+    Tok::Tag pretag() const { return pretag_; }
 
     std::ostream& stream(std::ostream&) const override;
+
 private:
     Tok::Tag pretag_;
 };
