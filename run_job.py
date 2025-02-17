@@ -13,13 +13,13 @@ failures = []
 segfaults = []
 
 for file in job_files:
-    tmp = subprocess.call(f'./build/bin/sql -d {file}', shell=True)
-    print(tmp)
-    if tmp == 0:
+    ec = subprocess.call(f'./build/bin/sql -d {file}', shell=True)
+    print(ec)
+    if ec == 0:
         successes.append(file)
-    elif tmp == 1:
+    elif ec == 1:
         failures.append(file)
-    elif tmp == 139:
+    else:
         segfaults.append(file)
 
 print("Job's done")

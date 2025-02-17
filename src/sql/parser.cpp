@@ -236,9 +236,7 @@ AST<Expr> Parser::parse_create() {
 
 AST<Expr> Parser::parse_func() {
     auto track = tracker();
-
-    auto tag = lex().tag();
-    // eat(Tok::Tag::K_MIN);
+    auto tag   = lex().tag();
 
     ASTs<Expr> args;
     parse_list("function argument list", [&]() {
