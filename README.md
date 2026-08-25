@@ -168,13 +168,6 @@ review the resulting diff:
 cmake --build build --target bless
 ```
 
-## 🔨 Related Projects
-
-- [FE](https://github.com/leissa/fe) - the frontend toolkit this is built on.
-- [Let](https://github.com/leissa/let) - a small demo language built on FE.
-- [MimIR](https://anydsl.github.io/MimIR/) - an intermediate representation project by the author.
-- [GraphTool](https://github.com/leissa/graphtool) - a DOT-language tool using FE-style frontend infrastructure.
-
 ## 🤝 Coding Style
 
 Use the following coding conventions:
