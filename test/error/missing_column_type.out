@@ -1,0 +1,2 @@
+missing_column_type.sql:1:18: error: expected type, got ')' while parsing column type
+1 error(s) encountered

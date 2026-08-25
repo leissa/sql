@@ -1,0 +1,2 @@
+case_without_end.sql:1:27-1:30: error: expected 'END', got 'FROM' while parsing CASE expression
+1 error(s) encountered

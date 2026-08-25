@@ -7,7 +7,9 @@
 
 namespace sql {
 
-class Parser : public fe::Parser<Tok, Tok::Tag, 1, Parser> {
+/// Uses a lookahead of 2: telling `name(` (a Func call) from a plain Id, `(SELECT` from a
+/// parenthesized expression list, or `NOT LIKE` from a unary `NOT` all need to peek one token ahead.
+class Parser : public fe::Parser<Tok, Tok::Tag, 2, Parser> {
 public:
     Parser(Driver&, const fe::Src&);
 
@@ -16,23 +18,46 @@ public:
     Lexer& lexer() { return lexer_; }
 
 private:
-    template<class T, class... Args> auto ast(Args&&... args) { return driver().ast<T>(std::forward<Args&&>(args)...); }
+    template<class T, class... Args>
+    auto ast(Args&&... args) {
+        return driver().ast<T>(std::forward<Args&&>(args)...);
+    }
 
+    /// Accepts a reserved word as an identifier, too: the standard's reserved-word list is far
+    /// larger than what real-world SQL treats as reserved. A later check sorts out the illegal ones.
     Sym parse_sym(std::string_view ctxt);
+    bool isa_sym() const; ///< Would Parser::parse_sym succeed?
 
     AST<Type> parse_type(std::string_view ctxt);
 
+    AST<Expr> parse_query(std::string_view ctxt);      ///< Set operations plus `ORDER BY`/`OFFSET`/`FETCH`.
+    AST<Expr> parse_query_term(std::string_view ctxt); ///< `INTERSECT` binds tighter than `UNION`/`EXCEPT`.
     AST<Expr> parse_expr(std::string_view ctxt, Tok::Prec = Tok::Prec::Bot);
     AST<Expr> parse_primary_or_unary_expr(std::string_view ctxt);
+    AST<Expr> parse_between(Tracker, AST<Expr>&&, bool negated);
     AST<Expr> parse_id();
     AST<Expr> parse_create();
+    AST<Expr> parse_drop();
     AST<Expr> parse_select();
+    AST<Expr> parse_insert();
+    AST<Expr> parse_update();
+    AST<Expr> parse_delete();
     AST<Expr> parse_func();
+    AST<Expr> parse_case();
+    AST<Expr> parse_cast();
+    AST<Select::From> parse_from();
+    AST<Constraint> parse_constraint(bool table_level);
     std::optional<Join::Tag> parse_join_op();
 
-    template<class F> void parse_list(F f, Tok::Tag delim, Tok::Tag sep = Tok::Tag::T_comma) {
+    /// Parses a parenthesized, comma-separated column name list into @p syms.
+    void parse_col_list(std::string ctxt, Syms& syms);
+
+    template<class F>
+    void parse_list(F f, Tok::Tag delim, Tok::Tag sep = Tok::Tag::T_comma) {
         if (!ahead().isa(delim)) {
-            do { f(); } while (accept(sep) && !ahead().isa(delim));
+            do {
+                f();
+            } while (accept(sep) && !ahead().isa(delim));
         }
     }
 
@@ -59,8 +84,15 @@ private:
 
     Lexer lexer_;
     Sym error_;
+    /// `KEY`, `ASC`, `DESC`, `FIRST`, and `NEXT` are *non-reserved* words: they lex as identifiers,
+    /// so recognizing them within `PRIMARY KEY`, `ORDER BY`, and `FETCH` takes a symbol comparison.
+    Sym key_;
+    Sym asc_;
+    Sym desc_;
+    Sym first_;
+    Sym next_;
 
-    friend class fe::Parser<Tok, Tok::Tag, 1, Parser>;
+    friend class fe::Parser<Tok, Tok::Tag, 2, Parser>;
 };
 
 } // namespace sql

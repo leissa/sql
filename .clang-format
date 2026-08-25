@@ -40,11 +40,11 @@ AllowShortEnumsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: All
 AllowShortIfStatementsOnASingleLine: WithoutElse
 AllowShortLambdasOnASingleLine: All
-AllowShortLoopsOnASingleLine: true
+AllowShortLoopsOnASingleLine: false
 AlwaysBreakAfterDefinitionReturnType: None
 AlwaysBreakAfterReturnType: None
 AlwaysBreakBeforeMultilineStrings: false
-AlwaysBreakTemplateDeclarations: MultiLine
+AlwaysBreakTemplateDeclarations: Yes
 AttributeMacros:
   - __capability
 BinPackArguments: true
@@ -100,18 +100,6 @@ IfMacros:
   - KJ_IF_MAYBE
 IncludeBlocks: Regroup
 IncludeCategories:
-  - Regex: '"mim/plug/.*"'
-    Priority: 9
-  - Regex: '"mim/[[:alnum:]_]+/.*"'
-    Priority: 8
-  - Regex: '"mim/[[:alnum:]_]+\.h"'
-    Priority: 7
-  - Regex: "<mim/plug/.*>"
-    Priority: 6
-  - Regex: "<mim/[[:alnum:]_]+/.*>"
-    Priority: 5
-  - Regex: '<mim/[[:alnum:]_]+\.h>'
-    Priority: 4
   - Regex: "<c[[:alnum:]_]+>"
     Priority: 1
   - Regex: "<[[:alnum:]_]+>"
@@ -226,3 +214,4 @@ WhitespaceSensitiveMacros:
   - BOOST_PP_STRINGIZE
   - NS_SWIFT_NAME
   - CF_SWIFT_NAME
+...

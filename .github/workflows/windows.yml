@@ -1,0 +1,37 @@
+name: windows
+
+on:
+  push:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: ${{matrix.compiler}} ${{matrix.build-type}}
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        # clang-cl uses the MSVC STL, so the MSVC environment is set up in both cases.
+        compiler: [msvc, clang-cl]
+        build-type: [Debug, Release]
+
+    steps:
+      - name: Clone recursively
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      # Abseil is linked statically here: its DLL build needs every consumer to agree on
+      # ABSL_CONSUME_DLL, which is more moving parts than this CLI needs.
+      - name: Configure
+        run: cmake -S ${{github.workspace}} -B ${{github.workspace}}/build -G Ninja -DCMAKE_BUILD_TYPE=${{matrix.build-type}} -DBUILD_TESTING=ON -DBUILD_SHARED_LIBS=OFF ${{ matrix.compiler == 'clang-cl' && '-DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl' || '' }}
+
+      - name: Build
+        run: cmake --build ${{github.workspace}}/build
+
+      - name: Test
+        run: ctest --test-dir ${{github.workspace}}/build --output-on-failure

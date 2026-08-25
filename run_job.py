@@ -6,7 +6,7 @@ import glob
 
 print(os.getcwd())
 
-job_files = glob.glob("./job/*.sql")
+job_files = glob.glob("./test/job/*.sql")
 
 successes = []
 failures = []

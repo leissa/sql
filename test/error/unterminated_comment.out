@@ -1,0 +1,2 @@
+unterminated_comment.sql:1:18-1:33: error: non-terminated multiline comment
+1 error(s) encountered

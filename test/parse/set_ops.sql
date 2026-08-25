@@ -1,0 +1,16 @@
+SELECT a FROM t UNION SELECT b FROM u;
+SELECT a FROM t UNION ALL SELECT b FROM u;
+SELECT a FROM t UNION DISTINCT SELECT b FROM u;
+SELECT a FROM t EXCEPT SELECT b FROM u;
+SELECT a FROM t INTERSECT SELECT b FROM u;
+
+-- INTERSECT binds tighter than UNION and EXCEPT, and both chains are left-associative.
+SELECT a FROM t UNION SELECT b FROM u INTERSECT SELECT c FROM v;
+SELECT a FROM t UNION SELECT b FROM u EXCEPT SELECT c FROM v;
+
+-- Explicit grouping overrides that, and has to survive a round trip.
+SELECT a FROM t UNION (SELECT b FROM u EXCEPT SELECT c FROM v);
+(SELECT a FROM t UNION SELECT b FROM u) EXCEPT SELECT c FROM v;
+
+-- ORDER BY applies to the set operation as a whole.
+SELECT a FROM t UNION SELECT b FROM u ORDER BY 1 DESC;

@@ -1,0 +1,9 @@
+SELECT 1 FROM t;
+SELECT 2 FROM t;
+SELECT 3 FROM t;
+SELECT 'plain', '', 'it''s', 'a-b_c', '%wild%', 'tab	here' FROM t;
+SELECT a FROM t WHERE (b = 1);
+SELECT a FROM t;
+SELECT "MixedCase", "with space" FROM "T";
+SELECT a AS character, b AS at, c AS select FROM t;
+SELECT 0, 1, 10, 1000000 FROM t;

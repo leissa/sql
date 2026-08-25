@@ -58,6 +58,7 @@ std::ostream& operator<<(std::ostream& o, Tok::Tag tag) { return o << Tok::str(t
 
 std::ostream& operator<<(std::ostream& o, Tok tok) {
     if (tok.isa(Tok::Tag::V_id)) return o << *tok.sym();
+    if (tok.isa(Tok::Tag::V_str)) return o << '\'' << *tok.sym() << '\'';
     if (tok.isa(Tok::Tag::V_int)) return o << tok.u64();
     return o << Tok::str(tok.tag());
 }

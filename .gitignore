@@ -1,3 +1,4 @@
+.githooks
 .DS_Store
 .cache
 build*

@@ -1,0 +1,70 @@
+name: linux
+
+on:
+  push:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: ${{matrix.compiler.name}} ${{matrix.build-type}}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler:
+          # clang uses libstdc++ for its standard library, so g++-14 is installed in both cases.
+          - { name: gcc-14, cc: gcc-14, cxx: g++-14,  apt: g++-14 }
+          - { name: clang,  cc: clang,  cxx: clang++, apt: clang g++-14 }
+        build-type: [Debug, Release]
+
+    steps:
+      - name: Clone recursively
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{matrix.compiler.apt}}
+
+      - name: Configure
+        run: CC=${{matrix.compiler.cc}} CXX=${{matrix.compiler.cxx}} cmake -S ${{github.workspace}} -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.build-type}} -DBUILD_TESTING=ON
+
+      - name: Build
+        run: cmake --build ${{github.workspace}}/build
+
+      - name: Test
+        run: ctest --test-dir ${{github.workspace}}/build --output-on-failure
+
+  sanitize:
+    name: ASan+LSan+UBSan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone recursively
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang g++-14
+
+      - name: Configure
+        run: >
+          CC=clang CXX=clang++ cmake -S ${{github.workspace}} -B ${{github.workspace}}/build
+          -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON
+          -DCMAKE_CXX_FLAGS="-fsanitize=address,leak,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer"
+          -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,leak,undefined"
+
+      - name: Build
+        run: cmake --build ${{github.workspace}}/build
+
+      - name: Test
+        run: ctest --test-dir ${{github.workspace}}/build --output-on-failure
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+          UBSAN_OPTIONS: print_stacktrace=1

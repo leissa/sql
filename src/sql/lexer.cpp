@@ -12,7 +12,8 @@ namespace utf8 = fe::utf8;
 
 static std::string to_lower(std::string_view sv) {
     std::string res;
-    for (auto c : sv) res += tolower(c);
+    for (auto c : sv)
+        res += tolower(c);
     return res;
 }
 
@@ -53,13 +54,18 @@ Tok Lexer::lex() {
         if (accept(',')) return {loc_, Tok::Tag::T_comma};
         if (accept('.')) return {loc_, Tok::Tag::T_dot};
         if (accept(';')) return {loc_, Tok::Tag::T_semicolon};
+        if (accept(':')) {
+            if (accept('=')) return {loc_, Tok::Tag::T_assign};
+            return {loc_, Tok::Tag::T_colon};
+        }
         if (accept('+')) return {loc_, Tok::Tag::T_add};
         if (accept('*')) return {loc_, Tok::Tag::T_mul};
 
         // sub or single-line comment
         if (accept('-')) {
             if (accept('-')) {
-                while (ahead() != utf8::EoF && ahead() != '\n') next();
+                while (ahead() != utf8::EoF && ahead() != '\n')
+                    next();
                 continue;
             }
             return {loc_, Tok::Tag::T_sub};
@@ -89,19 +95,9 @@ Tok Lexer::lex() {
             return {loc_, sym};                                                               // identifier
         }
 
-        // lex string
-        if (accept('\'')) {
-            while (lex_char() != '\'') {}
-            // str_.pop_back(); // remove final '
-            auto sym = driver_.sym(str_);
-            return {loc_, sym};
-        }
-        if (accept('\"')) {
-            while (lex_char() != '"') {}
-            // str_.pop_back(); // remove final "
-            auto sym = driver_.sym(str_);
-            return {loc_, sym};
-        }
+        // string literal or - double-quoted, hence case-sensitive - delimited identifier
+        if (accept<Append::Off>('\'')) return lex_str('\'', Tok::Tag::V_str);
+        if (accept<Append::Off>('\"')) return lex_str('\"', Tok::Tag::V_id);
 
         if (accept(utf8::Null)) {
             driver().err(loc_, "invalid UTF-8 character");
@@ -113,7 +109,23 @@ Tok Lexer::lex() {
     }
 }
 
-char8_t Lexer::lex_char() {
+Tok Lexer::lex_str(char32_t delim, Tok::Tag tag) {
+    while (true) {
+        if (accept<Append::Off>(delim)) {
+            if (!accept<Append::Off>(delim)) break;
+            str_ += (char)delim;
+        } else if (ahead() == utf8::EoF) {
+            driver_.err(loc_, "unterminated string literal");
+            break;
+        } else {
+            lex_char();
+        }
+    }
+
+    return {loc_, tag, driver_.sym(str_)};
+}
+
+void Lexer::lex_char() {
     if (accept<Append::Off>('\\')) {
         // clang-format off
         if (false) {}
@@ -130,18 +142,19 @@ char8_t Lexer::lex_char() {
         else if (accept<Append::Off>( 'v')) str_ += '\v';
         else driver_.err(loc_.anew_end(), "invalid escape character '\\{}'", (char)ahead());
         // clang-format on
-        return str_.back();
+        return;
     }
-    auto c = next();
-    str_ += c;
-    if (utf8::isascii(c)) return c;
-    driver_.err(loc_, "invalid character '{}'", (char)c);
-    return 0;
+
+    // Append the original bytes: re-encoding via `str_ += char32_t` would truncate multi-byte UTF-8.
+    auto loc = peek();
+    next();
+    str_.append(buf_.substr(loc.begin.off, loc.size()));
 }
 
 void Lexer::eat_comments() {
     while (true) {
-        while (ahead() != utf8::EoF && ahead() != '*') next();
+        while (ahead() != utf8::EoF && ahead() != '*')
+            next();
         if (ahead() == utf8::EoF) {
             driver_.err(loc_, "non-terminated multiline comment");
             return;

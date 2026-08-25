@@ -1,0 +1,14 @@
+SELECT * FROM (a INNER JOIN b ON (a.id = b.id));
+SELECT * FROM (a INNER JOIN b ON (a.id = b.id));
+SELECT * FROM (a LEFT JOIN b ON (a.id = b.id));
+SELECT * FROM (a LEFT JOIN b ON (a.id = b.id));
+SELECT * FROM (a RIGHT JOIN b ON (a.id = b.id));
+SELECT * FROM (a FULL JOIN b ON (a.id = b.id));
+SELECT * FROM (a CROSS JOIN b);
+SELECT * FROM (a NATURAL INNER JOIN b);
+SELECT * FROM (a NATURAL LEFT JOIN b);
+SELECT * FROM (a INNER JOIN b USING (id));
+SELECT * FROM (a INNER JOIN b USING (id, kind));
+SELECT * FROM ((a INNER JOIN b ON (a.id = b.id)) LEFT JOIN c ON (b.id = c.id));
+SELECT * FROM ((a INNER JOIN b ON ((a.id = b.id) AND (a.k = b.k))) INNER JOIN c USING (id));
+SELECT * FROM (a INNER JOIN b ON (a.id = b.id)), c;

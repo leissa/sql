@@ -1,0 +1,3 @@
+invalid_char.sql:1:8: error: invalid input char: '#'
+invalid_char.sql:1:10-1:13: error: expected primary or unary expression, got 'FROM' while parsing elem of a SELECT expression
+2 error(s) encountered

@@ -18,6 +18,7 @@ using fe::Sym;
     /* value: contains sth beyond the tag */    \
     m(V_int,        "<interger value>")         \
     m(V_id,         "<identifier>")             \
+    m(V_str,        "<string value>")           \
     /* delimiter */                             \
     m(D_brace_l,    "{")                        \
     m(D_brace_r,    "}")                        \
@@ -599,8 +600,8 @@ enum class NonKey {
 #undef CODE
 };
 
-#define CODE(t, str) + 1
-constexpr auto Num_Keys = 0 SQL_KEY(CODE);
+#define CODE(t, str) +1
+constexpr auto Num_Keys     = 0 SQL_KEY(CODE);
 constexpr auto Num_Non_Keys = 0 SQL_NON_KEY(CODE);
 #undef CODE
 
@@ -638,6 +639,10 @@ public:
         : loc_(loc)
         , tag_(Tag::V_id)
         , sym_(sym) {}
+    Tok(Loc loc, Tag tag, Sym sym)
+        : loc_(loc)
+        , tag_(tag)
+        , sym_(sym) {}
     Tok(Loc loc, uint64_t u64)
         : loc_(loc)
         , tag_(Tag::V_int)
@@ -646,11 +651,12 @@ public:
     Loc loc() const { return loc_; }
     Tag tag() const { return tag_; }
     bool isa(Tag tag) const { return tag == tag_; }
-    bool isa_key() const { return (int)tag() < Num_Keys; }
+    /// Is a *reserved word*? The SQL_KEY Tag%s occupy `1 .. Num_Keys`, as Tag::Nil takes the `0`.
+    bool isa_key() const { return (int)tag_ >= 1 && (int)tag_ <= Num_Keys; }
     explicit operator bool() const { return tag_ != Tag::Nil; }
 
     Sym sym() const {
-        assert(isa(Tag::V_id));
+        assert(isa(Tag::V_id) || isa(Tag::V_str));
         return sym_;
     }
     uint64_t u64() const { return u64_; }
@@ -673,4 +679,5 @@ std::ostream& operator<<(std::ostream&, Tok);
 
 } // namespace sql
 
-template<> struct std::formatter<sql::Tok> : fe::ostream_formatter {};
+template<>
+struct std::formatter<sql::Tok> : fe::ostream_formatter {};

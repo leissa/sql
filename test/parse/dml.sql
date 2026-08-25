@@ -1,0 +1,16 @@
+INSERT INTO t VALUES (1, 2);
+INSERT INTO t VALUES (1, 'a'), (2, 'b'), (3, 'c');
+INSERT INTO t (a, b) VALUES (1, 'a');
+INSERT INTO t (a, b) SELECT x, y FROM u;
+INSERT INTO t SELECT * FROM u WHERE x > 1;
+
+UPDATE t SET a = 1;
+UPDATE t SET a = 1, b = 'x';
+UPDATE t SET a = a + 1 WHERE b = 2;
+UPDATE t AS x SET a = 1 WHERE x.b = 2;
+
+DELETE FROM t;
+DELETE FROM t WHERE a = 1;
+DELETE FROM t AS x WHERE x.a IS NULL;
+
+DROP TABLE t;

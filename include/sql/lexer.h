@@ -18,7 +18,9 @@ public:
 
 private:
     void eat_comments();
-    char8_t lex_char();
+    /// Lex the body of a @p delim-quoted literal; a doubled @p delim escapes one occurrence of it.
+    Tok lex_str(char32_t delim, Tok::Tag);
+    void lex_char();
 
     Driver& driver_;
     fe::SymMap<Tok::Tag> keywords_;
