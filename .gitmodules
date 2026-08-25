@@ -1,9 +1,9 @@
-[submodule "external/abseil-cpp"]
-	path = external/abseil-cpp
+[submodule "submodules/abseil-cpp"]
+	path = submodules/abseil-cpp
 	url = ../../abseil/abseil-cpp.git
-[submodule "external/Lyra"]
-	path = external/lyra
+[submodule "submodules/Lyra"]
+	path = submodules/lyra
 	url = ../../bfgroup/Lyra.git
-[submodule "external/fe"]
-	path = external/fe
+[submodule "submodules/fe"]
+	path = submodules/fe
 	url = ../fe

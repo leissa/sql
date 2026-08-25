@@ -6,10 +6,10 @@ using namespace std::literals;
 
 namespace sql {
 
-Parser::Parser(Driver& driver, std::istream& istream, const std::filesystem::path* path)
-    : lexer_(driver, istream, path)
+Parser::Parser(Driver& driver, const fe::Src& src)
+    : lexer_(driver, src)
     , error_(driver.sym("<error>"s)) {
-    init(path);
+    init();
 }
 
 void Parser::err(const std::string& what, const Tok& tok, std::string_view ctxt) {
@@ -194,7 +194,7 @@ AST<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
     */
     if (!ctxt.empty()) {
         err("primary or unary expression", ctxt);
-        return ast<ErrExpr>(prev_);
+        return ast<ErrExpr>(curr_);
     }
     fe::unreachable();
 }

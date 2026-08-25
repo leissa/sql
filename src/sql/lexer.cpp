@@ -16,10 +16,9 @@ static std::string to_lower(std::string_view sv) {
     return res;
 }
 
-Lexer::Lexer(Driver& driver, std::istream& istream, const std::filesystem::path* path)
-    : fe::Lexer<1, Lexer>(istream, path)
+Lexer::Lexer(Driver& driver, const fe::Src& src)
+    : fe::Lexer<1, Lexer>(src)
     , driver_(driver) {
-    if (!istream_) throw std::runtime_error("stream is bad");
 #define CODE(t, str) keywords_[driver_.sym(to_lower(str##s))] = Tok::Tag::t;
     SQL_KEY(CODE)
 #undef CODE
@@ -44,7 +43,7 @@ Tok Lexer::lex() {
         }
         if (accept('!')) {
             if (accept('=')) return {loc_, Tok::Tag::T_ue};
-            driver_.err({loc_.path, peek_}, "invalid input following '!': '{}'", (char)ahead());
+            driver_.err(peek(), "invalid input following '!': '{}'", (char)ahead());
         }
         if (accept('>')) {
             if (accept('=')) return {loc_, Tok::Tag::T_ge};
@@ -109,7 +108,7 @@ Tok Lexer::lex() {
             continue;
         }
 
-        driver_.err({loc_.path, peek_}, "invalid input char: '{}'", (char)ahead());
+        driver_.err(peek(), "invalid input char: '{}'", (char)ahead());
         next();
     }
 }
@@ -129,7 +128,7 @@ char8_t Lexer::lex_char() {
         else if (accept<Append::Off>( 'r')) str_ += '\r';
         else if (accept<Append::Off>( 't')) str_ += '\t';
         else if (accept<Append::Off>( 'v')) str_ += '\v';
-        else driver_.err(loc_.anew_finis(), "invalid escape character '\\{}'", (char)ahead());
+        else driver_.err(loc_.anew_end(), "invalid escape character '\\{}'", (char)ahead());
         // clang-format on
         return str_.back();
     }

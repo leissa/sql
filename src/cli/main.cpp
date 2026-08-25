@@ -1,6 +1,5 @@
 #include <cstring>
 
-#include <fstream>
 #include <iostream>
 
 #include <lyra/lyra.hpp>
@@ -42,23 +41,21 @@ int main(int argc, char** argv) {
 
         if (input.empty()) throw std::invalid_argument("error: no input given");
 
-        auto path = std::filesystem::path(input);
-        auto ifs  = std::ifstream(path);
-        if (!ifs) {
-            // errln("error: cannot read file '{}'", input);
-            return EXIT_FAILURE;
+        sql::Driver driver;
+
+        const fe::Src* src;
+        if (input == "-") {
+            src = driver.src().add("<stdin>", fe::SrcMap::slurp(std::cin)).first;
+        } else {
+            src = driver.src().add(input).first;
+            if (!src) {
+                std::cerr << "error: cannot read file '" << input << "'" << std::endl;
+                return EXIT_FAILURE;
+            }
         }
 
-        sql::Driver driver;
-        sql::AST<sql::Prog> prog;
-        if (input == "-") {
-            sql::Parser parser(driver, std::cin);
-            prog = parser.parse_prog();
-        } else {
-            std::ifstream ifs(input);
-            sql::Parser parser(driver, ifs, &path);
-            prog = parser.parse_prog();
-        }
+        sql::Parser parser(driver, *src);
+        auto prog = parser.parse_prog();
 
         if (dump) prog->dump();
 
