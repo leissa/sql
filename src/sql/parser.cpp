@@ -39,10 +39,11 @@ AST<Prog> Parser::parse_prog() {
 
     while (!ahead().isa(Tok::Tag::EoF)) {
         // The `;` closes the statement no matter how badly it went, so nothing nested may swallow it.
-        auto _ = anchor(Tok::Tag::T_semicolon, "expression list");
+        auto _ = anchor(Tok::Tag::T_semicolon);
         exprs.emplace_back(parse_query("program"));
         // Whatever is left before the `;` is bogus; discarding it also prevents an endless loop.
         recover([](Tok::Tag tag) { return tag != Tok::Tag::T_semicolon && tag != Tok::Tag::EoF; }, "program");
+        expect(Tok::Tag::T_semicolon, "expression list");
     }
 
     eat(Tok::Tag::EoF);

@@ -71,8 +71,9 @@ private:
     void parse_list(std::string ctxt, F f, Tok::Tag delim_l = Tok::Tag::D_paren_l, Tok::Tag sep = Tok::Tag::T_comma) {
         expect(delim_l, ctxt);
         auto delim_r = (Tok::Tag)((int)delim_l + 1);
-        auto _       = anchor(delim_r, "closing delimiter of a {}", ctxt);
+        auto _       = anchor(delim_r);
         parse_seq(ctxt, f, delim_r, sep);
+        expect(delim_r, "closing delimiter of a {}", ctxt);
     }
 
     /// Issue an error message of the form:
