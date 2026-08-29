@@ -1,2 +1,2 @@
-missing_semicolon.sql:2:1: error: expected ';', got '<end of file>' while parsing expression list
+missing_semicolon.sql:2:1: error: expected `;`, got `<end of file>` while parsing expression list
 1 error(s) encountered

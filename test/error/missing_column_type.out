@@ -1,4 +1,4 @@
-missing_column_type.sql:1:18: error: expected type, got ')' while parsing column type
+missing_column_type.sql:1:18: error: expected type, got `)` while parsing column type
     1 | CREATE TABLE t (a);
       |                  ^
 1 error(s) encountered

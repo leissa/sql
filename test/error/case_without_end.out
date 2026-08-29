@@ -1,4 +1,4 @@
-case_without_end.sql:1:27-1:30: error: expected 'END', got 'FROM' while parsing CASE expression
+case_without_end.sql:1:27-1:30: error: expected `END`, got `FROM` while parsing `CASE` expression
     1 | SELECT CASE WHEN a THEN 1 FROM t;
       |                           ^^^^
 1 error(s) encountered

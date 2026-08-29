@@ -76,21 +76,22 @@ private:
     }
 
     /// Issue an error message of the form:
-    /// `expected <what>, got '<tok>' while parsing <ctxt>`
+    /// `expected <what>, got <tok> while parsing <ctxt>`
+    /// @note @p what is inserted verbatim, so cite a Tok::Tag in backticks - see Parser::syntax_err.
     void err(const std::string& what, const Tok& tok, std::string_view ctxt);
 
     /// Same above but uses Parser::ahead() as Tok%en.
     void err(const std::string& what, std::string_view ctxt) { err(what, ahead(), ctxt); }
 
     void syntax_err(Tok::Tag tag, std::string_view ctxt) {
-        std::string msg("'");
-        msg.append(Tok::str(tag)).append("'");
+        std::string msg("`");
+        msg.append(Tok::str(tag)).append("`");
         err(msg, ctxt);
     }
 
     /// Parser::recover discarded @p tok because no enclosing context was waiting for it.
     void unanchored_err(Tok tok, std::string_view ctxt) {
-        err_.error(tok.loc(), "ignoring unexpected '{}' while parsing {}", tok, ctxt);
+        err_.error(tok.loc(), "ignoring unexpected `{}` while parsing {}", tok, ctxt);
     }
 
     Lexer lexer_;

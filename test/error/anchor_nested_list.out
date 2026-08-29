@@ -1,0 +1,7 @@
+anchor_nested_list.sql:1:33-1:35: error: ignoring unexpected `INT` while parsing type argument list
+    1 | CREATE TABLE t (a VARCHAR(10, b INT);
+      |                                 ^^^
+anchor_nested_list.sql:1:37: error: expected `)`, got `;` while parsing closing delimiter of a table element list
+    1 | CREATE TABLE t (a VARCHAR(10, b INT);
+      |                                     ^
+2 error(s) encountered

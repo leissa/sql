@@ -1,0 +1,1 @@
+SELECT CASE WHEN a THEN f(b c END FROM t;

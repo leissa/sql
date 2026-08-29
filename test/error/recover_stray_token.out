@@ -1,0 +1,4 @@
+recover_stray_token.sql:1:11: error: ignoring unexpected `b` while parsing parenthesized expression list
+    1 | SELECT (a b) FROM t;
+      |           ^
+1 error(s) encountered

@@ -1,0 +1,1 @@
+SELECT f(a b; SELECT c FROM u;

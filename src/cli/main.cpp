@@ -1,5 +1,6 @@
 #include <cstring>
 
+#include <format>
 #include <iostream>
 
 #include <lyra/lyra.hpp>
@@ -49,7 +50,8 @@ int main(int argc, char** argv) {
         } else {
             src = driver.src().add(input).first;
             if (!src) {
-                std::cerr << "error: cannot read file '" << input << "'" << std::endl;
+                // Not an fe::Error - there is no Loc to point at - but cite the file the same way.
+                fe::stream_code(std::cerr, std::format("error: cannot read file `{}`", input)) << std::endl;
                 return EXIT_FAILURE;
             }
         }

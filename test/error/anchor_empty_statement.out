@@ -1,0 +1,4 @@
+anchor_empty_statement.sql:1:1: error: expected primary or unary expression, got `;` while parsing program
+    1 | ; SELECT a FROM t;
+      | ^
+1 error(s) encountered

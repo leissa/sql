@@ -1,0 +1,4 @@
+recover_top_level.sql:1:16: error: ignoring unexpected `)` while parsing program
+    1 | SELECT a FROM t) ;
+      |                ^
+1 error(s) encountered

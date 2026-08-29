@@ -1,0 +1,4 @@
+recover_values_row.sql:1:25: error: ignoring unexpected `2` while parsing row of a `VALUES` clause
+    1 | INSERT INTO t VALUES (1 2), (3, 4);
+      |                         ^
+1 error(s) encountered

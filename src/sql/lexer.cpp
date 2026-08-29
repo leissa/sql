@@ -43,7 +43,7 @@ Tok Lexer::lex() {
         }
         if (accept('!')) {
             if (accept('=')) return {loc_, Tok::Tag::T_ue};
-            err_.error(peek(), "invalid input following '!': '{}'", (char)ahead());
+            err_.error(peek(), "invalid input following `!`: `{}`", (char)ahead());
         }
         if (accept('>')) {
             if (accept('=')) return {loc_, Tok::Tag::T_ge};
@@ -103,7 +103,7 @@ Tok Lexer::lex() {
             continue;
         }
 
-        err_.error(peek(), "invalid input char: '{}'", (char)ahead());
+        err_.error(peek(), "invalid input char: `{}`", (char)ahead());
         next();
     }
 }
@@ -139,7 +139,7 @@ void Lexer::lex_char() {
         else if (accept<Append::Off>( 'r')) str_ += '\r';
         else if (accept<Append::Off>( 't')) str_ += '\t';
         else if (accept<Append::Off>( 'v')) str_ += '\v';
-        else err_.error(loc_.anew_end(), "invalid escape character '\\{}'", (char)ahead());
+        else err_.error(loc_.anew_end(), "invalid escape character `\\{}`", (char)ahead());
         // clang-format on
         return;
     }

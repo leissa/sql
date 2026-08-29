@@ -1,0 +1,7 @@
+anchor_case_end.sql:1:29: error: ignoring unexpected `c` while parsing function argument list
+    1 | SELECT CASE WHEN a THEN f(b c END FROM t;
+      |                             ^
+anchor_case_end.sql:1:31-1:33: error: expected `)`, got `END` while parsing closing delimiter of a function argument list
+    1 | SELECT CASE WHEN a THEN f(b c END FROM t;
+      |                               ^^^
+2 error(s) encountered

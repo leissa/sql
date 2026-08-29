@@ -1,0 +1,1 @@
+CREATE TABLE t (a VARCHAR(10, b INT);
