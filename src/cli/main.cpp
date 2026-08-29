@@ -54,15 +54,13 @@ int main(int argc, char** argv) {
             }
         }
 
-        sql::Parser parser(driver, *src);
+        fe::Error err(driver);
+        sql::Parser parser(driver, err, *src);
         auto prog = parser.parse_prog();
 
         if (dump) prog->dump();
 
-        if (auto num = driver.num_errors()) {
-            std::cerr << num << " error(s) encountered" << std::endl;
-            return EXIT_FAILURE;
-        }
+        if (err.report() != 0) return EXIT_FAILURE;
     } catch (const std::exception& e) {
         std::cerr << "error: " << e.what() << std::endl;
         return EXIT_FAILURE;

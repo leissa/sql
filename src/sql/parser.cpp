@@ -13,8 +13,9 @@ static std::string to_lower(std::string_view sv) {
     return res;
 }
 
-Parser::Parser(Driver& driver, const fe::Src& src)
-    : lexer_(driver, src)
+Parser::Parser(Driver& driver, fe::Error& err, const fe::Src& src)
+    : lexer_(driver, err, src)
+    , err_(err)
     , error_(driver.sym("<error>"s))
     , key_(driver.sym("key"s))
     , asc_(driver.sym("asc"s))
@@ -25,7 +26,7 @@ Parser::Parser(Driver& driver, const fe::Src& src)
 }
 
 void Parser::err(const std::string& what, const Tok& tok, std::string_view ctxt) {
-    driver().err(tok.loc(), "expected {}, got '{}' while parsing {}", what, tok, ctxt);
+    err_.error(tok.loc(), "expected {}, got '{}' while parsing {}", what, tok, ctxt);
 }
 
 /*
@@ -37,10 +38,11 @@ AST<Prog> Parser::parse_prog() {
     ASTs<Expr> exprs;
 
     while (!ahead().isa(Tok::Tag::EoF)) {
-        auto expr = parse_query("program");
-        if (expr->isa<ErrExpr>()) lex(); // consume one token to prevent endless loop
-        exprs.emplace_back(std::move(expr));
-        expect(Tok::Tag::T_semicolon, "expression list");
+        // The `;` closes the statement no matter how badly it went, so nothing nested may swallow it.
+        auto _ = anchor(Tok::Tag::T_semicolon, "expression list");
+        exprs.emplace_back(parse_query("program"));
+        // Whatever is left before the `;` is bogus; discarding it also prevents an endless loop.
+        recover([](Tok::Tag tag) { return tag != Tok::Tag::T_semicolon && tag != Tok::Tag::EoF; }, "program");
     }
 
     eat(Tok::Tag::EoF);
@@ -366,7 +368,8 @@ AST<Constraint> Parser::parse_constraint(bool table_level) {
     } else if (accept(Tok::Tag::K_CHECK)) {
         tag = Constraint::Check;
         expect(Tok::Tag::D_paren_l, "CHECK constraint");
-        expr = parse_expr("search condition of a CHECK constraint");
+        auto _ = anchor(Tok::Tag::D_paren_r);
+        expr   = parse_expr("search condition of a CHECK constraint");
         expect(Tok::Tag::D_paren_r, "closing delimiter of a CHECK constraint");
     } else if (accept(Tok::Tag::K_DEFAULT)) {
         tag  = Constraint::Default;
@@ -430,11 +433,14 @@ AST<Expr> Parser::parse_func() {
     auto sym   = parse_sym("function name");
 
     expect(Tok::Tag::D_paren_l, "function argument list");
+    auto _        = anchor(Tok::Tag::D_paren_r);
     bool distinct = (bool)accept(Tok::Tag::K_DISTINCT);
     if (!distinct) accept(Tok::Tag::K_ALL);
 
     ASTs<Expr> args;
-    parse_list([&]() { args.emplace_back(parse_expr("argument of function")); }, Tok::Tag::D_paren_r);
+    parse_seq(
+        "function argument list", [&]() { args.emplace_back(parse_expr("argument of function")); },
+        Tok::Tag::D_paren_r);
     expect(Tok::Tag::D_paren_r, "closing delimiter of a function argument list");
 
     return ast<Func>(track, sym, distinct, std::move(args));
@@ -445,6 +451,7 @@ AST<Expr> Parser::parse_cast() {
     eat(Tok::Tag::K_CAST);
 
     expect(Tok::Tag::D_paren_l, "CAST expression");
+    auto _    = anchor(Tok::Tag::D_paren_r);
     auto expr = parse_expr("operand of a CAST expression");
     expect(Tok::Tag::K_AS, "CAST expression");
     auto type = parse_type("target type of a CAST expression");
@@ -456,6 +463,7 @@ AST<Expr> Parser::parse_cast() {
 AST<Expr> Parser::parse_case() {
     auto track = tracker();
     eat(Tok::Tag::K_CASE);
+    auto _ = anchor(Tok::Tag::K_END);
 
     // `CASE WHEN ...` is the searched form and has no operand.
     AST<Expr> operand;
@@ -551,6 +559,8 @@ AST<Expr> Parser::parse_select() {
     if (accept(Tok::Tag::T_mul)) {
         /* do nothing */
     } else {
+        // `FROM` terminates the select list - and is what the enclosing SELECT expects next.
+        auto _ = anchor(Tok::Tag::K_FROM);
         do {
             auto track = tracker();
             auto expr  = parse_expr("elem of a SELECT expression");

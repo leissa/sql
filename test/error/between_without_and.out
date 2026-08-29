@@ -1,2 +1,4 @@
 between_without_and.sql:1:35-1:36: error: expected 'AND', got '10' while parsing BETWEEN expression
+    1 | SELECT a FROM t WHERE a BETWEEN 1 10;
+      |                                   ^^
 1 error(s) encountered

@@ -16,7 +16,7 @@ target_link_libraries(libsql
     PUBLIC
         absl::flat_hash_map absl::flat_hash_set
         absl::node_hash_map absl::node_hash_set
-        fe
+        fe fe-lib
 )
 target_compile_features(libsql PUBLIC cxx_std_${CMAKE_CXX_STANDARD}) # make property public.
 

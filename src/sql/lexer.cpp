@@ -2,8 +2,6 @@
 
 #include <ranges>
 
-#include <fe/loc.cpp.h>
-
 using namespace std::literals;
 
 namespace sql {
@@ -17,9 +15,10 @@ static std::string to_lower(std::string_view sv) {
     return res;
 }
 
-Lexer::Lexer(Driver& driver, const fe::Src& src)
+Lexer::Lexer(Driver& driver, fe::Error& err, const fe::Src& src)
     : fe::Lexer<1, Lexer>(src)
-    , driver_(driver) {
+    , driver_(driver)
+    , err_(err) {
 #define CODE(t, str) keywords_[driver_.sym(to_lower(str##s))] = Tok::Tag::t;
     SQL_KEY(CODE)
 #undef CODE
@@ -44,7 +43,7 @@ Tok Lexer::lex() {
         }
         if (accept('!')) {
             if (accept('=')) return {loc_, Tok::Tag::T_ue};
-            driver_.err(peek(), "invalid input following '!': '{}'", (char)ahead());
+            err_.error(peek(), "invalid input following '!': '{}'", (char)ahead());
         }
         if (accept('>')) {
             if (accept('=')) return {loc_, Tok::Tag::T_ge};
@@ -100,11 +99,11 @@ Tok Lexer::lex() {
         if (accept<Append::Off>('\"')) return lex_str('\"', Tok::Tag::V_id);
 
         if (accept(utf8::Null)) {
-            driver().err(loc_, "invalid UTF-8 character");
+            err_.error(loc_, "invalid UTF-8 character");
             continue;
         }
 
-        driver_.err(peek(), "invalid input char: '{}'", (char)ahead());
+        err_.error(peek(), "invalid input char: '{}'", (char)ahead());
         next();
     }
 }
@@ -115,7 +114,7 @@ Tok Lexer::lex_str(char32_t delim, Tok::Tag tag) {
             if (!accept<Append::Off>(delim)) break;
             str_ += (char)delim;
         } else if (ahead() == utf8::EoF) {
-            driver_.err(loc_, "unterminated string literal");
+            err_.error(loc_, "unterminated string literal");
             break;
         } else {
             lex_char();
@@ -140,7 +139,7 @@ void Lexer::lex_char() {
         else if (accept<Append::Off>( 'r')) str_ += '\r';
         else if (accept<Append::Off>( 't')) str_ += '\t';
         else if (accept<Append::Off>( 'v')) str_ += '\v';
-        else driver_.err(loc_.anew_end(), "invalid escape character '\\{}'", (char)ahead());
+        else err_.error(loc_.anew_end(), "invalid escape character '\\{}'", (char)ahead());
         // clang-format on
         return;
     }
@@ -156,7 +155,7 @@ void Lexer::eat_comments() {
         while (ahead() != utf8::EoF && ahead() != '*')
             next();
         if (ahead() == utf8::EoF) {
-            driver_.err(loc_, "non-terminated multiline comment");
+            err_.error(loc_, "non-terminated multiline comment");
             return;
         }
         next();

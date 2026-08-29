@@ -11,7 +11,7 @@ namespace sql {
 /// parenthesized expression list, or `NOT LIKE` from a unary `NOT` all need to peek one token ahead.
 class Parser : public fe::Parser<Tok, Tok::Tag, 2, Parser> {
 public:
-    Parser(Driver&, const fe::Src&);
+    Parser(Driver&, fe::Error&, const fe::Src&);
 
     Driver& driver() { return lexer_.driver(); }
     AST<Prog> parse_prog();
@@ -52,21 +52,27 @@ private:
     /// Parses a parenthesized, comma-separated column name list into @p syms.
     void parse_col_list(std::string ctxt, Syms& syms);
 
+    /// Parses a @p sep-separated sequence of items via @p f up to - but not including - @p delim.
+    /// Whatever fits nowhere in between is discarded - unless an enclosing context anchors it.
     template<class F>
-    void parse_list(F f, Tok::Tag delim, Tok::Tag sep = Tok::Tag::T_comma) {
+    void parse_seq(std::string_view ctxt, F f, Tok::Tag delim, Tok::Tag sep = Tok::Tag::T_comma) {
         if (!ahead().isa(delim)) {
             do {
                 f();
+                recover([delim, sep](Tok::Tag tag) { return tag != delim && tag != sep && tag != Tok::Tag::EoF; },
+                        ctxt);
             } while (accept(sep) && !ahead().isa(delim));
         }
     }
 
+    /// As above, but the sequence is enclosed in @p delim_l and its matching closing delimiter.
+    /// The latter stays anchored while the items are parsed and is expected once they are done.
     template<class F>
     void parse_list(std::string ctxt, F f, Tok::Tag delim_l = Tok::Tag::D_paren_l, Tok::Tag sep = Tok::Tag::T_comma) {
         expect(delim_l, ctxt);
         auto delim_r = (Tok::Tag)((int)delim_l + 1);
-        parse_list(f, delim_r, sep);
-        expect(delim_r, std::string("closing delimiter of a ") + ctxt);
+        auto _       = anchor(delim_r, "closing delimiter of a {}", ctxt);
+        parse_seq(ctxt, f, delim_r, sep);
     }
 
     /// Issue an error message of the form:
@@ -82,7 +88,13 @@ private:
         err(msg, ctxt);
     }
 
+    /// Parser::recover discarded @p tok because no enclosing context was waiting for it.
+    void unanchored_err(Tok tok, std::string_view ctxt) {
+        err_.error(tok.loc(), "ignoring unexpected '{}' while parsing {}", tok, ctxt);
+    }
+
     Lexer lexer_;
+    fe::Error& err_;
     Sym error_;
     /// `KEY`, `ASC`, `DESC`, `FIRST`, and `NEXT` are *non-reserved* words: they lex as identifiers,
     /// so recognizing them within `PRIMARY KEY`, `ORDER BY`, and `FETCH` takes a symbol comparison.

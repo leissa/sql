@@ -1,2 +1,4 @@
 missing_from.sql:1:10: error: expected 'FROM', got 't' while parsing SELECT expression
+    1 | SELECT a t;
+      |          ^
 1 error(s) encountered

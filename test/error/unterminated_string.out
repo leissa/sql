@@ -1,4 +1,6 @@
 unterminated_string.sql:1:8-1:29: error: unterminated string literal
+    1 | SELECT 'unterminated FROM t;
+      |        ^^^^^^^^^^^^^^^^^^^^^
 unterminated_string.sql:2:1: error: expected 'FROM', got '<end of file>' while parsing SELECT expression
 unterminated_string.sql:2:1: error: expected primary or unary expression, got '<end of file>' while parsing table reference of a FROM clause
 unterminated_string.sql:2:1: error: expected ';', got '<end of file>' while parsing expression list
