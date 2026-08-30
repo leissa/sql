@@ -1,4 +1,4 @@
-missing_semicolon.sql:2:1: error: expected `;`, got `<end of file>` while parsing expression list
-    2 |
-      | ^
+missing_semicolon.sql:1:16: error: expected `;`, got `<end of file>` while parsing expression list
+    1 | SELECT a FROM t
+      |                ^
 1 error(s) encountered
