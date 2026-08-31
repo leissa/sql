@@ -1,4 +1,4 @@
-anchor_semicolon.sql:1:12: error: ignoring unexpected `b` while parsing function argument list
+anchor_semicolon.sql:1:12: error: ignoring unmatched `b` while parsing function argument list
     1 | SELECT f(a b; SELECT c FROM u;
       |            ^
 anchor_semicolon.sql:1:13: error: expected `)`, got `;` while parsing closing delimiter of a function argument list

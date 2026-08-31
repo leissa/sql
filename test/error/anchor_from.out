@@ -1,4 +1,4 @@
-anchor_from.sql:1:12: error: ignoring unexpected `b` while parsing function argument list
+anchor_from.sql:1:12: error: ignoring unmatched `b` while parsing function argument list
     1 | SELECT f(a b FROM t;
       |            ^
 anchor_from.sql:1:14-1:17: error: expected `)`, got `FROM` while parsing closing delimiter of a function argument list
