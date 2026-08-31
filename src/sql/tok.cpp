@@ -6,7 +6,7 @@ using namespace std::literals;
 
 namespace sql {
 
-std::string_view Tok::str(Tok::Tag tag) {
+std::string_view Tok::tag2str(Tok::Tag tag) {
     switch (tag) {
 #define CODE(t, str) \
     case Tok::Tag::t: return str##sv;
@@ -54,13 +54,13 @@ std::optional<Tok::Prec> Tok::bin_prec(Tok::Tag tag) {
 }
 // clang-format on
 
-std::ostream& operator<<(std::ostream& o, Tok::Tag tag) { return o << Tok::str(tag); }
+std::ostream& operator<<(std::ostream& o, Tok::Tag tag) { return o << Tok::tag2str(tag); }
 
 std::ostream& operator<<(std::ostream& o, Tok tok) {
     if (tok.isa(Tok::Tag::V_id)) return o << *tok.sym();
     if (tok.isa(Tok::Tag::V_str)) return o << '\'' << *tok.sym() << '\'';
     if (tok.isa(Tok::Tag::V_int)) return o << tok.u64();
-    return o << Tok::str(tok.tag());
+    return o << Tok::tag2str(tok.tag());
 }
 
 } // namespace sql

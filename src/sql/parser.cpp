@@ -13,20 +13,18 @@ static std::string to_lower(std::string_view sv) {
     return res;
 }
 
-Parser::Parser(Driver& driver, fe::Error& err, const fe::Src& src)
-    : lexer_(driver, err, src)
-    , err_(err)
-    , error_(driver.sym("<error>"s))
-    , key_(driver.sym("key"s))
-    , asc_(driver.sym("asc"s))
-    , desc_(driver.sym("desc"s))
-    , first_(driver.sym("first"s))
-    , next_(driver.sym("next"s)) {
+Parser::Parser(Driver& driver, fe::Error& error, const fe::Src& src)
+    : lexer_(driver, error, src)
+    , error_(error)
+    , sym_{
+          .error = driver.sym("<error>"s),
+          .key   = driver.sym("key"s),
+          .asc   = driver.sym("asc"s),
+          .desc  = driver.sym("desc"s),
+          .first = driver.sym("first"s),
+          .next  = driver.sym("next"s),
+      } {
     init();
-}
-
-void Parser::err(const std::string& what, const Tok& tok, std::string_view ctxt) {
-    err_.error(tok.loc(), "expected {}, got `{}` while parsing {}", what, tok, ctxt);
 }
 
 /*
@@ -54,9 +52,9 @@ bool Parser::isa_sym() const { return ahead().isa(Tok::Tag::V_id) || ahead().isa
 
 Sym Parser::parse_sym(std::string_view ctxt) {
     if (ahead().isa(Tok::Tag::V_id)) return lex().sym();
-    if (ahead().isa_key()) return driver().sym(to_lower(Tok::str(lex().tag())));
-    err("identifier", ctxt);
-    return error_;
+    if (ahead().isa_key()) return driver().sym(to_lower(Tok::tag2str(lex().tag())));
+    syntax_err("identifier", ctxt);
+    return sym_.error;
 }
 
 void Parser::parse_col_list(std::string ctxt, Syms& syms) {
@@ -133,7 +131,7 @@ AST<Type> Parser::parse_type(std::string_view ctxt) {
     }
 
     if (!ctxt.empty()) {
-        err("type", ctxt);
+        syntax_err("type", ctxt);
         return nullptr; // Error Type
     }
 
@@ -312,7 +310,7 @@ AST<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
     }
 
     if (!ctxt.empty()) {
-        err("primary or unary expression", ctxt);
+        syntax_err("primary or unary expression", ctxt);
         return ast<ErrExpr>(curr_);
     }
     fe::unreachable();
@@ -350,14 +348,14 @@ AST<Constraint> Parser::parse_constraint(bool table_level) {
 
     if (accept(Tok::Tag::K_PRIMARY)) {
         tag = Constraint::Primary_Key;
-        if (ahead().isa(Tok::Tag::V_id) && ahead().sym() == key_) lex(); // KEY is not reserved
+        if (ahead().isa(Tok::Tag::V_id) && ahead().sym() == sym_.key) lex(); // KEY is not reserved
         if (table_level) parse_col_list("primary key column list", cols);
     } else if (accept(Tok::Tag::K_UNIQUE)) {
         tag = Constraint::Unique;
         if (table_level) parse_col_list("unique column list", cols);
     } else if (accept(Tok::Tag::K_FOREIGN)) {
         tag = Constraint::Foreign_Key;
-        if (ahead().isa(Tok::Tag::V_id) && ahead().sym() == key_) lex();
+        if (ahead().isa(Tok::Tag::V_id) && ahead().sym() == sym_.key) lex();
         parse_col_list("foreign key column list", cols);
         expect(Tok::Tag::K_REFERENCES, "`FOREIGN KEY` constraint");
         table = parse_sym("referenced table name");
@@ -376,7 +374,7 @@ AST<Constraint> Parser::parse_constraint(bool table_level) {
         tag  = Constraint::Default;
         expr = parse_expr("default value");
     } else {
-        err("constraint", table_level ? "table constraint" : "column constraint");
+        syntax_err("constraint", table_level ? "table constraint" : "column constraint");
     }
 
     return ast<Constraint>(track, name, tag, std::move(cols), table, std::move(ref_cols), std::move(expr));
@@ -660,8 +658,8 @@ AST<Expr> Parser::parse_query(std::string_view ctxt) {
             auto expr        = parse_expr("sort key of an `ORDER BY` clause");
             bool desc        = false;
             // ASC and DESC are not reserved words.
-            if (ahead().isa(Tok::Tag::V_id) && (ahead().sym() == asc_ || ahead().sym() == desc_))
-                desc = lex().sym() == desc_;
+            if (ahead().isa(Tok::Tag::V_id) && (ahead().sym() == sym_.asc || ahead().sym() == sym_.desc))
+                desc = lex().sym() == sym_.desc;
             orders.emplace_back(ast<Query::Order>(order_track, std::move(expr), desc));
         } while (accept(Tok::Tag::T_comma));
     }
@@ -674,7 +672,7 @@ AST<Expr> Parser::parse_query(std::string_view ctxt) {
 
     AST<Expr> fetch;
     if (accept(Tok::Tag::K_FETCH)) {
-        if (ahead().isa(Tok::Tag::V_id) && (ahead().sym() == first_ || ahead().sym() == next_)) lex();
+        if (ahead().isa(Tok::Tag::V_id) && (ahead().sym() == sym_.first || ahead().sym() == sym_.next)) lex();
         fetch = parse_expr("`FETCH` clause");
         if (!accept(Tok::Tag::K_ROW)) accept(Tok::Tag::K_ROWS);
         expect(Tok::Tag::K_ONLY, "`FETCH` clause");

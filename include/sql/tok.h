@@ -661,7 +661,7 @@ public:
     }
     uint64_t u64() const { return u64_; }
 
-    static std::string_view str(Tok::Tag);
+    static std::string_view tag2str(Tok::Tag);
     static std::optional<Prec> un_prec(Tok::Tag);
     static std::optional<Prec> bin_prec(Tok::Tag);
 

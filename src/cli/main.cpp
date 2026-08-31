@@ -3,6 +3,7 @@
 #include <format>
 #include <iostream>
 
+#include <fe/term.h>
 #include <lyra/lyra.hpp>
 
 #include "sql/parser.h"
@@ -11,6 +12,9 @@ using namespace std::literals;
 
 int main(int argc, char** argv) {
     try {
+        // fe::CodeDiag renders a diagnostic when it is *recorded*, so decide on color up front.
+        fe::term::resolve_mode();
+
         // TODO put version number into cmake magic
         static const auto version = "libsql command-line utility version 0.1\n";
         bool show_help            = false;
@@ -51,7 +55,8 @@ int main(int argc, char** argv) {
             src = driver.src().add(input).first;
             if (!src) {
                 // Not an fe::Error - there is no Loc to point at - but cite the file the same way.
-                fe::stream_code(std::cerr, std::format("error: cannot read file `{}`", input)) << std::endl;
+                auto msg = [&] { return std::format("error: cannot read file `{}`", input); };
+                std::cerr << driver.diag().render(msg) << std::endl;
                 return EXIT_FAILURE;
             }
         }

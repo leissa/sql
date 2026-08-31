@@ -18,6 +18,8 @@ public:
     Lexer& lexer() { return lexer_; }
 
 private:
+    fe::Error& error() { return error_; }
+
     template<class T, class... Args>
     auto ast(Args&&... args) {
         return driver().ast<T>(std::forward<Args&&>(args)...);
@@ -76,35 +78,19 @@ private:
         expect(delim_r, "closing delimiter of a {}", ctxt);
     }
 
-    /// Issue an error message of the form:
-    /// `expected <what>, got <tok> while parsing <ctxt>`
-    /// @note @p what is inserted verbatim, so cite a Tok::Tag in backticks - see Parser::syntax_err.
-    void err(const std::string& what, const Tok& tok, std::string_view ctxt);
-
-    /// Same above but uses Parser::ahead() as Tok%en.
-    void err(const std::string& what, std::string_view ctxt) { err(what, ahead(), ctxt); }
-
-    void syntax_err(Tok::Tag tag, std::string_view ctxt) {
-        std::string msg("`");
-        msg.append(Tok::str(tag)).append("`");
-        err(msg, ctxt);
-    }
-
-    /// Parser::recover discarded @p tok because no enclosing context was waiting for it.
-    void unanchored_err(Tok tok, std::string_view ctxt) {
-        err_.error(tok.loc(), "ignoring unexpected `{}` while parsing {}", tok, ctxt);
-    }
-
     Lexer lexer_;
-    fe::Error& err_;
-    Sym error_;
+    fe::Error& error_;
+
     /// `KEY`, `ASC`, `DESC`, `FIRST`, and `NEXT` are *non-reserved* words: they lex as identifiers,
     /// so recognizing them within `PRIMARY KEY`, `ORDER BY`, and `FETCH` takes a symbol comparison.
-    Sym key_;
-    Sym asc_;
-    Sym desc_;
-    Sym first_;
-    Sym next_;
+    struct {
+        Sym error; ///< Stands in for a Sym that failed to parse.
+        Sym key;
+        Sym asc;
+        Sym desc;
+        Sym first;
+        Sym next;
+    } sym_;
 
     friend class fe::Parser<Tok, Tok::Tag, 2, Parser>;
 };
