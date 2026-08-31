@@ -13,9 +13,8 @@ static std::string to_lower(std::string_view sv) {
     return res;
 }
 
-Parser::Parser(Driver& driver, fe::Error& error, const fe::Src& src)
-    : lexer_(driver, error, src)
-    , error_(error)
+Parser::Parser(Driver& driver, const fe::Src& src)
+    : lexer_(driver, src)
     , sym_{
           .error = driver.sym("<error>"s),
           .key   = driver.sym("key"s),

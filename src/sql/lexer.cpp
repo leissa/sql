@@ -15,10 +15,9 @@ static std::string to_lower(std::string_view sv) {
     return res;
 }
 
-Lexer::Lexer(Driver& driver, fe::Error& err, const fe::Src& src)
+Lexer::Lexer(Driver& driver, const fe::Src& src)
     : fe::Lexer<1, Lexer>(src)
-    , driver_(driver)
-    , err_(err) {
+    , driver_(driver) {
 #define CODE(t, str) keywords_[driver_.sym(to_lower(str##s))] = Tok::Tag::t;
     SQL_KEY(CODE)
 #undef CODE
@@ -30,6 +29,7 @@ Tok Lexer::lex() {
 
         if (accept(utf8::EoF)) return {loc_, Tok::Tag::EoF};
         if (accept(utf8::isspace)) continue;
+        if (recover_utf8()) continue;
         if (accept('{')) return {loc_, Tok::Tag::D_brace_l};
         if (accept('}')) return {loc_, Tok::Tag::D_brace_r};
         if (accept('[')) return {loc_, Tok::Tag::D_brckt_l};
@@ -43,7 +43,7 @@ Tok Lexer::lex() {
         }
         if (accept('!')) {
             if (accept('=')) return {loc_, Tok::Tag::T_ue};
-            err_.error(peek(), "invalid input following `!`: `{}`", (char)ahead());
+            driver_.error(peek(), "invalid input following `!`: `{}`", (char)ahead());
         }
         if (accept('>')) {
             if (accept('=')) return {loc_, Tok::Tag::T_ge};
@@ -98,13 +98,7 @@ Tok Lexer::lex() {
         if (accept<Append::Off>('\'')) return lex_str('\'', Tok::Tag::V_str);
         if (accept<Append::Off>('\"')) return lex_str('\"', Tok::Tag::V_id);
 
-        if (accept(utf8::Null)) {
-            err_.error(loc_, "invalid UTF-8 character");
-            continue;
-        }
-
-        err_.error(peek(), "invalid input char: `{}`", (char)ahead());
-        next();
+        recover_char();
     }
 }
 
@@ -114,7 +108,7 @@ Tok Lexer::lex_str(char32_t delim, Tok::Tag tag) {
             if (!accept<Append::Off>(delim)) break;
             str_ += (char)delim;
         } else if (ahead() == utf8::EoF) {
-            err_.error(loc_, "unterminated string literal");
+            driver_.error(loc_, "unterminated string literal");
             break;
         } else {
             lex_char();
@@ -139,7 +133,7 @@ void Lexer::lex_char() {
         else if (accept<Append::Off>( 'r')) str_ += '\r';
         else if (accept<Append::Off>( 't')) str_ += '\t';
         else if (accept<Append::Off>( 'v')) str_ += '\v';
-        else err_.error(loc_.anew_end(), "invalid escape character `\\{}`", (char)ahead());
+        else driver_.error(loc_.anew_end(), "invalid escape character `\\{}`", (char)ahead());
         // clang-format on
         return;
     }
@@ -155,7 +149,7 @@ void Lexer::eat_comments() {
         while (ahead() != utf8::EoF && ahead() != '*')
             next();
         if (ahead() == utf8::EoF) {
-            err_.error(loc_, "non-terminated multiline comment");
+            driver_.error(loc_, "non-terminated multiline comment");
             return;
         }
         next();

@@ -11,15 +11,13 @@ namespace sql {
 /// parenthesized expression list, or `NOT LIKE` from a unary `NOT` all need to peek one token ahead.
 class Parser : public fe::Parser<Tok, Tok::Tag, 2, Parser> {
 public:
-    Parser(Driver&, fe::Error&, const fe::Src&);
+    Parser(Driver&, const fe::Src&);
 
-    Driver& driver() { return lexer_.driver(); }
+    Driver& driver() { return lexer_.driver(); } ///< fe::Parser's default diagnostics go to its Driver::error.
     AST<Prog> parse_prog();
     Lexer& lexer() { return lexer_; }
 
 private:
-    fe::Error& error() { return error_; }
-
     template<class T, class... Args>
     auto ast(Args&&... args) {
         return driver().ast<T>(std::forward<Args&&>(args)...);
@@ -79,7 +77,6 @@ private:
     }
 
     Lexer lexer_;
-    fe::Error& error_;
 
     /// `KEY`, `ASC`, `DESC`, `FIRST`, and `NEXT` are *non-reserved* words: they lex as identifiers,
     /// so recognizing them within `PRIMARY KEY`, `ORDER BY`, and `FETCH` takes a symbol comparison.

@@ -61,13 +61,12 @@ int main(int argc, char** argv) {
             }
         }
 
-        fe::Error err(driver);
-        sql::Parser parser(driver, err, *src);
+        sql::Parser parser(driver, *src);
         auto prog = parser.parse_prog();
 
         if (dump) prog->dump();
 
-        if (err.report() != 0) return EXIT_FAILURE;
+        if (driver.error().report() != 0) return EXIT_FAILURE;
     } catch (const std::exception& e) {
         std::cerr << "error: " << e.what() << std::endl;
         return EXIT_FAILURE;
