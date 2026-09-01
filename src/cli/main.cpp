@@ -21,12 +21,12 @@ int main(int argc, char** argv) {
                  | fe::cli::opt(show_version)["-v"]["--version"]("Display version info and exit.")
                  | fe::cli::opt(dump)["-d"]["--dump"]("Dumps the SQL statement again.")
                  | fe::cli::arg(input, "file")("Input file.");
+        cli.epilog("Use \"-\" as <file> to output to stdout.");
 
         if (auto res = cli.parse(argc, argv); !res) throw std::invalid_argument(res.message());
 
         if (show_help) {
-            std::cout << cli << std::endl;
-            std::cout << "Use \"-\" as <file> to output to stdout." << std::endl;
+            std::cout << cli;
             return EXIT_SUCCESS;
         }
 
