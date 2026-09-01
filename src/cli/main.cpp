@@ -12,16 +12,14 @@ int main(int argc, char** argv) {
         fe::term::resolve_mode();
 
         // TODO put version number into cmake magic
-        bool show_help    = false;
-        bool show_version = false;
-        bool dump         = false;
+        bool show_help = false, show_version = false, dump = false;
         std::string input;
-
-        auto cli = fe::cli::Cli("sql", "libsql command-line utility.") | fe::cli::help(show_help)
-                 | fe::cli::opt(show_version)["-v"]["--version"]("Display version info and exit.")
-                 | fe::cli::opt(dump)["-d"]["--dump"]("Dumps the SQL statement again.")
-                 | fe::cli::arg(input, "file")("Input file.");
-        cli.epilog("Use \"-\" as <file> to output to stdout.");
+        auto cli = fe::Cli("sql", "libsql command-line utility.")
+                       .help(show_help)
+                       .opt(show_version, "-v", "--version", "Display version info and exit.")
+                       .opt(dump, "-d", "--dump", "Dumps the SQL statement again.")
+                       .arg(input, "file", "Input file.")
+                       .epilog("Use \"-\" as <file> to output to stdout.");
 
         if (auto err = cli.parse(argc, argv)) throw std::invalid_argument(*err);
 
