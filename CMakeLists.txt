@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.29 FATAL_ERROR)
 project(SQLParser)
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -22,6 +22,12 @@ option(BUILD_SHARED_LIBS "Build shared libraries." ON)
 
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}; shared libs: ${BUILD_SHARED_LIBS}")
 
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+    # Make `make test`/`ninja test` build first instead of testing a stale binary.
+    set(CMAKE_SKIP_TEST_ALL_DEPENDENCY FALSE)
+    include(CTest) # defines BUILD_TESTING
+endif()
+
 if(WIN32)
     add_compile_definitions(NOMINMAX) # prevents windows.h defining min/max macros
 else()
@@ -36,7 +42,6 @@ add_subdirectory(submodules/abseil-cpp)
 add_subdirectory(submodules/fe)
 add_subdirectory(src)
 
-include(CTest)
-if(BUILD_TESTING)
+if(BUILD_TESTING AND CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     add_subdirectory(test)
 endif()
