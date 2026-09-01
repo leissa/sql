@@ -113,7 +113,7 @@ cmake --build build -j $(nproc)
 For a `Release` build simply use `-DCMAKE_BUILD_TYPE=Release`.
 
 This needs a C++23 compiler.
-Abseil, Lyra, and FE come along as submodules; nothing else is required.
+Abseil and FE come along as submodules; nothing else is required.
 
 ## 🔧 Usage
 

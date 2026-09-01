@@ -33,7 +33,6 @@ set(ABSL_ENABLE_INSTALL ON)
 set(FE_ABSL ON)
 set(FE_LIB ON)
 add_subdirectory(submodules/abseil-cpp)
-add_subdirectory(submodules/lyra EXCLUDE_FROM_ALL)
 add_subdirectory(submodules/fe)
 add_subdirectory(src)
 
