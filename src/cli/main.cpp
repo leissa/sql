@@ -25,7 +25,7 @@ int main(int argc, char** argv) {
         if (auto res = cli.parse(argc, argv); !res) throw std::invalid_argument(res.message());
 
         if (show_help) {
-            std::cout << cli;
+            std::cout << cli << std::endl;
             std::cout << "Use \"-\" as <file> to output to stdout." << std::endl;
             return EXIT_SUCCESS;
         }
