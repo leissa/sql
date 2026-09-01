@@ -43,7 +43,7 @@ Tok Lexer::lex() {
         }
         if (accept('!')) {
             if (accept('=')) return {loc_, Tok::Tag::T_ue};
-            driver_.error(peek(), "invalid input following `!`: `{}`", (char)ahead());
+            error().e(peek(), "invalid input following `!`: `{}`", (char)ahead());
         }
         if (accept('>')) {
             if (accept('=')) return {loc_, Tok::Tag::T_ge};
@@ -108,7 +108,7 @@ Tok Lexer::lex_str(char32_t delim, Tok::Tag tag) {
             if (!accept<Append::Off>(delim)) break;
             str_ += (char)delim;
         } else if (ahead() == utf8::EoF) {
-            driver_.error(loc_, "unterminated string literal");
+            error().e(loc_, "unterminated string literal");
             break;
         } else {
             lex_char();
@@ -133,7 +133,7 @@ void Lexer::lex_char() {
         else if (accept<Append::Off>( 'r')) str_ += '\r';
         else if (accept<Append::Off>( 't')) str_ += '\t';
         else if (accept<Append::Off>( 'v')) str_ += '\v';
-        else driver_.error(loc_.anew_end(), "invalid escape character `\\{}`", (char)ahead());
+        else error().e(loc_.anew_end(), "invalid escape character `\\{}`", (char)ahead());
         // clang-format on
         return;
     }
@@ -149,7 +149,7 @@ void Lexer::eat_comments() {
         while (ahead() != utf8::EoF && ahead() != '*')
             next();
         if (ahead() == utf8::EoF) {
-            driver_.error(loc_, "non-terminated multiline comment");
+            error().e(loc_, "non-terminated multiline comment");
             return;
         }
         next();
