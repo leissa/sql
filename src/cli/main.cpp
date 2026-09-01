@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
                  | fe::cli::arg(input, "file")("Input file.");
         cli.epilog("Use \"-\" as <file> to output to stdout.");
 
-        if (auto res = cli.parse(argc, argv); !res) throw std::invalid_argument(res.message());
+        if (auto err = cli.parse(argc, argv)) throw std::invalid_argument(*err);
 
         if (show_help) {
             std::cout << cli;
