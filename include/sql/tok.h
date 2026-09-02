@@ -696,5 +696,7 @@ std::ostream& operator<<(std::ostream&, Tok);
 
 } // namespace sql
 
-template<>
-struct std::formatter<sql::Tok> : fe::ostream_formatter {};
+// clang-format off
+template<> struct std::formatter<sql::Tok>      : fe::ostream_formatter {};
+template<> struct std::formatter<sql::Tok::Tag> : fe::ostream_formatter {};
+// clang-format on

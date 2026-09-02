@@ -1,7 +1,6 @@
 add_library(libsql
     lexer.cpp
     parser.cpp
-    print.cpp
     stream.cpp
     tok.cpp
 )

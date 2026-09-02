@@ -1,9 +1,12 @@
 #pragma once
 
+#include <concepts>
+
 #include <ostream>
 #include <variant>
 
 #include <fe/cast.h>
+#include <fe/format.h>
 
 #include "sql/tok.h"
 
@@ -33,6 +36,19 @@ public:
 private:
     Loc loc_;
 };
+
+/// @name Printing
+/// Lets `operator<<` and `std::print` consume Node%s and AST pointers directly - the latter also
+/// makes AST%s usable as `fe::Join` elements.
+///@{
+inline std::ostream& operator<<(std::ostream& o, const Node& node) { return node.stream(o); }
+
+template<class T>
+requires std::derived_from<T, Node>
+std::ostream& operator<<(std::ostream& o, const AST<T>& ast) {
+    return ast->stream(o);
+}
+///@}
 
 /*
  * Interval
@@ -1464,3 +1480,10 @@ private:
 };
 
 } // namespace sql
+
+#ifndef DOXYGEN
+// clang-format off
+template<std::derived_from<sql::Node> T> struct std::formatter<T,           char> : fe::ostream_formatter {};
+template<std::derived_from<sql::Node> T> struct std::formatter<sql::AST<T>, char> : fe::ostream_formatter {};
+// clang-format on
+#endif
