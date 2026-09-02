@@ -120,6 +120,7 @@ using namespace std::literals;
     case Tok::Tag::K_SAVEPOINT: \
     case Tok::Tag::K_RELEASE
 ///@}
+// clang-format on
 
 /// Turns such a family into a predicate - a `case` label is of no use outside of a `switch`.
 #define ISA(tag, family)                        \
@@ -129,7 +130,6 @@ using namespace std::literals;
             default: return false;              \
         }                                       \
     }())
-// clang-format on
 
 namespace sql {
 
