@@ -31,24 +31,18 @@ public:
     void dump() const;
 
     /// Stream to @p o.
-    virtual std::ostream& stream(std::ostream& o) const = 0;
+    virtual void stream(std::ostream& o) const = 0;
+    friend std::ostream& operator<<(std::ostream& o, const Node& node) { return node.stream(o), o; }
 
 private:
     Loc loc_;
 };
 
-/// @name Printing
-/// Lets `operator<<` and `std::print` consume Node%s and AST pointers directly - the latter also
-/// makes AST%s usable as `fe::Join` elements.
-///@{
-inline std::ostream& operator<<(std::ostream& o, const Node& node) { return node.stream(o); }
-
 template<class T>
 requires std::derived_from<T, Node>
 std::ostream& operator<<(std::ostream& o, const AST<T>& ast) {
-    return ast->stream(o);
+    return ast->stream(o), o;
 }
-///@}
 
 /*
  * Interval
@@ -70,7 +64,7 @@ public:
     Tok::Tag to() const { return to_; } ///< Tok::Tag::Nil if there is no `TO` field.
     const auto& to_args() const { return to_args_; }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Tok::Tag from_;
@@ -120,7 +114,7 @@ public:
     Tok::Tag zone() const { return zone_; }
     const Interval* interval() const { return interval_.get(); } ///< Qualifier of an `INTERVAL` type.
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Tok::Tag tag_;
@@ -141,7 +135,7 @@ public:
     Sym sym() const { return sym_; }
     const auto& args() const { return args_; }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Sym sym_;
@@ -179,7 +173,7 @@ public:
     bool desc() const { return desc_; }
     Nulls nulls() const { return nulls_; }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     AST<Expr> expr_;
@@ -203,7 +197,7 @@ public:
         Tag tag() const { return tag_; }
         const Expr* expr() const { return expr_.get(); }
 
-        std::ostream& stream(std::ostream&) const override;
+        void stream(std::ostream&) const override;
 
     private:
         Tag tag_;
@@ -224,7 +218,7 @@ public:
     const Bound* hi() const { return hi_.get(); } ///< Only set for the `BETWEEN lo AND hi` form.
     Exclude exclude() const { return exclude_; }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Tok::Tag unit_;
@@ -251,7 +245,7 @@ public:
     const auto& orders() const { return orders_; }
     const Frame* frame() const { return frame_.get(); }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Sym name_;
@@ -314,7 +308,7 @@ public:
     Action on_delete() const { return on_delete_; }
     Action on_update() const { return on_update_; }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Sym name_;
@@ -345,7 +339,7 @@ public:
 
     uint64_t u64() const { return u64_; }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     uint64_t u64_;
@@ -362,7 +356,7 @@ public:
     Sym sym() const { return sym_; }
     double f64() const; ///< The literal's value.
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Sym sym_;
@@ -377,7 +371,7 @@ public:
 
     Sym sym() const { return sym_; }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Sym sym_;
@@ -392,7 +386,7 @@ public:
 
     Tok::Tag tag() const { return tag_; }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Tok::Tag tag_;
@@ -411,7 +405,7 @@ public:
     Sym sym() const { return sym_; }                             ///< The *unquoted* body of the literal.
     const Interval* interval() const { return interval_.get(); } ///< `INTERVAL` only; may be null.
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Tok::Tag tag_;
@@ -428,7 +422,7 @@ public:
 
     Sym sym() const { return sym_; }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Sym sym_;
@@ -446,7 +440,7 @@ public:
 
     const auto& args() const { return args_; }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     ASTs<Expr> args_;
@@ -462,7 +456,7 @@ public:
     const auto& syms() const { return syms_; }
     bool asterisk() const { return asterisk_; }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Syms syms_;
@@ -482,7 +476,7 @@ public:
     Tok::Tag tag() const { return tag_; }
     const Expr* rhs() const { return rhs_.get(); }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Tok::Tag tag_;
@@ -515,7 +509,7 @@ public:
     const Expr* filter() const { return filter_.get(); } ///< `FILTER (WHERE ...)`
     const Window* over() const { return over_.get(); }   ///< `OVER (...)`
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Syms syms_;
@@ -541,7 +535,7 @@ public:
     const Expr* hi() const { return hi_.get(); }
     bool negated() const { return negated_; }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     AST<Expr> expr_;
@@ -567,7 +561,7 @@ public:
     bool negated() const { return negated_; }
     bool similar() const { return similar_; } ///< `SIMILAR TO` rather than `LIKE`.
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     AST<Expr> expr_;
@@ -588,7 +582,7 @@ public:
     const Expr* expr() const { return expr_.get(); }
     const Type* type() const { return type_.get(); }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     AST<Expr> expr_;
@@ -606,7 +600,7 @@ public:
     const Expr* expr() const { return expr_.get(); }
     const auto& syms() const { return syms_; }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     AST<Expr> expr_;
@@ -626,7 +620,7 @@ public:
         const Expr* cond() const { return cond_.get(); }
         const Expr* then() const { return then_.get(); }
 
-        std::ostream& stream(std::ostream&) const override;
+        void stream(std::ostream&) const override;
 
     private:
         AST<Expr> cond_;
@@ -643,7 +637,7 @@ public:
     const auto& whens() const { return whens_; }
     const Expr* elze() const { return elze_.get(); }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     AST<Expr> operand_;
@@ -662,7 +656,7 @@ public:
     Sym field() const { return field_; }
     const Expr* expr() const { return expr_.get(); }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Sym field_;
@@ -683,7 +677,7 @@ public:
     const Expr* from() const { return from_.get(); }
     const Expr* four() const { return four_.get(); } ///< The `FOR` length; may be null.
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     AST<Expr> expr_;
@@ -705,7 +699,7 @@ public:
     const Expr* chars() const { return chars_.get(); } ///< What to trim; may be null.
     const Expr* expr() const { return expr_.get(); }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Tok::Tag tag_;
@@ -724,7 +718,7 @@ public:
     const Expr* needle() const { return needle_.get(); }
     const Expr* haystack() const { return haystack_.get(); }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     AST<Expr> needle_;
@@ -746,7 +740,7 @@ public:
     const Expr* from() const { return from_.get(); }
     const Expr* four() const { return four_.get(); } ///< The `FOR` length; may be null.
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     AST<Expr> expr_;
@@ -767,7 +761,7 @@ public:
     Tok::Tag tag() const { return tag_; }
     const Expr* rhs() const { return rhs_.get(); }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     AST<Expr> lhs_;
@@ -782,7 +776,7 @@ public:
         , pretag_(pretag) {}
     Tok::Tag pretag() const { return pretag_; }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Tok::Tag pretag_;
@@ -798,7 +792,7 @@ public:
     /// Tok::Tag::K_ALL, Tok::Tag::K_ANY, or Tok::Tag::K_SOME.
     Tok::Tag quant() const { return quant_; }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Tok::Tag quant_;
@@ -822,7 +816,7 @@ public:
     Tag tag() const { return tag_; }
     const auto& args() const { return args_; }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Tag tag_;
@@ -839,7 +833,7 @@ public:
 
     const auto& rows() const { return rows_; }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     ASTs<Expr> rows_;
@@ -854,7 +848,7 @@ public:
 
     const auto& syms() const { return syms_; }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Syms syms_;
@@ -881,7 +875,7 @@ public:
         const Type* type() const { return type_.get(); }
         const auto& constraints() const { return constraints_; }
 
-        std::ostream& stream(std::ostream&) const override;
+        void stream(std::ostream&) const override;
 
     private:
         Sym sym_;
@@ -911,7 +905,7 @@ public:
     const auto& constraints() const { return constraints_; } ///< Table-level constraints.
     const Expr* query() const { return query_.get(); }       ///< `CREATE TABLE ... AS <query>`; may be null.
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Syms syms_;
@@ -941,7 +935,7 @@ public:
     /// or Tok::Tag::Nil for no check option at all.
     Tok::Tag check() const { return check_; }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Syms syms_;
@@ -968,7 +962,7 @@ public:
     const auto& table() const { return table_; }
     const auto& cols() const { return cols_; } ///< Index keys, each with its own `ASC`/`DESC`.
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Sym sym_;
@@ -989,7 +983,7 @@ public:
     const auto& syms() const { return syms_; }
     bool if_not_exists() const { return if_not_exists_; }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Syms syms_;
@@ -1045,7 +1039,7 @@ public:
     const Expr* expr() const { return expr_.get(); }
     Behavior behavior() const { return behavior_; }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Syms table_;
@@ -1076,7 +1070,7 @@ public:
     bool if_exists() const { return if_exists_; }
     Behavior behavior() const { return behavior_; }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Tag tag_;
@@ -1094,7 +1088,7 @@ public:
 
     const auto& syms() const { return syms_; }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Syms syms_;
@@ -1120,7 +1114,7 @@ public:
     Tag tag() const { return tag_; }
     Sym sym() const { return sym_; }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Tag tag_;
@@ -1162,7 +1156,7 @@ public:
     const Expr* rhs() const { return rhs_.get(); }
     const auto& spec() const { return spec_; }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     AST<Expr> lhs_;
@@ -1183,7 +1177,7 @@ public:
         const Expr* expr() const { return expr_.get(); }
         const auto& syms() const { return syms_; }
 
-        std::ostream& stream(std::ostream&) const override;
+        void stream(std::ostream&) const override;
 
     private:
         AST<Expr> expr_;
@@ -1208,7 +1202,7 @@ public:
         Sym as() const { return as_; }
         const auto& cols() const { return cols_; }
 
-        std::ostream& stream(std::ostream&) const override;
+        void stream(std::ostream&) const override;
 
     private:
         bool lateral_;
@@ -1229,7 +1223,7 @@ public:
         Sym sym() const { return sym_; }
         const Window* window() const { return window_.get(); }
 
-        std::ostream& stream(std::ostream&) const override;
+        void stream(std::ostream&) const override;
 
     private:
         Sym sym_;
@@ -1262,7 +1256,7 @@ public:
     const Expr* having() const { return having_.get(); }
     const auto& windows() const { return windows_; }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     bool all_;
@@ -1291,7 +1285,7 @@ public:
     bool all() const { return all_; }
     const Expr* rhs() const { return rhs_.get(); }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     AST<Expr> lhs_;
@@ -1317,7 +1311,7 @@ public:
         const auto& cols() const { return cols_; }
         const Expr* query() const { return query_.get(); }
 
-        std::ostream& stream(std::ostream&) const override;
+        void stream(std::ostream&) const override;
 
     private:
         Sym sym_;
@@ -1350,7 +1344,7 @@ public:
     const Expr* fetch() const { return fetch_.get(); }
     const Expr* limit() const { return limit_.get(); }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     bool recursive_;
@@ -1380,7 +1374,7 @@ public:
     const auto& cols() const { return cols_; }
     const Expr* query() const { return query_.get(); } ///< Null for `DEFAULT VALUES`.
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Syms syms_;
@@ -1402,7 +1396,7 @@ public:
         const auto& syms() const { return syms_; } ///< The target column, possibly qualified.
         const Expr* expr() const { return expr_.get(); }
 
-        std::ostream& stream(std::ostream&) const override;
+        void stream(std::ostream&) const override;
 
     private:
         Syms syms_;
@@ -1421,7 +1415,7 @@ public:
     const auto& assigns() const { return assigns_; }
     const Expr* where() const { return where_.get(); }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Syms syms_;
@@ -1443,7 +1437,7 @@ public:
     Sym as() const { return as_; }
     const Expr* where() const { return where_.get(); }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     Syms syms_;
@@ -1457,7 +1451,7 @@ public:
     ErrExpr(Loc loc)
         : Expr(loc) {}
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 };
 
 /*
@@ -1473,7 +1467,7 @@ public:
 
     const auto& exprs() const { return exprs_; }
 
-    std::ostream& stream(std::ostream&) const override;
+    void stream(std::ostream&) const override;
 
 private:
     ASTs<Expr> exprs_;

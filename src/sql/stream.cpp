@@ -68,52 +68,62 @@ static auto idents(const Syms& syms) {
     return syms | std::views::transform([](Sym sym) { return Ident(sym); });
 }
 
-/// A possibly qualified name such as `s.t` - no parentheses, unlike the `(a, b)` lists.
+/// A possibly qualified name such as `s.t` - no parentheses, unlike parens() below.
 static auto qname(const Syms& syms) { return fe::Join(idents(syms), "."); }
 
-void Node::dump() const { stream(std::cout) << std::endl; }
+/// A parenthesized list of Node%s preceded by @p prefix - or nothing at all if @p range is empty.
+template<std::ranges::input_range R>
+static auto parens(const R& range, std::string_view prefix = "") {
+    return fe::StreamFn{[&range, prefix](std::ostream& o) {
+        if (!range.empty()) std::print(o, "{}({})", prefix, fe::Join(range));
+    }};
+}
+
+/// Same, but for a list of identifiers such as a column list.
+static auto parens(const Syms& syms, std::string_view prefix = "") {
+    return fe::StreamFn{[&syms, prefix](std::ostream& o) {
+        if (!syms.empty()) std::print(o, "{}({})", prefix, fe::Join(idents(syms)));
+    }};
+}
+
+void Node::dump() const {
+    stream(std::cout);
+    std::cout << std::endl;
+}
 
 /*
  * Interval
  */
 
-std::ostream& Interval::stream(std::ostream& o) const {
-    o << from();
-    if (!from_args().empty()) std::print(o, "({})", fe::Join(from_args()));
-    if (to() != Tok::Tag::Nil) {
-        std::print(o, " TO {}", to());
-        if (!to_args().empty()) std::print(o, "({})", fe::Join(to_args()));
-    }
-    return o;
+void Interval::stream(std::ostream& o) const {
+    std::print(o, "{}{}", from(), parens(from_args()));
+    if (to() != Tok::Tag::Nil) std::print(o, " TO {}{}", to(), parens(to_args()));
 }
 
 /*
  * Type
  */
 
-std::ostream& SimpleType::stream(std::ostream& o) const {
+void SimpleType::stream(std::ostream& o) const {
     // Bare `DOUBLE` is not a type name of its own - the standard spells it `DOUBLE PRECISION`.
     std::print(o, "{}{}", tag(), tag() == Tok::Tag::K_DOUBLE ? " PRECISION" : "");
     if (varying()) o << " VARYING";
-    if (!args().empty()) std::print(o, "({})", fe::Join(args()));
+    o << parens(args());
     if (interval()) std::print(o, " {}", *interval());
     if (zone() != Tok::Tag::Nil) std::print(o, " {} TIME ZONE", zone());
     if (not_null()) o << " NOT NULL";
-    return o;
 }
 
-std::ostream& NamedType::stream(std::ostream& o) const {
-    o << Ident(sym());
-    if (!args().empty()) std::print(o, "({})", fe::Join(args()));
+void NamedType::stream(std::ostream& o) const {
+    std::print(o, "{}{}", Ident(sym()), parens(args()));
     if (not_null()) o << " NOT NULL";
-    return o;
 }
 
 /*
  * Order / Window
  */
 
-std::ostream& Order::stream(std::ostream& o) const {
+void Order::stream(std::ostream& o) const {
     std::print(o, "{}{}", *expr(), desc() ? " DESC" : " ASC");
 
     // clang-format off
@@ -123,10 +133,9 @@ std::ostream& Order::stream(std::ostream& o) const {
         case Nulls_None:                       break;
     }
     // clang-format on
-    return o;
 }
 
-std::ostream& Frame::Bound::stream(std::ostream& o) const {
+void Frame::Bound::stream(std::ostream& o) const {
     // clang-format off
     switch (tag()) {
         case Unbounded_Preceding: o << "UNBOUNDED PRECEDING";             break;
@@ -136,10 +145,9 @@ std::ostream& Frame::Bound::stream(std::ostream& o) const {
         case Following:           std::print(o, "{} FOLLOWING", *expr()); break;
     }
     // clang-format on
-    return o;
 }
 
-std::ostream& Frame::stream(std::ostream& o) const {
+void Frame::stream(std::ostream& o) const {
     if (hi())
         std::print(o, "{} BETWEEN {} AND {}", unit(), *lo(), *hi());
     else
@@ -154,12 +162,14 @@ std::ostream& Frame::stream(std::ostream& o) const {
         case Exclude_None:                                     break;
     }
     // clang-format on
-    return o;
 }
 
-std::ostream& Window::stream(std::ostream& o) const {
+void Window::stream(std::ostream& o) const {
     // `OVER w` refers to a window defined elsewhere and takes no parentheses.
-    if (!paren()) return o << Ident(name());
+    if (!paren()) {
+        o << Ident(name());
+        return;
+    }
 
     o << '(';
     auto sep = "";
@@ -179,7 +189,7 @@ std::ostream& Window::stream(std::ostream& o) const {
     }
 
     if (frame()) std::print(o, "{}{}", sep, *frame());
-    return o << ')';
+    o << ')';
 }
 
 /*
@@ -200,33 +210,23 @@ static void stream_action(std::ostream& o, std::string_view when, Constraint::Ac
     // clang-format on
 }
 
-std::ostream& Constraint::stream(std::ostream& o) const {
+void Constraint::stream(std::ostream& o) const {
     if (name()) std::print(o, "CONSTRAINT {} ", Ident(name()));
 
     switch (tag()) {
-        case Primary_Key:
-            o << "PRIMARY KEY";
-            if (!cols().empty()) std::print(o, " ({})", fe::Join(idents(cols())));
-            break;
-        case Unique:
-            o << "UNIQUE";
-            if (!cols().empty()) std::print(o, " ({})", fe::Join(idents(cols())));
-            break;
+        case Primary_Key: std::print(o, "PRIMARY KEY{}", parens(cols(), " ")); break;
+        case Unique: std::print(o, "UNIQUE{}", parens(cols(), " ")); break;
         case Check: std::print(o, "CHECK ({})", *expr()); break;
         case Default: std::print(o, "DEFAULT {}", *expr()); break;
-        case References:
-            std::print(o, "REFERENCES {}", qname(table()));
-            if (!ref_cols().empty()) std::print(o, " ({})", fe::Join(idents(ref_cols())));
-            break;
+        case References: std::print(o, "REFERENCES {}{}", qname(table()), parens(ref_cols(), " ")); break;
         case Foreign_Key:
-            std::print(o, "FOREIGN KEY ({}) REFERENCES {}", fe::Join(idents(cols())), qname(table()));
-            if (!ref_cols().empty()) std::print(o, " ({})", fe::Join(idents(ref_cols())));
+            std::print(o, "FOREIGN KEY ({}) REFERENCES {}{}", fe::Join(idents(cols())), qname(table()),
+                       parens(ref_cols(), " "));
             break;
     }
 
     stream_action(o, "DELETE", on_delete());
     stream_action(o, "UPDATE", on_update());
-    return o;
 }
 
 /*
@@ -236,144 +236,107 @@ std::ostream& Constraint::stream(std::ostream& o) const {
 double RealVal::f64() const { return std::strtod(std::string(*sym()).c_str(), nullptr); }
 
 // clang-format off
-std::ostream& ErrExpr  ::stream(std::ostream& o) const { return o << "<error expression>"; }
-std::ostream& SimpleVal::stream(std::ostream& o) const { return o << tag(); }
-std::ostream& IntVal   ::stream(std::ostream& o) const { return o << u64(); }
-std::ostream& RealVal  ::stream(std::ostream& o) const { return o << *sym(); }
-std::ostream& StrVal   ::stream(std::ostream& o) const { return o << Str(sym()); }
-std::ostream& Param    ::stream(std::ostream& o) const { return o << *sym(); }
-std::ostream& Table    ::stream(std::ostream& o) const { return o << "TABLE " << qname(syms()); }
-std::ostream& Truncate ::stream(std::ostream& o) const { return o << "TRUNCATE TABLE " << qname(syms()); }
+void ErrExpr  ::stream(std::ostream& o) const { o << "<error expression>"; }
+void SimpleVal::stream(std::ostream& o) const { o << tag(); }
+void IntVal   ::stream(std::ostream& o) const { o << u64(); }
+void RealVal  ::stream(std::ostream& o) const { o << *sym(); }
+void StrVal   ::stream(std::ostream& o) const { o << Str(sym()); }
+void Param    ::stream(std::ostream& o) const { o << *sym(); }
+void Table    ::stream(std::ostream& o) const { o << "TABLE " << qname(syms()); }
+void Truncate ::stream(std::ostream& o) const { o << "TRUNCATE TABLE " << qname(syms()); }
 // clang-format on
 
-std::ostream& TypedVal::stream(std::ostream& o) const {
+void TypedVal::stream(std::ostream& o) const {
     std::print(o, "{} {}", tag(), Str(sym()));
     if (interval()) std::print(o, " {}", *interval());
-    return o;
 }
 
 /*
  * Expr
  */
 
-std::ostream& Id::stream(std::ostream& o) const {
+void Id::stream(std::ostream& o) const {
     o << qname(syms());
     if (asterisk()) o << ".*";
-    return o;
 }
 
-std::ostream& UnExpr::stream(std::ostream& o) const {
-    std::print(o, "({} {})", tag(), *rhs());
-    return o;
-}
+void UnExpr::stream(std::ostream& o) const { std::print(o, "({} {})", tag(), *rhs()); }
 
-std::ostream& Func::stream(std::ostream& o) const {
+void Func::stream(std::ostream& o) const {
     std::print(o, "{}({}{})", qname(syms()), distinct() ? "DISTINCT " : "", fe::Join(args()));
     if (!withins().empty()) std::print(o, " WITHIN GROUP (ORDER BY {})", fe::Join(withins()));
     if (filter()) std::print(o, " FILTER (WHERE {})", *filter());
     if (over()) std::print(o, " OVER {}", *over());
-    return o;
 }
 
-std::ostream& Between::stream(std::ostream& o) const {
+void Between::stream(std::ostream& o) const {
     std::print(o, "({}{} BETWEEN {} AND {})", *expr(), negated() ? " NOT" : "", *lo(), *hi());
-    return o;
 }
 
-std::ostream& Like::stream(std::ostream& o) const {
+void Like::stream(std::ostream& o) const {
     std::print(o, "({}{}{}{}", *expr(), negated() ? " NOT" : "", similar() ? " SIMILAR TO " : " LIKE ", *pattern());
     if (escape()) std::print(o, " ESCAPE {}", *escape());
-    return o << ')';
+    o << ')';
 }
 
-std::ostream& Cast::stream(std::ostream& o) const {
-    std::print(o, "CAST({} AS {})", *expr(), *type());
-    return o;
-}
+void Cast::stream(std::ostream& o) const { std::print(o, "CAST({} AS {})", *expr(), *type()); }
+void Collate::stream(std::ostream& o) const { std::print(o, "({} COLLATE {})", *expr(), qname(syms())); }
 
-std::ostream& Collate::stream(std::ostream& o) const {
-    std::print(o, "({} COLLATE {})", *expr(), qname(syms()));
-    return o;
-}
-
-std::ostream& CaseExpr::stream(std::ostream& o) const {
+void CaseExpr::stream(std::ostream& o) const {
     o << "CASE";
     if (operand()) std::print(o, " {}", *operand());
     for (const auto& when : whens())
         std::print(o, " {}", when);
     if (elze()) std::print(o, " ELSE {}", *elze());
-    return o << " END";
+    o << " END";
 }
 
-std::ostream& CaseExpr::When::stream(std::ostream& o) const {
-    std::print(o, "WHEN {} THEN {}", *cond(), *then());
-    return o;
-}
+void CaseExpr::When::stream(std::ostream& o) const { std::print(o, "WHEN {} THEN {}", *cond(), *then()); }
+void Extract::stream(std::ostream& o) const { std::print(o, "EXTRACT({} FROM {})", Ident(field()), *expr()); }
 
-std::ostream& Extract::stream(std::ostream& o) const {
-    std::print(o, "EXTRACT({} FROM {})", Ident(field()), *expr());
-    return o;
-}
-
-std::ostream& Substring::stream(std::ostream& o) const {
+void Substring::stream(std::ostream& o) const {
     std::print(o, "SUBSTRING({} FROM {}", *expr(), *from());
     if (four()) std::print(o, " FOR {}", *four());
-    return o << ')';
+    o << ')';
 }
 
-std::ostream& Trim::stream(std::ostream& o) const {
+void Trim::stream(std::ostream& o) const {
     o << "TRIM(";
     if (tag() != Tok::Tag::Nil) std::print(o, "{} ", tag());
     if (chars()) std::print(o, "{} ", *chars());
     if (tag() != Tok::Tag::Nil || chars()) o << "FROM ";
-    return o << *expr() << ')';
+    std::print(o, "{})", *expr());
 }
 
-std::ostream& Position::stream(std::ostream& o) const {
-    std::print(o, "POSITION({} IN {})", *needle(), *haystack());
-    return o;
-}
+void Position::stream(std::ostream& o) const { std::print(o, "POSITION({} IN {})", *needle(), *haystack()); }
 
-std::ostream& Overlay::stream(std::ostream& o) const {
+void Overlay::stream(std::ostream& o) const {
     std::print(o, "OVERLAY({} PLACING {} FROM {}", *expr(), *placing(), *from());
     if (four()) std::print(o, " FOR {}", *four());
-    return o << ')';
+    o << ')';
 }
 
-std::ostream& ParenExprList::stream(std::ostream& o) const {
-    std::print(o, "({})", fe::Join(args()));
-    return o;
-}
+void ParenExprList::stream(std::ostream& o) const { std::print(o, "({})", fe::Join(args())); }
+void BinExpr::stream(std::ostream& o) const { std::print(o, "({} {} {})", *lhs(), tag(), *rhs()); }
+void QuantExpr::stream(std::ostream& o) const { std::print(o, "({} {} {} {})", *lhs(), tag(), quant(), *rhs()); }
 
-std::ostream& BinExpr::stream(std::ostream& o) const {
-    std::print(o, "({} {} {})", *lhs(), tag(), *rhs());
-    return o;
-}
-
-std::ostream& BinExprWithPreTag::stream(std::ostream& o) const {
+void BinExprWithPreTag::stream(std::ostream& o) const {
     std::print(o, "({} {} {} {})", *lhs(), pretag(), tag(), *rhs());
-    return o;
 }
 
-std::ostream& QuantExpr::stream(std::ostream& o) const {
-    std::print(o, "({} {} {} {})", *lhs(), tag(), quant(), *rhs());
-    return o;
-}
-
-std::ostream& Grouping::stream(std::ostream& o) const {
+void Grouping::stream(std::ostream& o) const {
     // clang-format off
     switch (tag()) {
         case Rollup: o << "ROLLUP ";        break;
         case Cube:   o << "CUBE ";          break;
         case Sets:   o << "GROUPING SETS "; break;
-        case Empty:  return o << "()";
+        case Empty:  o << "()";             return;
     }
     // clang-format on
     std::print(o, "({})", fe::Join(args()));
-    return o;
 }
 
-std::ostream& Values::stream(std::ostream& o) const { return o << "VALUES " << fe::Join(rows()); }
+void Values::stream(std::ostream& o) const { o << "VALUES " << fe::Join(rows()); }
 
 /*
  * DDL
@@ -390,74 +353,68 @@ static void stream_behavior(std::ostream& o, Behavior behavior) {
     // clang-format on
 }
 
-std::ostream& Create::stream(std::ostream& o) const {
+void Create::stream(std::ostream& o) const {
     std::print(o, "CREATE {}TABLE {}{}", temporary() ? "TEMPORARY " : "", if_not_exists() ? "IF NOT EXISTS " : "",
                qname(syms()));
 
-    if (query()) return o << " AS " << *query();
+    if (query()) {
+        std::print(o, " AS {}", *query());
+        return;
+    }
 
     // The table elements and the table-level constraints form one comma-separated list.
     auto sep = elems().empty() || constraints().empty() ? "" : ", ";
     std::print(o, " ({}{}{})", fe::Join(elems()), sep, fe::Join(constraints()));
-    return o;
 }
 
-std::ostream& Create::Elem::stream(std::ostream& o) const {
+void Create::Elem::stream(std::ostream& o) const {
     std::print(o, "{} {}", Ident(sym()), *type());
     for (auto&& constraint : constraints())
         std::print(o, " {}", constraint);
-    return o;
 }
 
-std::ostream& CreateView::stream(std::ostream& o) const {
-    std::print(o, "CREATE {}VIEW {}", replace() ? "OR REPLACE " : "", qname(syms()));
-    if (!cols().empty()) std::print(o, " ({})", fe::Join(idents(cols())));
-    std::print(o, " AS {}", *query());
+void CreateView::stream(std::ostream& o) const {
+    std::print(o, "CREATE {}VIEW {}{} AS {}", replace() ? "OR REPLACE " : "", qname(syms()), parens(cols(), " "),
+               *query());
 
     if (check() != Tok::Tag::Nil) {
         o << " WITH ";
         if (check() != Tok::Tag::K_CHECK) std::print(o, "{} ", check());
         o << "CHECK OPTION";
     }
-    return o;
 }
 
-std::ostream& CreateIndex::stream(std::ostream& o) const {
+void CreateIndex::stream(std::ostream& o) const {
     std::print(o, "CREATE {}INDEX {}{}", unique() ? "UNIQUE " : "", if_not_exists() ? "IF NOT EXISTS " : "",
                Ident(sym()));
     std::print(o, " ON {} ({})", qname(table()), fe::Join(cols()));
-    return o;
 }
 
-std::ostream& CreateSchema::stream(std::ostream& o) const {
+void CreateSchema::stream(std::ostream& o) const {
     std::print(o, "CREATE SCHEMA {}{}", if_not_exists() ? "IF NOT EXISTS " : "", qname(syms()));
-    return o;
 }
 
-std::ostream& Alter::stream(std::ostream& o) const {
+void Alter::stream(std::ostream& o) const {
     std::print(o, "ALTER TABLE {}", qname(table()));
 
-    // clang-format off
     switch (tag()) {
-        case Add_Column:      std::print(o, " ADD COLUMN {}", *elem());                                 break;
-        case Add_Constraint:  std::print(o, " ADD {}", *constraint());                                  break;
-        case Drop_Column:     std::print(o, " DROP COLUMN {}", Ident(sym()));                           break;
-        case Drop_Constraint: std::print(o, " DROP CONSTRAINT {}", Ident(sym()));                       break;
-        case Set_Default:     std::print(o, " ALTER COLUMN {} SET DEFAULT {}", Ident(sym()), *expr());  break;
-        case Drop_Default:    std::print(o, " ALTER COLUMN {} DROP DEFAULT", Ident(sym()));             break;
-        case Set_Not_Null:    std::print(o, " ALTER COLUMN {} SET NOT NULL", Ident(sym()));             break;
-        case Drop_Not_Null:   std::print(o, " ALTER COLUMN {} DROP NOT NULL", Ident(sym()));            break;
-        case Set_Data_Type:   std::print(o, " ALTER COLUMN {} SET DATA TYPE {}", Ident(sym()), *type()); break;
-        case Rename_Table:    std::print(o, " RENAME TO {}", Ident(sym()));                             break;
-        case Rename_Column:   std::print(o, " RENAME COLUMN {} TO {}", Ident(sym()), Ident(sym2()));    break;
+        case Add_Column: std::print(o, " ADD COLUMN {}", *elem()); break;
+        case Add_Constraint: std::print(o, " ADD {}", *constraint()); break;
+        case Drop_Column: std::print(o, " DROP COLUMN {}", Ident(sym())); break;
+        case Drop_Constraint: std::print(o, " DROP CONSTRAINT {}", Ident(sym())); break;
+        case Set_Default: std::print(o, " ALTER COLUMN {} SET DEFAULT {}", Ident(sym()), *expr()); break;
+        case Drop_Default: std::print(o, " ALTER COLUMN {} DROP DEFAULT", Ident(sym())); break;
+        case Set_Not_Null: std::print(o, " ALTER COLUMN {} SET NOT NULL", Ident(sym())); break;
+        case Drop_Not_Null: std::print(o, " ALTER COLUMN {} DROP NOT NULL", Ident(sym())); break;
+        case Set_Data_Type: std::print(o, " ALTER COLUMN {} SET DATA TYPE {}", Ident(sym()), *type()); break;
+        case Rename_Table: std::print(o, " RENAME TO {}", Ident(sym())); break;
+        case Rename_Column: std::print(o, " RENAME COLUMN {} TO {}", Ident(sym()), Ident(sym2())); break;
     }
-    // clang-format on
 
     stream_behavior(o, behavior()); // only a dropped column/constraint has one
-    return o;
 }
 
-std::ostream& Drop::stream(std::ostream& o) const {
+void Drop::stream(std::ostream& o) const {
     o << "DROP ";
     // clang-format off
     switch (tag()) {
@@ -470,28 +427,26 @@ std::ostream& Drop::stream(std::ostream& o) const {
     if (if_exists()) o << "IF EXISTS ";
     o << qname(syms());
     stream_behavior(o, behavior());
-    return o;
 }
 
-std::ostream& Transact::stream(std::ostream& o) const {
+void Transact::stream(std::ostream& o) const {
     // clang-format off
     switch (tag()) {
-        case Start:       return o << "START TRANSACTION";
-        case Commit:      return o << "COMMIT";
-        case Rollback:    return o << "ROLLBACK";
-        case Rollback_To: return o << "ROLLBACK TO SAVEPOINT " << Ident(sym());
-        case Savepoint:   return o << "SAVEPOINT " << Ident(sym());
-        case Release:     return o << "RELEASE SAVEPOINT " << Ident(sym());
+        case Start:       o << "START TRANSACTION";                               break;
+        case Commit:      o << "COMMIT";                                          break;
+        case Rollback:    o << "ROLLBACK";                                        break;
+        case Rollback_To: std::print(o, "ROLLBACK TO SAVEPOINT {}", Ident(sym())); break;
+        case Savepoint:   std::print(o, "SAVEPOINT {}", Ident(sym()));            break;
+        case Release:     std::print(o, "RELEASE SAVEPOINT {}", Ident(sym()));    break;
     }
     // clang-format on
-    return o;
 }
 
 /*
  * Query expressions
  */
 
-std::ostream& Join::stream(std::ostream& o) const {
+void Join::stream(std::ostream& o) const {
     o << '(' << *lhs();
 
     if (tag() == Cross) {
@@ -513,15 +468,16 @@ std::ostream& Join::stream(std::ostream& o) const {
     if (auto on = std::get_if<On>(&spec()))
         std::print(o, " ON {}", *on);
     else if (auto syms = std::get_if<Using>(&spec()))
-        std::print(o, " USING ({})", fe::Join(idents(*syms)));
-    return o << ')';
+        std::print(o, "{}", parens(*syms, " USING "));
+    o << ')';
 }
 
-std::ostream& Select::stream(std::ostream& o) const {
+void Select::stream(std::ostream& o) const {
     std::print(o, "SELECT {}", distinct() ? "DISTINCT " : "");
 
+    // A `SELECT *` keeps no elements of its own - the asterisk is all there is.
     if (elems().empty())
-        o << "*";
+        o << '*';
     else
         o << fe::Join(elems());
 
@@ -531,38 +487,29 @@ std::ostream& Select::stream(std::ostream& o) const {
     if (!groups().empty()) std::print(o, " GROUP BY {}", fe::Join(groups()));
     if (having()) std::print(o, " HAVING {}", *having());
     if (!windows().empty()) std::print(o, " WINDOW {}", fe::Join(windows()));
-
-    return o;
 }
 
-std::ostream& Select::Elem::stream(std::ostream& o) const {
+void Select::Elem::stream(std::ostream& o) const {
     o << *expr();
-    // clang-format off
     switch (syms().size()) {
-        case 0:                                                      break;
-        case 1:  std::print(o, " AS {}", Ident(syms().front()));     break;
-        default: std::print(o, " AS ({})", fe::Join(idents(syms())));
+        case 0: break;
+        case 1: std::print(o, " AS {}", Ident(syms().front())); break;
+        default: std::print(o, "{}", parens(syms(), " AS "));
     }
-    // clang-format on
-    return o;
 }
 
-std::ostream& Select::From::stream(std::ostream& o) const {
+void Select::From::stream(std::ostream& o) const {
     std::print(o, "{}{}", lateral() ? "LATERAL " : "", *expr());
     if (ordinality()) o << " WITH ORDINALITY";
     if (as()) std::print(o, " AS {}", Ident(as()));
-    if (!cols().empty()) std::print(o, " ({})", fe::Join(idents(cols())));
-    return o;
+    o << parens(cols(), " ");
 }
 
-std::ostream& Select::WindowDef::stream(std::ostream& o) const {
-    std::print(o, "{} AS {}", Ident(sym()), *window());
-    return o;
-}
+void Select::WindowDef::stream(std::ostream& o) const { std::print(o, "{} AS {}", Ident(sym()), *window()); }
 
 /// Like Select and Query - and unlike the self-parenthesizing Expr%essions - this prints *without*
 /// parentheses: a ParenExprList preserves the ones that actually group in the source.
-std::ostream& SetOp::stream(std::ostream& o) const {
+void SetOp::stream(std::ostream& o) const {
     o << *lhs();
 
     // clang-format off
@@ -574,10 +521,10 @@ std::ostream& SetOp::stream(std::ostream& o) const {
     // clang-format on
     if (all()) o << " ALL";
 
-    return o << ' ' << *rhs();
+    std::print(o, " {}", *rhs());
 }
 
-std::ostream& Query::stream(std::ostream& o) const {
+void Query::stream(std::ostream& o) const {
     if (!ctes().empty()) std::print(o, "WITH {}{} ", recursive() ? "RECURSIVE " : "", fe::Join(ctes()));
 
     o << *body();
@@ -586,60 +533,50 @@ std::ostream& Query::stream(std::ostream& o) const {
     if (offset()) std::print(o, " OFFSET {} ROWS", *offset());
     if (fetch()) std::print(o, " FETCH NEXT {} ROWS ONLY", *fetch());
     if (limit()) std::print(o, " LIMIT {}", *limit());
-
-    return o;
 }
 
-std::ostream& Query::Cte::stream(std::ostream& o) const {
-    o << Ident(sym());
-    if (!cols().empty()) std::print(o, " ({})", fe::Join(idents(cols())));
-    std::print(o, " AS ({})", *query());
-    return o;
+void Query::Cte::stream(std::ostream& o) const {
+    std::print(o, "{}{} AS ({})", Ident(sym()), parens(cols(), " "), *query());
 }
 
 /*
  * Insert / Update / Delete
  */
 
-std::ostream& Insert::stream(std::ostream& o) const {
-    std::print(o, "INSERT INTO {}", qname(syms()));
-    if (!cols().empty()) std::print(o, " ({})", fe::Join(idents(cols())));
+void Insert::stream(std::ostream& o) const {
+    std::print(o, "INSERT INTO {}{}", qname(syms()), parens(cols(), " "));
 
-    if (!query()) return o << " DEFAULT VALUES";
-    return o << ' ' << *query();
+    if (query())
+        std::print(o, " {}", *query());
+    else
+        o << " DEFAULT VALUES";
 }
 
-std::ostream& Update::stream(std::ostream& o) const {
+void Update::stream(std::ostream& o) const {
     std::print(o, "UPDATE {}", qname(syms()));
     if (as()) std::print(o, " AS {}", Ident(as()));
 
     std::print(o, " SET {}", fe::Join(assigns()));
     if (where()) std::print(o, " WHERE {}", *where());
-    return o;
 }
 
-std::ostream& Update::Assign::stream(std::ostream& o) const {
-    std::print(o, "{} = {}", qname(syms()), *expr());
-    return o;
-}
+void Update::Assign::stream(std::ostream& o) const { std::print(o, "{} = {}", qname(syms()), *expr()); }
 
-std::ostream& Delete::stream(std::ostream& o) const {
+void Delete::stream(std::ostream& o) const {
     std::print(o, "DELETE FROM {}", qname(syms()));
     if (as()) std::print(o, " AS {}", Ident(as()));
     if (where()) std::print(o, " WHERE {}", *where());
-    return o;
 }
 
 /*
  * Misc
  */
 
-std::ostream& Prog::stream(std::ostream& o) const {
+void Prog::stream(std::ostream& o) const {
     for (auto sep = ""; auto&& expr : exprs()) {
         std::print(o, "{}{};", sep, expr);
         sep = "\n";
     }
-    return o;
 }
 
 } // namespace sql
