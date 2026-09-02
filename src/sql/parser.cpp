@@ -122,13 +122,13 @@ using namespace std::literals;
 ///@}
 
 /// Turns such a family into a predicate - a `case` label is of no use outside of a `switch`.
-#define ISA(f, family)                          \
-    static bool f(Tok::Tag tag) {               \
+#define ISA(tag, family)                        \
+    ([&] {                                      \
         switch (tag) {                          \
             case Tok::Tag::family: return true; \
             default: return false;              \
         }                                       \
-    }
+    }())
 // clang-format on
 
 namespace sql {
@@ -148,16 +148,6 @@ static std::string to_lower(std::string_view sv) {
         res += tolower(c);
     return res;
 }
-
-ISA(isa_field, C_FIELD)
-ISA(isa_typed_val, C_TYPED_VAL)
-ISA(isa_comp, C_COMP)
-ISA(isa_quant, C_QUANT)
-ISA(isa_like, C_LIKE)
-ISA(isa_trim_spec, C_TRIM_SPEC)
-ISA(isa_frame_unit, C_FRAME_UNIT)
-ISA(isa_table_constraint, C_TABLE_CONSTRAINT)
-ISA(isa_col_constraint, C_COL_CONSTRAINT)
 
 Parser::Parser(Driver& driver, const fe::Src& src)
     : lexer_(driver, src)
@@ -281,7 +271,7 @@ AST<Interval> Parser::parse_interval() {
 
     auto to = Tok::Tag::Nil;
     if (accept(Tok::Tag::K_TO)) {
-        if (isa_field(ahead().tag())) {
+        if (ISA(ahead().tag(), C_FIELD)) {
             to = lex().tag();
             parse_args(to_args);
         } else {
@@ -325,7 +315,7 @@ AST<Type> Parser::parse_type(std::string_view ctxt) {
             parse_args(args);
 
             AST<Interval> interval;
-            if (tag == Tok::Tag::K_INTERVAL && isa_field(ahead().tag())) interval = parse_interval();
+            if (tag == Tok::Tag::K_INTERVAL && ISA(ahead().tag(), C_FIELD)) interval = parse_interval();
 
             auto zone = Tok::Tag::Nil;
             if (ahead().isa(Tok::Tag::K_WITH) || ahead().isa(Tok::Tag::K_WITHOUT)) {
@@ -427,7 +417,7 @@ AST<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
 
             if (ahead().isa(Tok::Tag::K_BETWEEN)) {
                 lhs = parse_between(track, std::move(lhs), true);
-            } else if (isa_like(ahead().tag())) {
+            } else if (ISA(ahead().tag(), C_LIKE)) {
                 lhs = parse_like(track, std::move(lhs), true);
             } else {
                 auto tag = lex().tag();
@@ -438,7 +428,7 @@ AST<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
         } else if (ahead().isa(Tok::Tag::K_BETWEEN)) {
             if (*Tok::bin_prec(Tok::Tag::K_BETWEEN) < cur_prec) break;
             lhs = parse_between(track, std::move(lhs), false);
-        } else if (isa_like(ahead().tag())) {
+        } else if (ISA(ahead().tag(), C_LIKE)) {
             if (*Tok::bin_prec(Tok::Tag::K_LIKE) < cur_prec) break;
             lhs = parse_like(track, std::move(lhs), false);
         } else if (ahead().isa(Tok::Tag::K_COLLATE)) {
@@ -467,7 +457,7 @@ AST<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
 
             // A quantifier turns a comparison into `a > ALL (subquery)`; the `(` tells it from a
             // column that merely happens to be named after the reserved word.
-            if (isa_comp(op) && isa_quant(ahead().tag()) && ahead(1).isa(Tok::Tag::D_paren_l)) {
+            if (ISA(op, C_COMP) && ISA(ahead().tag(), C_QUANT) && ahead(1).isa(Tok::Tag::D_paren_l)) {
                 auto quant = lex().tag();
                 auto rhs   = parse_expr("subquery of a quantified comparison", next_prec(*prec));
                 lhs        = ast<QuantExpr>(track, std::move(lhs), op, quant, std::move(rhs));
@@ -535,11 +525,11 @@ AST<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
 
     // A typed literal: `DATE '2024-01-01'`, `INTERVAL '1-2' YEAR TO MONTH`. The string tells it
     // from the very same word used as a type name or as a column reference.
-    if (isa_typed_val(ahead().tag()) && ahead(1).isa(Tok::Tag::V_str)) {
+    if (ISA(ahead().tag(), C_TYPED_VAL) && ahead(1).isa(Tok::Tag::V_str)) {
         auto tag = lex().tag();
         auto str = lex().sym();
         AST<Interval> interval;
-        if (tag == Tok::Tag::K_INTERVAL && isa_field(ahead().tag())) interval = parse_interval();
+        if (tag == Tok::Tag::K_INTERVAL && ISA(ahead().tag(), C_FIELD)) interval = parse_interval();
         return ast<TypedVal>(track, tag, str, std::move(interval));
     }
 
@@ -691,7 +681,7 @@ AST<Expr> Parser::parse_special_func() {
         }
         case Tok::Tag::K_TRIM: {
             auto spec = Tok::Tag::Nil;
-            if (isa_trim_spec(ahead().tag())) spec = lex().tag();
+            if (ISA(ahead().tag(), C_TRIM_SPEC)) spec = lex().tag();
 
             AST<Expr> chars, expr;
             if (accept(Tok::Tag::K_FROM)) {
@@ -862,7 +852,7 @@ AST<Create::Elem> Parser::parse_col_def() {
     auto sym   = parse_sym("column name");
     auto type  = parse_type("column type");
     ASTs<Constraint> constraints;
-    while (isa_col_constraint(ahead().tag()))
+    while (ISA(ahead().tag(), C_COL_CONSTRAINT))
         constraints.emplace_back(parse_constraint(false));
     return ast<Create::Elem>(track, sym, std::move(type), std::move(constraints));
 }
@@ -906,7 +896,7 @@ AST<Expr> Parser::parse_create_table(Tracker track, bool temporary) {
         query = parse_query("source of a `CREATE TABLE` expression", false);
     } else {
         parse_list("table element list", [&]() {
-            if (isa_table_constraint(ahead().tag()))
+            if (ISA(ahead().tag(), C_TABLE_CONSTRAINT))
                 constraints.emplace_back(parse_constraint(true));
             else
                 elems.emplace_back(parse_col_def());
@@ -969,7 +959,7 @@ AST<Expr> Parser::parse_alter() {
     auto behavior = Behavior::None;
 
     if (accept_non_key(N_ADD)) {
-        if (isa_table_constraint(ahead().tag())) {
+        if (ISA(ahead().tag(), C_TABLE_CONSTRAINT)) {
             tag        = Alter::Add_Constraint;
             constraint = parse_constraint(true);
         } else {
@@ -1348,7 +1338,7 @@ AST<Window> Parser::parse_window() {
     }
 
     AST<Frame> frame;
-    if (isa_frame_unit(ahead().tag())) frame = parse_frame();
+    if (ISA(ahead().tag(), C_FRAME_UNIT)) frame = parse_frame();
 
     expect(Tok::Tag::D_paren_r, "closing delimiter of a window specification");
     return ast<Window>(track, name, true, std::move(partitions), std::move(orders), std::move(frame));
