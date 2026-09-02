@@ -665,7 +665,7 @@ AST<Expr> Parser::parse_query(std::string_view ctxt) {
 
     AST<Expr> offset;
     if (accept(Tok::Tag::K_OFFSET)) {
-        offset = parse_expr("OFF`SET` clause");
+        offset = parse_expr("`OFFSET` clause");
         if (!accept(Tok::Tag::K_ROW)) accept(Tok::Tag::K_ROWS);
     }
 
