@@ -4,10 +4,4 @@ anchor_semicolon.sql:1:12: error: ignoring unmatched `b` while parsing function 
 anchor_semicolon.sql:1:13: error: expected `)`, got `;` while parsing closing delimiter of a function argument list
     1 | SELECT f(a b; SELECT c FROM u;
       |             ^
-anchor_semicolon.sql:1:13: error: expected `FROM`, got `;` while parsing `SELECT` expression
-    1 | SELECT f(a b; SELECT c FROM u;
-      |             ^
-anchor_semicolon.sql:1:13: error: expected primary or unary expression, got `;` while parsing table reference of a `FROM` clause
-    1 | SELECT f(a b; SELECT c FROM u;
-      |             ^
-4 error(s) encountered
+2 error(s) encountered

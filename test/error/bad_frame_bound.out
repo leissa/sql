@@ -1,0 +1,7 @@
+bad_frame_bound.sql:1:36-1:38: error: expected `FOLLOWING`, got `AND` while parsing window frame bound
+    1 | SELECT rank() OVER (ROWS BETWEEN 1 AND 2);
+      |                                    ^^^
+bad_frame_bound.sql:1:41: error: expected `FOLLOWING`, got `)` while parsing window frame bound
+    1 | SELECT rank() OVER (ROWS BETWEEN 1 AND 2);
+      |                                         ^
+2 error(s) encountered

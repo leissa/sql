@@ -51,14 +51,36 @@ Tok Lexer::lex() {
         }
         if (accept('=')) return {loc_, Tok::Tag::T_eq};
         if (accept(',')) return {loc_, Tok::Tag::T_comma};
-        if (accept('.')) return {loc_, Tok::Tag::T_dot};
+        if (accept('.')) {
+            if (utf8::isdigit(ahead())) return lex_num();
+            return {loc_, Tok::Tag::T_dot};
+        }
         if (accept(';')) return {loc_, Tok::Tag::T_semicolon};
         if (accept(':')) {
             if (accept('=')) return {loc_, Tok::Tag::T_assign};
+            // `:name` is a named parameter marker - one character of lookahead settles it.
+            if (accept<Append::Lower>([](char32_t c) { return c == '_' || utf8::isalpha(c); })) {
+                while (accept<Append::Lower>(
+                    [](char32_t c) { return c == '_' || utf8::isalpha(c) || utf8::isdigit(c); })) {}
+                return {loc_, Tok::Tag::V_param, driver_.sym(str_)};
+            }
             return {loc_, Tok::Tag::T_colon};
         }
         if (accept('+')) return {loc_, Tok::Tag::T_add};
         if (accept('*')) return {loc_, Tok::Tag::T_mul};
+        if (accept('%')) return {loc_, Tok::Tag::T_mod};
+        if (accept('|')) {
+            if (accept('|')) return {loc_, Tok::Tag::T_concat};
+            error().e(peek(), "invalid input following `|`: `{}`", (char)ahead());
+            continue;
+        }
+
+        // A dynamic parameter marker: `?`, `$1`, or `:name`. Sym holds the marker verbatim.
+        if (accept('?')) return {loc_, Tok::Tag::V_param, driver_.sym(str_)};
+        if (accept('$')) {
+            while (accept(utf8::isdigit)) {}
+            return {loc_, Tok::Tag::V_param, driver_.sym(str_)};
+        }
 
         // sub or single-line comment
         if (accept('-')) {
@@ -79,11 +101,8 @@ Tok Lexer::lex() {
             return {loc_, Tok::Tag::T_div};
         }
 
-        // integer value
-        if (accept(utf8::isdigit)) {
-            while (accept(utf8::isdigit)) {}
-            return {loc_, std::strtoull(str_.c_str(), nullptr, 10)};
-        }
+        // integer or real value
+        if (utf8::isdigit(ahead())) return lex_num();
 
         // lex identifier or keyword
         if (accept<Append::Lower>([](char32_t c) { return c == '_' || utf8::isalpha(c); })) {
@@ -100,6 +119,27 @@ Tok Lexer::lex() {
 
         recover_char();
     }
+}
+
+/// Lexes a numeric literal. A `.` or an exponent makes it a Tok::Tag::V_real, whose Sym keeps the
+/// literal verbatim - that is what lets the printer emit it back unchanged.
+/// @note Lexer::lex has already consumed a leading `.`, if there was one.
+Tok Lexer::lex_num() {
+    bool real = str_ == ".";
+    while (accept(utf8::isdigit)) {}
+    if (!real && accept('.')) {
+        real = true;
+        while (accept(utf8::isdigit)) {}
+    }
+    if (accept([](char32_t c) { return c == 'e' || c == 'E'; })) {
+        real = true;
+        if (!accept('+')) accept('-');
+        if (!accept(utf8::isdigit)) error().e(loc_, "exponent of a numeric literal has no digits");
+        while (accept(utf8::isdigit)) {}
+    }
+
+    if (!real) return {loc_, std::strtoull(str_.c_str(), nullptr, 10)};
+    return {loc_, Tok::Tag::V_real, driver_.sym(str_)};
 }
 
 Tok Lexer::lex_str(char32_t delim, Tok::Tag tag) {

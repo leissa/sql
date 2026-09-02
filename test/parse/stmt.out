@@ -1,0 +1,13 @@
+SELECT a FROM t;
+SELECT b FROM u;
+SELECT 1;
+SELECT (1 + 2) AS three;
+VALUES (1, 'a'), (2, 'b');
+VALUES 1, 2, 3;
+TABLE t;
+TABLE s.t;
+SELECT a AS b, c AS d FROM t AS u, v AS w;
+SELECT * FROM cat.sch.tab;
+INSERT INTO s.t (a) VALUES (1);
+UPDATE s.t SET s.t.a = 1;
+DELETE FROM s.t;

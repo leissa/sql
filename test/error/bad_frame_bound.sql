@@ -1,0 +1,1 @@
+SELECT rank() OVER (ROWS BETWEEN 1 AND 2);

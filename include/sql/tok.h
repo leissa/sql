@@ -16,9 +16,11 @@ using fe::Sym;
 #define SQL_TOK(m)                              \
     m(EoF,          "<end of file>")            \
     /* value: contains sth beyond the tag */    \
-    m(V_int,        "<interger value>")         \
+    m(V_int,        "<integer value>")          \
+    m(V_real,       "<real value>")             \
     m(V_id,         "<identifier>")             \
     m(V_str,        "<string value>")           \
+    m(V_param,      "<parameter>")              \
     /* delimiter */                             \
     m(D_brace_l,    "{")                        \
     m(D_brace_r,    "}")                        \
@@ -43,6 +45,8 @@ using fe::Sym;
     m(T_sub,        "-")                        \
     m(T_mul,        "*")                        \
     m(T_div,        "/")                        \
+    m(T_mod,        "%")                        \
+    m(T_concat,     "||")                       \
 
 // These are the *real* keywords - "reserved words"
 #define SQL_KEY(m) \
@@ -591,7 +595,13 @@ using fe::Sym;
     m(N_VIEW, "VIEW") \
     m(N_WORK, "WORK") \
     m(N_WRITE, "WRITE") \
-    m(N_ZONE, "ZONE")
+    m(N_ZONE, "ZONE") \
+    /* Not in the standard, but so widely used that leaving them out is the bigger surprise. */ \
+    m(N_IF, "IF") \
+    m(N_INDEX, "INDEX") \
+    m(N_LIMIT, "LIMIT") \
+    m(N_RENAME, "RENAME") \
+    m(N_REPLACE, "REPLACE")
 // clang-format on
 
 enum class NonKey {
@@ -614,7 +624,13 @@ public:
         SQL_KEY(CODE)
         SQL_TOK(CODE)
 #undef CODE
-        K_IS_NOT ///< Not an actual keyword but we use this for UnExpr::tag.
+        /// @name Pseudo Tags
+        /// Not actual keywords; BinExpr::tag uses these to fold a multi-word operator into one Tag.
+        ///@{
+        K_IS_NOT,
+        K_IS_DISTINCT_FROM,
+        K_IS_NOT_DISTINCT_FROM,
+        ///@}
     };
     // clang-format on
 
@@ -626,6 +642,7 @@ public:
         Between,
         Not,
         Comp,
+        Concat,
         Add,
         Mul,
         Unary,
@@ -656,7 +673,7 @@ public:
     explicit operator bool() const { return tag_ != Tag::Nil; }
 
     Sym sym() const {
-        assert(isa(Tag::V_id) || isa(Tag::V_str));
+        assert(isa(Tag::V_id) || isa(Tag::V_str) || isa(Tag::V_real) || isa(Tag::V_param));
         return sym_;
     }
     uint64_t u64() const { return u64_; }

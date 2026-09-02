@@ -1,13 +1,7 @@
 unterminated_string.sql:1:8-1:29: error: unterminated string literal
     1 | SELECT 'unterminated FROM t;
       |        ^^^^^^^^^^^^^^^^^^^^^
-unterminated_string.sql:1:29: error: expected `FROM`, got `<end of file>` while parsing `SELECT` expression
+unterminated_string.sql:1:29: error: expected `;`, got `<end of file>` while parsing statement list
     1 | SELECT 'unterminated FROM t;
       |                             ^
-unterminated_string.sql:1:29: error: expected primary or unary expression, got `<end of file>` while parsing table reference of a `FROM` clause
-    1 | SELECT 'unterminated FROM t;
-      |                             ^
-unterminated_string.sql:1:29: error: expected `;`, got `<end of file>` while parsing expression list
-    1 | SELECT 'unterminated FROM t;
-      |                             ^
-4 error(s) encountered
+2 error(s) encountered

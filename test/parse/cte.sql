@@ -1,0 +1,17 @@
+-- A `WITH` clause in front of any query expression.
+WITH x AS (SELECT * FROM t) SELECT * FROM x;
+WITH x (a, b) AS (SELECT 1, 2), y AS (TABLE u) SELECT * FROM x, y;
+
+-- `RECURSIVE` and a recursive body.
+WITH RECURSIVE r (n) AS (VALUES (1) UNION ALL SELECT n + 1 FROM r WHERE n < 10) SELECT * FROM r;
+
+-- A `WITH` nests wherever a query expression is allowed.
+SELECT * FROM (WITH x AS (SELECT 1) SELECT * FROM x) AS y;
+INSERT INTO t WITH x AS (SELECT 1) SELECT * FROM x;
+
+-- Trailing clauses: `ORDER BY` with `NULLS`, and all three ways to bound the result.
+SELECT a FROM t ORDER BY a DESC NULLS LAST, b ASC NULLS FIRST;
+SELECT a FROM t ORDER BY a OFFSET 10 ROWS FETCH NEXT 5 ROWS ONLY;
+SELECT a FROM t LIMIT 10;
+SELECT a FROM t LIMIT 10 OFFSET 20;
+SELECT a FROM t ORDER BY a LIMIT 1;

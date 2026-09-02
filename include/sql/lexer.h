@@ -18,6 +18,7 @@ public:
 
 private:
     void eat_comments();
+    Tok lex_num(); ///< Lex an integer or real literal.
     /// Lex the body of a @p delim-quoted literal; a doubled @p delim escapes one occurrence of it.
     Tok lex_str(char32_t delim, Tok::Tag);
     void lex_char();

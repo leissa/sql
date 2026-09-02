@@ -1,0 +1,4 @@
+bad_alter_action.sql:1:14: error: expected `ADD`, `DROP`, `ALTER`, or `RENAME`, got `;` while parsing `ALTER TABLE` expression
+    1 | ALTER TABLE t;
+      |              ^
+1 error(s) encountered

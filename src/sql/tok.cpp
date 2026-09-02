@@ -14,6 +14,8 @@ std::string_view Tok::tag2str(Tok::Tag tag) {
         SQL_TOK(CODE)
 #undef CODE
         case Tok::Tag::K_IS_NOT: return "IS NOT"sv;
+        case Tok::Tag::K_IS_DISTINCT_FROM: return "IS DISTINCT FROM"sv;
+        case Tok::Tag::K_IS_NOT_DISTINCT_FROM: return "IS NOT DISTINCT FROM"sv;
         case Tok::Tag::Nil: return "<nil>"sv;
     }
 
@@ -37,6 +39,7 @@ std::optional<Tok::Prec> Tok::bin_prec(Tok::Tag tag) {
         case Tok::Tag::K_BETWEEN: return Prec::Between;
         case Tok::Tag::K_IN:
         case Tok::Tag::K_LIKE:
+        case Tok::Tag::K_SIMILAR:
         case Tok::Tag::K_IS:
         case Tok::Tag::T_eq:
         case Tok::Tag::T_ne:
@@ -45,10 +48,12 @@ std::optional<Tok::Prec> Tok::bin_prec(Tok::Tag tag) {
         case Tok::Tag::T_le:
         case Tok::Tag::T_g:
         case Tok::Tag::T_ge:  return Prec::Comp;
+        case Tok::Tag::T_concat: return Prec::Concat;
         case Tok::Tag::T_add:
         case Tok::Tag::T_sub: return Prec::Add;
         case Tok::Tag::T_mul:
-        case Tok::Tag::T_div: return Prec::Mul;
+        case Tok::Tag::T_div:
+        case Tok::Tag::T_mod: return Prec::Mul;
         default: return {};
     }
 }
@@ -60,6 +65,7 @@ std::ostream& operator<<(std::ostream& o, Tok tok) {
     if (tok.isa(Tok::Tag::V_id)) return o << *tok.sym();
     if (tok.isa(Tok::Tag::V_str)) return o << '\'' << *tok.sym() << '\'';
     if (tok.isa(Tok::Tag::V_int)) return o << tok.u64();
+    if (tok.isa(Tok::Tag::V_real) || tok.isa(Tok::Tag::V_param)) return o << *tok.sym();
     return o << Tok::tag2str(tok.tag());
 }
 
