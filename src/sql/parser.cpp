@@ -4,6 +4,133 @@
 
 using namespace std::literals;
 
+// clang-format off
+/// @name Token Families
+/// Each of these lists a whole family of Tok::Tag%s as `case` labels. The leading `Tok::Tag::` comes from
+/// the use site, so a family reads exactly like a single label there: `case Tok::Tag::C_FIELD:`.
+///@{
+/// The datetime fields an interval qualifier is made of.
+#define C_FIELD              \
+                   K_YEAR:   \
+    case Tok::Tag::K_MONTH:  \
+    case Tok::Tag::K_DAY:    \
+    case Tok::Tag::K_HOUR:   \
+    case Tok::Tag::K_MINUTE: \
+    case Tok::Tag::K_SECOND
+
+/// The datetime types - exactly those that may carry a typed literal like `DATE '2024-01-01'`.
+#define C_TYPED_VAL             \
+                   K_DATE:      \
+    case Tok::Tag::K_TIME:      \
+    case Tok::Tag::K_TIMESTAMP: \
+    case Tok::Tag::K_INTERVAL
+
+/// A type spelled with a reserved word - as opposed to a NamedType like `text` or `jsonb`.
+#define C_TYPE                  \
+                   C_TYPED_VAL: \
+    case Tok::Tag::K_INT:       \
+    case Tok::Tag::K_INTEGER:   \
+    case Tok::Tag::K_SMALLINT:  \
+    case Tok::Tag::K_BIGINT:    \
+    case Tok::Tag::K_BOOLEAN:   \
+    case Tok::Tag::K_REAL:      \
+    case Tok::Tag::K_DOUBLE:    \
+    case Tok::Tag::K_FLOAT:     \
+    case Tok::Tag::K_BLOB:      \
+    case Tok::Tag::K_CLOB:      \
+    case Tok::Tag::K_NUMERIC:   \
+    case Tok::Tag::K_DECIMAL:   \
+    case Tok::Tag::K_DEC:       \
+    case Tok::Tag::K_CHAR:      \
+    case Tok::Tag::K_CHARACTER: \
+    case Tok::Tag::K_VARCHAR:   \
+    case Tok::Tag::K_BINARY:    \
+    case Tok::Tag::K_VARBINARY
+
+/// A value that is nothing but its Tok::Tag - `*` included, as that is what `COUNT(*)` counts.
+#define C_VAL                 \
+                   T_mul:     \
+    case Tok::Tag::K_TRUE:    \
+    case Tok::Tag::K_FALSE:   \
+    case Tok::Tag::K_UNKNOWN: \
+    case Tok::Tag::K_DEFAULT: \
+    case Tok::Tag::K_NULL
+
+/// Only these may carry a quantifier: `a = ANY (...)` is a comparison, `a IN (...)` is not.
+#define C_COMP           \
+                   T_eq: \
+    case Tok::Tag::T_ne: \
+    case Tok::Tag::T_ue: \
+    case Tok::Tag::T_l:  \
+    case Tok::Tag::T_le: \
+    case Tok::Tag::T_g:  \
+    case Tok::Tag::T_ge
+
+/// The quantifier of a quantified comparison.
+#define C_QUANT           \
+                   K_ALL: \
+    case Tok::Tag::K_ANY: \
+    case Tok::Tag::K_SOME
+
+/// `SIMILAR` only differs from `LIKE` by its `TO`; Parser::parse_like handles both.
+#define C_LIKE             \
+                   K_LIKE: \
+    case Tok::Tag::K_SIMILAR
+
+/// The functions the standard spells with keyword-separated arguments rather than commas.
+#define C_SPECIAL_FUNC          \
+                   K_EXTRACT:   \
+    case Tok::Tag::K_SUBSTRING: \
+    case Tok::Tag::K_TRIM:      \
+    case Tok::Tag::K_POSITION:  \
+    case Tok::Tag::K_OVERLAY
+
+/// Which end of a `TRIM` to trim.
+#define C_TRIM_SPEC            \
+                   K_LEADING:  \
+    case Tok::Tag::K_TRAILING: \
+    case Tok::Tag::K_BOTH
+
+/// The unit a window frame counts in.
+#define C_FRAME_UNIT        \
+                   K_ROWS:  \
+    case Tok::Tag::K_RANGE: \
+    case Tok::Tag::K_GROUPS
+
+/// Does a `CREATE TABLE` element start a table-level constraint rather than a column definition?
+#define C_TABLE_CONSTRAINT       \
+                   K_CONSTRAINT: \
+    case Tok::Tag::K_PRIMARY:    \
+    case Tok::Tag::K_UNIQUE:     \
+    case Tok::Tag::K_FOREIGN:    \
+    case Tok::Tag::K_CHECK
+
+/// As above, plus what only makes sense on a single column.
+#define C_COL_CONSTRAINT               \
+                   C_TABLE_CONSTRAINT: \
+    case Tok::Tag::K_REFERENCES:       \
+    case Tok::Tag::K_DEFAULT
+
+/// One `<SQL transaction statement>` - all of them go to Parser::parse_transact.
+#define C_TRANSACT              \
+                   K_BEGIN:     \
+    case Tok::Tag::K_START:     \
+    case Tok::Tag::K_COMMIT:    \
+    case Tok::Tag::K_ROLLBACK:  \
+    case Tok::Tag::K_SAVEPOINT: \
+    case Tok::Tag::K_RELEASE
+///@}
+
+/// Turns such a family into a predicate - a `case` label is of no use outside of a `switch`.
+#define ISA(f, family)                          \
+    static bool f(Tok::Tag tag) {               \
+        switch (tag) {                          \
+            case Tok::Tag::family: return true; \
+            default: return false;              \
+        }                                       \
+    }
+// clang-format on
+
 namespace sql {
 
 using enum NonKey;
@@ -22,32 +149,15 @@ static std::string to_lower(std::string_view sv) {
     return res;
 }
 
-/// The datetime fields an interval qualifier is made of.
-static bool isa_field(Tok::Tag tag) {
-    switch (tag) {
-        case Tok::Tag::K_YEAR:
-        case Tok::Tag::K_MONTH:
-        case Tok::Tag::K_DAY:
-        case Tok::Tag::K_HOUR:
-        case Tok::Tag::K_MINUTE:
-        case Tok::Tag::K_SECOND: return true;
-        default: return false;
-    }
-}
-
-/// Only these may carry a quantifier: `a = ANY (...)` is a comparison, `a IN (...)` is not.
-static bool isa_comp(Tok::Tag tag) {
-    switch (tag) {
-        case Tok::Tag::T_eq:
-        case Tok::Tag::T_ne:
-        case Tok::Tag::T_ue:
-        case Tok::Tag::T_l:
-        case Tok::Tag::T_le:
-        case Tok::Tag::T_g:
-        case Tok::Tag::T_ge: return true;
-        default: return false;
-    }
-}
+ISA(isa_field, C_FIELD)
+ISA(isa_typed_val, C_TYPED_VAL)
+ISA(isa_comp, C_COMP)
+ISA(isa_quant, C_QUANT)
+ISA(isa_like, C_LIKE)
+ISA(isa_trim_spec, C_TRIM_SPEC)
+ISA(isa_frame_unit, C_FRAME_UNIT)
+ISA(isa_table_constraint, C_TABLE_CONSTRAINT)
+ISA(isa_col_constraint, C_COL_CONSTRAINT)
 
 Parser::Parser(Driver& driver, const fe::Src& src)
     : lexer_(driver, src)
@@ -146,12 +256,7 @@ AST<Expr> Parser::parse_stmt() {
         case Tok::Tag::K_INSERT:   return parse_insert();
         case Tok::Tag::K_UPDATE:   return parse_update();
         case Tok::Tag::K_DELETE:   return parse_delete();
-        case Tok::Tag::K_BEGIN:
-        case Tok::Tag::K_START:
-        case Tok::Tag::K_COMMIT:
-        case Tok::Tag::K_ROLLBACK:
-        case Tok::Tag::K_SAVEPOINT:
-        case Tok::Tag::K_RELEASE:  return parse_transact();
+        case Tok::Tag::C_TRANSACT: return parse_transact();
         default:                   return parse_query("statement", false);
     }
     // clang-format on
@@ -207,28 +312,7 @@ AST<Type> Parser::parse_type(std::string_view ctxt) {
     };
 
     switch (ahead().tag()) {
-        case Tok::Tag::K_INT:
-        case Tok::Tag::K_INTEGER:
-        case Tok::Tag::K_SMALLINT:
-        case Tok::Tag::K_BIGINT:
-        case Tok::Tag::K_BOOLEAN:
-        case Tok::Tag::K_DATE:
-        case Tok::Tag::K_REAL:
-        case Tok::Tag::K_DOUBLE:
-        case Tok::Tag::K_FLOAT:
-        case Tok::Tag::K_TIME:
-        case Tok::Tag::K_TIMESTAMP:
-        case Tok::Tag::K_INTERVAL:
-        case Tok::Tag::K_BLOB:
-        case Tok::Tag::K_CLOB:
-        case Tok::Tag::K_NUMERIC:
-        case Tok::Tag::K_DECIMAL:
-        case Tok::Tag::K_DEC:
-        case Tok::Tag::K_CHAR:
-        case Tok::Tag::K_CHARACTER:
-        case Tok::Tag::K_VARCHAR:
-        case Tok::Tag::K_BINARY:
-        case Tok::Tag::K_VARBINARY: {
+        case Tok::Tag::C_TYPE: {
             auto tag = lex().tag();
             if (accept(Tok::Tag::K_LARGE)) {
                 parse_sym("`LARGE OBJECT` type"); // OBJECT is not a reserved word
@@ -343,7 +427,7 @@ AST<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
 
             if (ahead().isa(Tok::Tag::K_BETWEEN)) {
                 lhs = parse_between(track, std::move(lhs), true);
-            } else if (ahead().isa(Tok::Tag::K_LIKE) || ahead().isa(Tok::Tag::K_SIMILAR)) {
+            } else if (isa_like(ahead().tag())) {
                 lhs = parse_like(track, std::move(lhs), true);
             } else {
                 auto tag = lex().tag();
@@ -354,7 +438,7 @@ AST<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
         } else if (ahead().isa(Tok::Tag::K_BETWEEN)) {
             if (*Tok::bin_prec(Tok::Tag::K_BETWEEN) < cur_prec) break;
             lhs = parse_between(track, std::move(lhs), false);
-        } else if (ahead().isa(Tok::Tag::K_LIKE) || ahead().isa(Tok::Tag::K_SIMILAR)) {
+        } else if (isa_like(ahead().tag())) {
             if (*Tok::bin_prec(Tok::Tag::K_LIKE) < cur_prec) break;
             lhs = parse_like(track, std::move(lhs), false);
         } else if (ahead().isa(Tok::Tag::K_COLLATE)) {
@@ -383,8 +467,7 @@ AST<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
 
             // A quantifier turns a comparison into `a > ALL (subquery)`; the `(` tells it from a
             // column that merely happens to be named after the reserved word.
-            if (isa_comp(op) && ahead(1).isa(Tok::Tag::D_paren_l)
-                && (ahead().isa(Tok::Tag::K_ALL) || ahead().isa(Tok::Tag::K_ANY) || ahead().isa(Tok::Tag::K_SOME))) {
+            if (isa_comp(op) && isa_quant(ahead().tag()) && ahead(1).isa(Tok::Tag::D_paren_l)) {
                 auto quant = lex().tag();
                 auto rhs   = parse_expr("subquery of a quantified comparison", next_prec(*prec));
                 lhs        = ast<QuantExpr>(track, std::move(lhs), op, quant, std::move(rhs));
@@ -438,21 +521,11 @@ AST<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
             auto tok = lex();
             return ast<Param>(tok.loc(), tok.sym());
         }
-        case Tok::Tag::T_mul:
-        case Tok::Tag::K_TRUE:
-        case Tok::Tag::K_FALSE:
-        case Tok::Tag::K_UNKNOWN:
-        case Tok::Tag::K_DEFAULT:
-        case Tok::Tag::K_NULL: {
+        case Tok::Tag::C_VAL: {
             auto tok = lex();
             return ast<SimpleVal>(tok.loc(), tok.tag());
         }
-        // The standard spells these with keyword-separated arguments rather than commas.
-        case Tok::Tag::K_EXTRACT:
-        case Tok::Tag::K_SUBSTRING:
-        case Tok::Tag::K_TRIM:
-        case Tok::Tag::K_POSITION:
-        case Tok::Tag::K_OVERLAY:
+        case Tok::Tag::C_SPECIAL_FUNC:
             if (ahead(1).isa(Tok::Tag::D_paren_l)) return parse_special_func();
             break;
         default: break;
@@ -462,9 +535,7 @@ AST<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
 
     // A typed literal: `DATE '2024-01-01'`, `INTERVAL '1-2' YEAR TO MONTH`. The string tells it
     // from the very same word used as a type name or as a column reference.
-    if ((ahead().isa(Tok::Tag::K_DATE) || ahead().isa(Tok::Tag::K_TIME) || ahead().isa(Tok::Tag::K_TIMESTAMP)
-         || ahead().isa(Tok::Tag::K_INTERVAL))
-        && ahead(1).isa(Tok::Tag::V_str)) {
+    if (isa_typed_val(ahead().tag()) && ahead(1).isa(Tok::Tag::V_str)) {
         auto tag = lex().tag();
         auto str = lex().sym();
         AST<Interval> interval;
@@ -620,8 +691,7 @@ AST<Expr> Parser::parse_special_func() {
         }
         case Tok::Tag::K_TRIM: {
             auto spec = Tok::Tag::Nil;
-            if (ahead().isa(Tok::Tag::K_LEADING) || ahead().isa(Tok::Tag::K_TRAILING) || ahead().isa(Tok::Tag::K_BOTH))
-                spec = lex().tag();
+            if (isa_trim_spec(ahead().tag())) spec = lex().tag();
 
             AST<Expr> chars, expr;
             if (accept(Tok::Tag::K_FROM)) {
@@ -787,25 +857,12 @@ AST<Constraint> Parser::parse_constraint(bool table_level) {
  * DDL
  */
 
-/// Does a `CREATE TABLE` element start a table-level constraint rather than a column definition?
-static bool isa_table_constraint(Tok::Tag tag) {
-    switch (tag) {
-        case Tok::Tag::K_CONSTRAINT:
-        case Tok::Tag::K_PRIMARY:
-        case Tok::Tag::K_UNIQUE:
-        case Tok::Tag::K_FOREIGN:
-        case Tok::Tag::K_CHECK: return true;
-        default: return false;
-    }
-}
-
 AST<Create::Elem> Parser::parse_col_def() {
     auto track = tracker();
     auto sym   = parse_sym("column name");
     auto type  = parse_type("column type");
     ASTs<Constraint> constraints;
-    while (isa_table_constraint(ahead().tag()) || ahead().isa(Tok::Tag::K_REFERENCES)
-           || ahead().isa(Tok::Tag::K_DEFAULT))
+    while (isa_col_constraint(ahead().tag()))
         constraints.emplace_back(parse_constraint(false));
     return ast<Create::Elem>(track, sym, std::move(type), std::move(constraints));
 }
@@ -1291,8 +1348,7 @@ AST<Window> Parser::parse_window() {
     }
 
     AST<Frame> frame;
-    if (ahead().isa(Tok::Tag::K_ROWS) || ahead().isa(Tok::Tag::K_RANGE) || ahead().isa(Tok::Tag::K_GROUPS))
-        frame = parse_frame();
+    if (isa_frame_unit(ahead().tag())) frame = parse_frame();
 
     expect(Tok::Tag::D_paren_r, "closing delimiter of a window specification");
     return ast<Window>(track, name, true, std::move(partitions), std::move(orders), std::move(frame));
