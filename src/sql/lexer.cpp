@@ -161,8 +161,7 @@ Tok Lexer::lex_str(char32_t delim, Tok::Tag tag) {
 void Lexer::lex_char() {
     if (accept<Append::Off>('\\')) {
         // clang-format off
-        if (false) {}
-        else if (accept<Append::Off>('\'')) str_ += '\'';
+        if      (accept<Append::Off>('\'')) str_ += '\'';
         else if (accept<Append::Off>('\\')) str_ += '\\';
         else if (accept<Append::Off>( '"')) str_ += '\"';
         else if (accept<Append::Off>( '0')) str_ += '\0';
