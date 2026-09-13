@@ -39,8 +39,9 @@ private:
     /// Accepts a reserved word as an identifier, too: the standard's reserved-word list is far
     /// larger than what real-world SQL treats as reserved. A later check sorts out the illegal ones.
     Sym parse_sym(fe::Cite ctxt);
-    bool isa_sym() const;           ///< Would Parser::parse_sym succeed?
-    Syms parse_name(fe::Cite ctxt); ///< A possibly qualified name: `t`, `s.t`, `c.s.t`.
+    bool isa_sym() const;              ///< Would Parser::parse_sym succeed?
+    bool isa_like(size_t i = 0) const; ///< Is the token @p i ahead `LIKE`, `ILIKE`, or `SIMILAR`?
+    Syms parse_name(fe::Cite ctxt);    ///< A possibly qualified name: `t`, `s.t`, `c.s.t`.
 
     AST<Type> parse_type(fe::Cite ctxt);
     AST<Interval> parse_interval(); ///< The `<field> [(p)] [TO <field> [(p)]]` of an `INTERVAL`.
@@ -73,8 +74,19 @@ private:
     AST<Expr> parse_select();
     AST<Expr> parse_values();
     AST<Expr> parse_table();
-    AST<Select::From> parse_from();
     AST<Expr> parse_group_elem(); ///< A `GROUP BY` element - `ROLLUP`, `CUBE`, `GROUPING SETS`, or an Expr.
+    AST<Lock> parse_lock();       ///< One `FOR UPDATE`-style row-locking clause.
+    ///@}
+
+    /// @name Table references
+    /// The `FROM` clause has a grammar of its own: a *table reference* is a chain of `JOIN`s over
+    /// *table factors*, and a correlation name binds to one factor - not to the chain. Keeping this
+    /// out of Parser::parse_expr is what makes `a AS x JOIN b AS y ON ...` come out right.
+    ///@{
+    AST<Expr> parse_table_ref();    ///< `<factor> {<join op> <factor> [ON ...|USING ...]}`
+    AST<Expr> parse_table_factor(); ///< A table primary, plus the correlation name that may follow.
+    AST<Expr> parse_table_primary();
+    std::optional<Join::Tag> parse_join_op();
     ///@}
 
     /// @name Value expressions
@@ -101,7 +113,6 @@ private:
     Constraint::Action parse_ref_action();
     Behavior parse_behavior();       ///< A trailing `CASCADE`/`RESTRICT`, if there is one.
     bool parse_if_exists(bool not_); ///< The non-standard but ubiquitous `IF [NOT] EXISTS` guard.
-    std::optional<Join::Tag> parse_join_op();
 
     /// Parses a parenthesized, comma-separated column name list into @p syms.
     void parse_col_list(fe::Cite ctxt, Syms& syms);

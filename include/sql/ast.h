@@ -547,19 +547,21 @@ private:
 /// `expr [NOT] LIKE pattern [ESCAPE escape]` - or `SIMILAR TO` instead of `LIKE`.
 class Like : public Expr {
 public:
-    Like(Loc loc, AST<Expr>&& expr, AST<Expr>&& pattern, AST<Expr>&& escape, bool negated, bool similar)
+    /// Tok::Tag::K_LIKE, Tok::Tag::K_ILIKE - the case-insensitive `LIKE` every dialect but the
+    /// standard has - or Tok::Tag::K_SIMILAR, which matches a regular expression instead.
+    Like(Loc loc, AST<Expr>&& expr, AST<Expr>&& pattern, AST<Expr>&& escape, bool negated, Tok::Tag tag)
         : Expr(loc)
         , expr_(std::move(expr))
         , pattern_(std::move(pattern))
         , escape_(std::move(escape))
         , negated_(negated)
-        , similar_(similar) {}
+        , tag_(tag) {}
 
     const Expr* expr() const { return expr_.get(); }
     const Expr* pattern() const { return pattern_.get(); }
     const Expr* escape() const { return escape_.get(); } ///< May be null.
     bool negated() const { return negated_; }
-    bool similar() const { return similar_; } ///< `SIMILAR TO` rather than `LIKE`.
+    Tok::Tag tag() const { return tag_; }
 
     void stream(std::ostream&) const override;
 
@@ -568,7 +570,26 @@ private:
     AST<Expr> pattern_;
     AST<Expr> escape_;
     bool negated_;
-    bool similar_;
+    Tok::Tag tag_;
+};
+
+/// `expr[index]` - an array element. Binds tighter than every operator, so it never needs
+/// parentheses of its own and none of them can come between it and the expression it indexes.
+class Subscript : public Expr {
+public:
+    Subscript(Loc loc, AST<Expr>&& expr, AST<Expr>&& index)
+        : Expr(loc)
+        , expr_(std::move(expr))
+        , index_(std::move(index)) {}
+
+    const Expr* expr() const { return expr_.get(); }
+    const Expr* index() const { return index_.get(); }
+
+    void stream(std::ostream&) const override;
+
+private:
+    AST<Expr> expr_;
+    AST<Expr> index_;
 };
 
 /// `CAST(expr AS type)`
@@ -1125,6 +1146,38 @@ private:
  * Query expressions
  */
 
+/// A `<table reference>` with something bound to it: a correlation name and its column aliases, a
+/// `LATERAL`, or the `WITH ORDINALITY` of an `UNNEST`. Only built when there is something to bind -
+/// the `t` of a bare `FROM t` is an Id and nothing more.
+///
+/// It is an Expr, not a part of Select, because a correlation name binds to a single table
+/// reference: in `a AS x JOIN b AS y`, each side carries its own, and the Join sees two of these.
+class TableRef : public Expr {
+public:
+    TableRef(Loc loc, bool lateral, AST<Expr>&& expr, bool ordinality, Sym as, Syms&& cols)
+        : Expr(loc)
+        , lateral_(lateral)
+        , expr_(std::move(expr))
+        , ordinality_(ordinality)
+        , as_(as)
+        , cols_(std::move(cols)) {}
+
+    bool lateral() const { return lateral_; }
+    const Expr* expr() const { return expr_.get(); }
+    bool ordinality() const { return ordinality_; } ///< `WITH ORDINALITY` of an `UNNEST`.
+    Sym as() const { return as_; }
+    const auto& cols() const { return cols_; }
+
+    void stream(std::ostream&) const override;
+
+private:
+    bool lateral_;
+    AST<Expr> expr_;
+    bool ordinality_;
+    Sym as_;
+    Syms cols_;
+};
+
 class Join : public Expr {
 public:
     using On    = AST<Expr>;
@@ -1184,34 +1237,6 @@ public:
         Syms syms_;
     };
 
-    /// One entry of the `FROM` list: a table reference - a name, a Join, or a parenthesized
-    /// subquery - plus its optional correlation name and column aliases.
-    class From : public Node {
-    public:
-        From(Loc loc, bool lateral, AST<Expr>&& expr, bool ordinality, Sym as, Syms&& cols)
-            : Node(loc)
-            , lateral_(lateral)
-            , expr_(std::move(expr))
-            , ordinality_(ordinality)
-            , as_(as)
-            , cols_(std::move(cols)) {}
-
-        bool lateral() const { return lateral_; }
-        const Expr* expr() const { return expr_.get(); }
-        bool ordinality() const { return ordinality_; } ///< `WITH ORDINALITY` of an `UNNEST`.
-        Sym as() const { return as_; }
-        const auto& cols() const { return cols_; }
-
-        void stream(std::ostream&) const override;
-
-    private:
-        bool lateral_;
-        AST<Expr> expr_;
-        bool ordinality_;
-        Sym as_;
-        Syms cols_;
-    };
-
     /// One entry of the `WINDOW` clause: `<name> AS (<window>)`.
     class WindowDef : public Node {
     public:
@@ -1233,7 +1258,7 @@ public:
     Select(Loc loc,
            bool all,
            ASTs<Elem>&& elems,
-           ASTs<From>&& froms,
+           ASTs<Expr>&& froms,
            AST<Expr>&& where,
            ASTs<Expr>&& groups,
            AST<Expr>&& having,
@@ -1250,7 +1275,7 @@ public:
     bool all() const { return all_; }
     bool distinct() const { return !all_; }
     const auto& elems() const { return elems_; }
-    const auto& froms() const { return froms_; } ///< May be empty: `SELECT 1` has no `FROM`.
+    const auto& froms() const { return froms_; } ///< A table reference each; may be empty, as `SELECT 1` has no `FROM`.
     const Expr* where() const { return where_.get(); }
     const auto& groups() const { return groups_; }
     const Expr* having() const { return having_.get(); }
@@ -1261,7 +1286,7 @@ public:
 private:
     bool all_;
     ASTs<Elem> elems_;
-    ASTs<From> froms_;
+    ASTs<Expr> froms_;
     AST<Expr> where_;
     ASTs<Expr> groups_;
     AST<Expr> having_;
@@ -1296,6 +1321,34 @@ private:
 
 /// A query body wrapped in its `WITH` clause and its trailing `ORDER BY` / `OFFSET` / `FETCH` /
 /// `LIMIT` clauses. Only constructed when at least one of them is present.
+/// `FOR UPDATE|NO KEY UPDATE|SHARE|KEY SHARE [OF <tables>] [NOWAIT|SKIP LOCKED]` - the row-locking
+/// clause a query expression may end in. Not in the standard, but every dialect that has rows to
+/// lock spells it this way.
+class Lock : public Node {
+public:
+    /// How hard to lock, weakest last - the order the standard dialects list them in.
+    enum Strength { Update, No_Key_Update, Share, Key_Share };
+    /// What to do about a row someone else holds: block (the default), fail, or pass it over.
+    enum Wait { Block, Nowait, Skip_Locked };
+
+    Lock(Loc loc, Strength strength, std::deque<Syms>&& tables, Wait wait)
+        : Node(loc)
+        , strength_(strength)
+        , tables_(std::move(tables))
+        , wait_(wait) {}
+
+    Strength strength() const { return strength_; }
+    const auto& tables() const { return tables_; } ///< The `OF` list; empty locks every table of the query.
+    Wait wait() const { return wait_; }
+
+    void stream(std::ostream&) const override;
+
+private:
+    Strength strength_;
+    std::deque<Syms> tables_;
+    Wait wait_;
+};
+
 class Query : public Expr {
 public:
     /// One common table expression: `<name> [(cols)] AS (<query>)`.
@@ -1326,7 +1379,8 @@ public:
           ASTs<Order>&& orders,
           AST<Expr>&& offset,
           AST<Expr>&& fetch,
-          AST<Expr>&& limit)
+          AST<Expr>&& limit,
+          ASTs<Lock>&& locks)
         : Expr(loc)
         , recursive_(recursive)
         , ctes_(std::move(ctes))
@@ -1334,7 +1388,8 @@ public:
         , orders_(std::move(orders))
         , offset_(std::move(offset))
         , fetch_(std::move(fetch))
-        , limit_(std::move(limit)) {}
+        , limit_(std::move(limit))
+        , locks_(std::move(locks)) {}
 
     bool recursive() const { return recursive_; }
     const auto& ctes() const { return ctes_; }
@@ -1343,6 +1398,7 @@ public:
     const Expr* offset() const { return offset_.get(); }
     const Expr* fetch() const { return fetch_.get(); }
     const Expr* limit() const { return limit_.get(); }
+    const auto& locks() const { return locks_; } ///< A query may end in more than one locking clause.
 
     void stream(std::ostream&) const override;
 
@@ -1354,6 +1410,7 @@ private:
     AST<Expr> offset_;
     AST<Expr> fetch_;
     AST<Expr> limit_;
+    ASTs<Lock> locks_;
 };
 
 /*

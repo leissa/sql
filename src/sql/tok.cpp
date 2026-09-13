@@ -1,5 +1,6 @@
 #include "sql/tok.h"
 
+#include <absl/container/flat_hash_set.h>
 #include <fe/assert.h>
 
 using namespace std::literals;
@@ -13,6 +14,7 @@ std::string_view Tok::tag2str(Tok::Tag tag) {
         SQL_KEY(CODE)
         SQL_TOK(CODE)
 #undef CODE
+        case Tok::Tag::K_ILIKE: return "ILIKE"sv;
         case Tok::Tag::K_IS_NOT: return "IS NOT"sv;
         case Tok::Tag::K_IS_DISTINCT_FROM: return "IS DISTINCT FROM"sv;
         case Tok::Tag::K_IS_NOT_DISTINCT_FROM: return "IS NOT DISTINCT FROM"sv;
@@ -20,6 +22,26 @@ std::string_view Tok::tag2str(Tok::Tag tag) {
     }
 
     fe::unreachable();
+}
+
+bool Tok::isa_key(std::string_view lower) {
+    // Not a fe::SymSet: Sym%bols are interned per SymPool, and the printer - the only caller -
+    // has none at hand. Hashing the spelling instead is pool-independent and allocates nothing.
+    static const auto keys = [] {
+        absl::flat_hash_set<std::string> res;
+#define CODE(t, str)                 \
+    {                                \
+        std::string key;             \
+        for (auto c : str##sv)       \
+            key += tolower(c);       \
+        res.emplace(std::move(key)); \
+    }
+        SQL_KEY(CODE)
+#undef CODE
+        return res;
+    }();
+
+    return keys.contains(lower);
 }
 
 // clang-format off

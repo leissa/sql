@@ -36,3 +36,9 @@ SELECT t.a, s.t.a, at.movie_id FROM t;
 
 -- Values.
 SELECT 0, 42, TRUE, FALSE, UNKNOWN, NULL FROM t;
+
+-- ILIKE - the case-insensitive LIKE that every dialect but the standard has.
+SELECT a FROM t WHERE a ILIKE 'x%';
+SELECT a FROM t WHERE a NOT ILIKE 'x%';
+SELECT a FROM t WHERE a ILIKE 'x!%' ESCAPE '!';
+SELECT ilike FROM t;

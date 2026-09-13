@@ -4,19 +4,18 @@
 --
 -- Left out are the ones written in hyrise's own dialect, which this parser does not claim to
 -- speak - `CREATE TABLE ... FROM TBL FILE`, `COPY ... WITH (...)`, `PREPARE`/`EXECUTE`/
--- `DEALLOCATE`, `SHOW`/`DESCRIBE`, `WITH HINT (...)`, `SELECT TOP n`, `SELECT ... FOR UPDATE`,
+-- `DEALLOCATE`, `SHOW`/`DESCRIBE`, `WITH HINT (...)`, `SELECT TOP n`,
 -- `ALTER TABLE ... DROP COLUMN IF EXISTS`, `TRUNCATE` without `TABLE`, and unquantified intervals
 -- such as `- 1 MONTH`. A section whose every query went that way lost its label with them.
---
--- The three queries over the delimited identifier `"table"` are out for a different reason:
--- the printer drops the quotes, so the dump no longer parses back. Bring them in once it
--- keeps them.
 
 -- SELECT statement
 SELECT * FROM orders;
 SELECT a FROM foo WHERE a > 12 OR b > 3 AND NOT c LIMIT 10;
 SELECT a FROM some_schema.foo WHERE a > 12 OR b > 3 AND NOT c LIMIT 10;
+SELECT col1 AS myname, col2, 'test' FROM "table", foo AS t WHERE age > 12 AND zipcode = 12345 GROUP BY col1;
+SELECT * from "table" JOIN table2 ON a = b WHERE (b OR NOT a) AND a = 12.5;
 (SELECT a FROM foo WHERE a > 12 OR b > 3 AND c NOT LIKE 's%' LIMIT 10);
+SELECT * FROM "table" LIMIT 10 OFFSET 10; SELECT * FROM another;
 SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY col1;
 SELECT * FROM (SELECT * FROM t1);
 SELECT * FROM t1 UNION (SELECT * FROM t2 UNION SELECT * FROM t3) ORDER BY col1;
@@ -27,6 +26,7 @@ SELECT City.name, Product.category, SUM(price) FROM fact INNER JOIN City ON fact
 SELECT SUBSTR(a, 3, 5) FROM t;
 SELECT * FROM t WHERE a = DATE '1996-12-31';
 -- JOIN
+SELECT t1.a, t1.b, t2.c FROM "table" AS t1 JOIN (SELECT * FROM foo JOIN bar ON foo.id = bar.id) t2 ON t1.a = t2.b WHERE (t1.b OR NOT t1.a) AND t2.c = 12.5;
 SELECT * FROM t1 JOIN t2 ON c1 = c2;
 SELECT a, SUM(b) FROM t2 GROUP BY a HAVING SUM(b) > 100;
 -- CREATE statement
@@ -67,6 +67,16 @@ SELECT * FROM t WHERE a = DATE '2000-01-01' + INTERVAL '10' DAY;
 SELECT (CAST('2002-5-01' as DATE) + INTERVAL '60 days');
 SELECT CAST(student.student_number as BIGINT) FROM student;
 SELECT student.name AS character FROM student;
+-- ROW LOCKING
+SELECT * FROM test WHERE id = 1 FOR UPDATE;
+SELECT * FROM test WHERE id = 1 FOR SHARE;
+SELECT * FROM test WHERE id = 1 FOR NO KEY UPDATE;
+SELECT * FROM test WHERE id = 1 FOR KEY SHARE;
+SELECT * FROM test WHERE id = 1 FOR UPDATE SKIP LOCKED;
+SELECT * FROM test WHERE id = 1 FOR UPDATE NOWAIT;
+SELECT * FROM test1, test2 WHERE test1.id = 10 FOR UPDATE OF test1;
+SELECT * FROM test1, test2 WHERE test2.val = 2 FOR SHARE OF test1, test2;
+SELECT * FROM test1, test2 WHERE test2.val = 2 FOR UPDATE OF test1 FOR SHARE OF test2;
 -- WINDOW EXPRESSIONS
 SELECT test1, sum(sum(test2)) OVER (PARTITION BY test3 ORDER BY test4 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) an_alias FROM test;
 SELECT sum(test2)/sum(sum(test2)) OVER (PARTITION BY test1) FROM test GROUP BY test3;

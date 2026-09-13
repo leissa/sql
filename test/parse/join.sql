@@ -16,3 +16,14 @@ SELECT * FROM a JOIN b ON a.id = b.id AND a.k = b.k JOIN c USING (id);
 
 -- Joins alongside a comma-separated FROM list.
 SELECT * FROM a JOIN b ON a.id = b.id, c;
+
+-- A correlation name binds to one table reference, not to the whole join chain.
+SELECT * FROM a AS x JOIN b AS y ON x.id = y.id;
+SELECT * FROM a x JOIN (SELECT * FROM b) y ON x.id = y.id;
+SELECT * FROM a AS x (p, q) JOIN b ON a.id = b.id;
+
+-- Parentheses around a table reference only group: a right-nested join keeps them, a left-nested
+-- one does not need them, and one around a lone table reference falls away.
+SELECT * FROM a JOIN (b JOIN c ON b.id = c.id) ON a.id = b.id;
+SELECT * FROM ((a JOIN b ON a.id = b.id) JOIN c ON b.id = c.id);
+SELECT * FROM (t);

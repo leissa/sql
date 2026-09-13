@@ -35,6 +35,23 @@ struct Ident {
     }
 };
 
+/// Streams a name that stands alone as a *reference* - a lone column or table name, a type name, or
+/// the window a window specification refines. The parser takes a reserved word wherever it expects a
+/// name, but not in these three places: `at.movie_id` resolves, a bare `at` does not. So here a name
+/// that spells a reserved word has to keep its quotes, where Ident's plainer spelling would do.
+struct Ref {
+    Ref(Sym sym)
+        : sym(sym) {}
+
+    Sym sym;
+
+    friend std::ostream& operator<<(std::ostream& o, Ref ref) {
+        // Only a keyword spelling gets here, and those are plain lower-case words - nothing to escape.
+        if (Tok::isa_key(*ref.sym)) return o << '"' << *ref.sym << '"';
+        return o << Ident(ref.sym);
+    }
+};
+
 /// Streams a string literal, doubling the delimiter the way SQL escapes it.
 struct Str {
     Str(Sym sym)
@@ -57,6 +74,7 @@ struct Str {
 #ifndef DOXYGEN
 // clang-format off
 template<> struct std::formatter<sql::Ident> : fe::ostream_formatter {};
+template<> struct std::formatter<sql::Ref>   : fe::ostream_formatter {};
 template<> struct std::formatter<sql::Str>   : fe::ostream_formatter {};
 // clang-format on
 #endif
@@ -115,7 +133,7 @@ void SimpleType::stream(std::ostream& o) const {
 }
 
 void NamedType::stream(std::ostream& o) const {
-    std::print(o, "{}{}", Ident(sym()), parens(args()));
+    std::print(o, "{}{}", Ref(sym()), parens(args()));
     if (not_null()) o << " NOT NULL";
 }
 
@@ -174,7 +192,7 @@ void Window::stream(std::ostream& o) const {
     o << '(';
     auto sep = "";
     if (name()) {
-        o << Ident(name());
+        o << Ref(name());
         sep = " ";
     }
 
@@ -256,7 +274,12 @@ void TypedVal::stream(std::ostream& o) const {
  */
 
 void Id::stream(std::ostream& o) const {
-    o << qname(syms());
+    // A lone name is the one reference the parser will not read back out of a reserved word - every
+    // further segment is preceded by a `.`, which is what makes `at.movie_id` resolve.
+    if (syms().size() == 1 && !asterisk())
+        o << Ref(syms().front());
+    else
+        o << qname(syms());
     if (asterisk()) o << ".*";
 }
 
@@ -274,10 +297,13 @@ void Between::stream(std::ostream& o) const {
 }
 
 void Like::stream(std::ostream& o) const {
-    std::print(o, "({}{}{}{}", *expr(), negated() ? " NOT" : "", similar() ? " SIMILAR TO " : " LIKE ", *pattern());
+    auto op = tag() == Tok::Tag::K_SIMILAR ? "SIMILAR TO" : Tok::tag2str(tag());
+    std::print(o, "({}{} {} {}", *expr(), negated() ? " NOT" : "", op, *pattern());
     if (escape()) std::print(o, " ESCAPE {}", *escape());
     o << ')';
 }
+
+void Subscript::stream(std::ostream& o) const { std::print(o, "{}[{}]", *expr(), *index()); }
 
 void Cast::stream(std::ostream& o) const { std::print(o, "CAST({} AS {})", *expr(), *type()); }
 void Collate::stream(std::ostream& o) const { std::print(o, "({} COLLATE {})", *expr(), qname(syms())); }
@@ -446,8 +472,10 @@ void Transact::stream(std::ostream& o) const {
  * Query expressions
  */
 
+/// `JOIN` is left-associative, so a Join on the left needs no parentheses of its own - and one on
+/// the right does, or it would read back as the tail of this very chain.
 void Join::stream(std::ostream& o) const {
-    o << '(' << *lhs();
+    o << *lhs();
 
     if (tag() == Cross) {
         o << " CROSS";
@@ -463,13 +491,22 @@ void Join::stream(std::ostream& o) const {
         }
         // clang-format on
     }
-    std::print(o, " JOIN {}", *rhs());
+    if (rhs()->isa<Join>())
+        std::print(o, " JOIN ({})", *rhs());
+    else
+        std::print(o, " JOIN {}", *rhs());
 
     if (auto on = std::get_if<On>(&spec()))
         std::print(o, " ON {}", *on);
     else if (auto syms = std::get_if<Using>(&spec()))
         std::print(o, "{}", parens(*syms, " USING "));
-    o << ')';
+}
+
+void TableRef::stream(std::ostream& o) const {
+    std::print(o, "{}{}", lateral() ? "LATERAL " : "", *expr());
+    if (ordinality()) o << " WITH ORDINALITY";
+    if (as()) std::print(o, " AS {}", Ident(as()));
+    o << parens(cols(), " ");
 }
 
 void Select::stream(std::ostream& o) const {
@@ -496,13 +533,6 @@ void Select::Elem::stream(std::ostream& o) const {
         case 1: std::print(o, " AS {}", Ident(syms().front())); break;
         default: std::print(o, "{}", parens(syms(), " AS "));
     }
-}
-
-void Select::From::stream(std::ostream& o) const {
-    std::print(o, "{}{}", lateral() ? "LATERAL " : "", *expr());
-    if (ordinality()) o << " WITH ORDINALITY";
-    if (as()) std::print(o, " AS {}", Ident(as()));
-    o << parens(cols(), " ");
 }
 
 void Select::WindowDef::stream(std::ostream& o) const { std::print(o, "{} AS {}", Ident(sym()), *window()); }
@@ -533,6 +563,35 @@ void Query::stream(std::ostream& o) const {
     if (offset()) std::print(o, " OFFSET {} ROWS", *offset());
     if (fetch()) std::print(o, " FETCH NEXT {} ROWS ONLY", *fetch());
     if (limit()) std::print(o, " LIMIT {}", *limit());
+    for (const auto& lock : locks())
+        std::print(o, " {}", lock);
+}
+
+void Lock::stream(std::ostream& o) const {
+    // clang-format off
+    switch (strength()) {
+        case Update:        o << "FOR UPDATE";        break;
+        case No_Key_Update: o << "FOR NO KEY UPDATE"; break;
+        case Share:         o << "FOR SHARE";         break;
+        case Key_Share:     o << "FOR KEY SHARE";     break;
+    }
+    // clang-format on
+
+    if (!tables().empty()) {
+        o << " OF ";
+        for (auto sep = ""; const auto& table : tables()) {
+            std::print(o, "{}{}", sep, qname(table));
+            sep = ", ";
+        }
+    }
+
+    // clang-format off
+    switch (wait()) {
+        case Nowait:      o << " NOWAIT";      break;
+        case Skip_Locked: o << " SKIP LOCKED"; break;
+        case Block:                            break;
+    }
+    // clang-format on
 }
 
 void Query::Cte::stream(std::ostream& o) const {

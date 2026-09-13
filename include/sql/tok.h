@@ -598,10 +598,15 @@ using fe::Sym;
     m(N_ZONE, "ZONE") \
     /* Not in the standard, but so widely used that leaving them out is the bigger surprise. */ \
     m(N_IF, "IF") \
+    m(N_ILIKE, "ILIKE") \
     m(N_INDEX, "INDEX") \
     m(N_LIMIT, "LIMIT") \
+    m(N_LOCKED, "LOCKED") \
+    m(N_NOWAIT, "NOWAIT") \
     m(N_RENAME, "RENAME") \
-    m(N_REPLACE, "REPLACE")
+    m(N_REPLACE, "REPLACE") \
+    m(N_SHARE, "SHARE") \
+    m(N_SKIP, "SKIP")
 // clang-format on
 
 enum class NonKey {
@@ -630,13 +635,13 @@ public:
         K_IS_NOT,
         K_IS_DISTINCT_FROM,
         K_IS_NOT_DISTINCT_FROM,
+        K_ILIKE, ///< Like::tag names the operator, and `ILIKE` is no reserved word with a Tag of its own.
         ///@}
     };
     // clang-format on
 
     enum class Prec {
         Bot,
-        Join,
         Or,
         And,
         Between,
@@ -681,6 +686,9 @@ public:
     static std::string_view tag2str(Tok::Tag);
     static std::optional<Prec> un_prec(Tok::Tag);
     static std::optional<Prec> bin_prec(Tok::Tag);
+    /// Does @p lower spell a reserved word? @p lower must already be folded to lower case - which is
+    /// how the Lexer looks up its keywords, and the only shape in which the printer ever asks.
+    static bool isa_key(std::string_view lower);
 
 private:
     Loc loc_;

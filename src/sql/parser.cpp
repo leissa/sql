@@ -113,6 +113,14 @@ using namespace std::literals;
     case Tok::Tag::K_REFERENCES:       \
     case Tok::Tag::K_DEFAULT
 
+/// What a query expression can start with. In the `FROM` clause this is what tells a derived table
+/// from a merely parenthesized table reference - a `(` followed by any of these opens a query.
+#define C_QUERY              \
+                   K_SELECT: \
+    case Tok::Tag::K_VALUES: \
+    case Tok::Tag::K_TABLE:  \
+    case Tok::Tag::K_WITH
+
 /// One `<SQL transaction statement>` - all of them go to Parser::parse_transact.
 #define C_TRANSACT              \
                    K_BEGIN:     \
@@ -178,6 +186,12 @@ void Parser::expect_non_key(NonKey nk, fe::Cite ctxt) {
 }
 
 bool Parser::isa_sym() const { return ahead().isa(Tok::Tag::V_id) || ahead().isa_key(); }
+
+/// Is the token @p i ahead the operator of a Like expression - `LIKE`, `ILIKE`, or `SIMILAR`?
+bool Parser::isa_like(size_t i) const {
+    if (ISA(ahead(i).tag(), C_LIKE)) return true;
+    return ahead(i).isa(Tok::Tag::V_id) && ahead(i).sym() == non_key(N_ILIKE);
+}
 
 Sym Parser::parse_sym(fe::Cite ctxt) {
     if (ahead().isa(Tok::Tag::V_id)) return lex().sym();
@@ -351,33 +365,6 @@ AST<Type> Parser::parse_type(fe::Cite ctxt) {
  * Expr
  */
 
-std::optional<Join::Tag> Parser::parse_join_op() {
-    int tag    = 0;
-    bool inner = false;
-    if (accept(Tok::Tag::K_CROSS)) {
-        tag = Join::Cross;
-    } else {
-        tag = accept(Tok::Tag::K_NATURAL) ? Join::Natural : 0;
-
-        // clang-format off
-        if      (accept(Tok::Tag::K_INNER)) inner = true;
-        else if (accept(Tok::Tag::K_LEFT )) tag |= Join::Left;
-        else if (accept(Tok::Tag::K_RIGHT)) tag |= Join::Right;
-        else if (accept(Tok::Tag::K_FULL) ) tag |= Join::Full;
-        // clang-format on
-        if (tag & Join::Left || tag & Join::Right) accept(Tok::Tag::K_OUTER); // or Join::Full
-    }
-
-    if (tag || inner)
-        expect(Tok::Tag::K_JOIN, "`JOIN` operator");
-    else if (accept(Tok::Tag::K_JOIN))
-        return Join::Inner;
-    else
-        return {};
-
-    return (Join::Tag)tag;
-}
-
 /// `expr [NOT] BETWEEN lo AND hi`.
 /// Both bounds parse above Tok::Prec::And so that the separating `AND` terminates the lower one
 /// instead of being swallowed as a conjunction.
@@ -389,11 +376,12 @@ AST<Expr> Parser::parse_between(Tracker track, AST<Expr>&& lhs, bool negated) {
     return ast<Between>(track, std::move(lhs), std::move(lo), std::move(hi), negated);
 }
 
-/// `expr [NOT] LIKE pattern [ESCAPE escape]`, or `SIMILAR TO` in place of `LIKE`.
+/// `expr [NOT] LIKE pattern [ESCAPE escape]`, with `ILIKE` or `SIMILAR TO` in place of `LIKE`.
 AST<Expr> Parser::parse_like(Tracker track, AST<Expr>&& lhs, bool negated) {
-    bool similar = ahead().isa(Tok::Tag::K_SIMILAR);
+    // `ILIKE` is no reserved word, so it arrives as a plain identifier rather than as a Tok::Tag.
+    auto tag = isa_non_key(N_ILIKE) ? Tok::Tag::K_ILIKE : ahead().tag();
     lex();
-    if (similar) expect(Tok::Tag::K_TO, "`SIMILAR TO` expression");
+    if (tag == Tok::Tag::K_SIMILAR) expect(Tok::Tag::K_TO, "`SIMILAR TO` expression");
 
     // Above Tok::Prec::Comp: `a LIKE b = c` groups as `(a LIKE b) = c`, not `a LIKE (b = c)`.
     auto prec    = (Tok::Prec)((int)Tok::Prec::Comp + 1);
@@ -401,7 +389,7 @@ AST<Expr> Parser::parse_like(Tracker track, AST<Expr>&& lhs, bool negated) {
     AST<Expr> escape;
     if (accept(Tok::Tag::K_ESCAPE)) escape = parse_expr("`ESCAPE` clause of a `LIKE` expression", prec);
 
-    return ast<Like>(track, std::move(lhs), std::move(pattern), std::move(escape), negated, similar);
+    return ast<Like>(track, std::move(lhs), std::move(pattern), std::move(escape), negated, tag);
 }
 
 AST<Expr> Parser::parse_expr(fe::Cite ctxt, Tok::Prec cur_prec) {
@@ -413,13 +401,14 @@ AST<Expr> Parser::parse_expr(fe::Cite ctxt, Tok::Prec cur_prec) {
 
     while (true) {
         if (ahead().isa(Tok::Tag::K_NOT)) {
-            auto prec = Tok::bin_prec(ahead(1).tag());
+            // `ILIKE` has no Tok::Prec of its own - having no Tok::Tag either, it ranks with `LIKE`.
+            auto prec = isa_like(1) ? Tok::bin_prec(Tok::Tag::K_LIKE) : Tok::bin_prec(ahead(1).tag());
             if (!prec || *prec < cur_prec) break;
             eat(Tok::Tag::K_NOT);
 
             if (ahead().isa(Tok::Tag::K_BETWEEN)) {
                 lhs = parse_between(track, std::move(lhs), true);
-            } else if (ISA(ahead().tag(), C_LIKE)) {
+            } else if (isa_like()) {
                 lhs = parse_like(track, std::move(lhs), true);
             } else {
                 auto tag = lex().tag();
@@ -430,7 +419,7 @@ AST<Expr> Parser::parse_expr(fe::Cite ctxt, Tok::Prec cur_prec) {
         } else if (ahead().isa(Tok::Tag::K_BETWEEN)) {
             if (*Tok::bin_prec(Tok::Tag::K_BETWEEN) < cur_prec) break;
             lhs = parse_between(track, std::move(lhs), false);
-        } else if (ISA(ahead().tag(), C_LIKE)) {
+        } else if (isa_like()) {
             if (*Tok::bin_prec(Tok::Tag::K_LIKE) < cur_prec) break;
             lhs = parse_like(track, std::move(lhs), false);
         } else if (ahead().isa(Tok::Tag::K_COLLATE)) {
@@ -467,24 +456,6 @@ AST<Expr> Parser::parse_expr(fe::Cite ctxt, Tok::Prec cur_prec) {
                 auto rhs = parse_expr("right-hand side of binary expression", next_prec(*prec));
                 lhs      = ast<BinExpr>(track, std::move(lhs), op, std::move(rhs));
             }
-        } else if (Tok::Prec::Join < cur_prec) {
-            break; // a JOIN would not bind here - don't even try to consume its operator
-        } else if (auto tag = parse_join_op()) {
-            auto rhs = parse_expr("right-hand side of `JOIN` operator", next_prec(Tok::Prec::Join));
-
-            Join::Spec spec;
-            if (accept(Tok::Tag::K_ON)) {
-                // Above Tok::Prec::Join, so a following JOIN terminates the condition instead of
-                // being pulled into it.
-                spec = parse_expr("search condition for an `ON` clause of a `JOIN` specification",
-                                  next_prec(Tok::Prec::Join));
-            } else if (accept(Tok::Tag::K_USING)) {
-                Syms syms;
-                parse_col_list("join column list for a `USING` clause of a `JOIN` specification", syms);
-                spec = std::move(syms);
-            }
-
-            lhs = ast<Join>(track, std::move(lhs), *tag, std::move(rhs), std::move(spec));
         } else {
             break;
         }
@@ -594,8 +565,20 @@ AST<Expr> Parser::parse_id_or_func() {
         syms.emplace_back(parse_sym("identifer chain"));
     }
 
-    if (!asterisk && ahead().isa(Tok::Tag::D_paren_l)) return parse_func(track, std::move(syms));
-    return ast<Id>(track, std::move(syms), asterisk);
+    auto expr = !asterisk && ahead().isa(Tok::Tag::D_paren_l) ? parse_func(track, std::move(syms))
+                                                              : ast<Id>(track, std::move(syms), asterisk);
+
+    // `a[i]`, and `a[i][j]` for the nested ones. Binding it here rather than in the operator loop is
+    // what keeps it tighter than the unary operators: `- a[1]` negates the element, not the array.
+    while (ahead().isa(Tok::Tag::D_brckt_l)) {
+        eat(Tok::Tag::D_brckt_l);
+        auto _     = anchor(Tok::Tag::D_brckt_r);
+        auto index = parse_expr("index of a subscript");
+        expect(Tok::Tag::D_brckt_r, "closing delimiter of a subscript");
+        expr = ast<Subscript>(track, std::move(expr), std::move(index));
+    }
+
+    return expr;
 }
 
 /// The argument list of a call plus whatever trailing clauses turn it into an ordered-set aggregate
@@ -1219,10 +1202,10 @@ AST<Expr> Parser::parse_select() {
     }
 
     // A `SELECT` needs no `FROM`: `SELECT 1` computes its value out of thin air.
-    ASTs<Select::From> froms;
+    ASTs<Expr> froms;
     if (accept(Tok::Tag::K_FROM)) {
         do
-            froms.emplace_back(parse_from());
+            froms.emplace_back(parse_table_ref());
         while (accept(Tok::Tag::T_comma));
     }
 
@@ -1253,12 +1236,67 @@ AST<Expr> Parser::parse_select() {
                        std::move(having), std::move(windows));
 }
 
-/// One entry of the `FROM` list. Parsing the table reference at Tok::Prec::Join lets the existing
-/// Join operator chain attach here, so `a JOIN b ON c` lands in the FROM list rather than erroring out.
-AST<Select::From> Parser::parse_from() {
+/*
+ * Table references
+ */
+
+std::optional<Join::Tag> Parser::parse_join_op() {
+    int tag    = 0;
+    bool inner = false;
+    if (accept(Tok::Tag::K_CROSS)) {
+        tag = Join::Cross;
+    } else {
+        tag = accept(Tok::Tag::K_NATURAL) ? Join::Natural : 0;
+
+        // clang-format off
+        if      (accept(Tok::Tag::K_INNER)) inner = true;
+        else if (accept(Tok::Tag::K_LEFT )) tag |= Join::Left;
+        else if (accept(Tok::Tag::K_RIGHT)) tag |= Join::Right;
+        else if (accept(Tok::Tag::K_FULL) ) tag |= Join::Full;
+        // clang-format on
+        if (tag & Join::Left || tag & Join::Right) accept(Tok::Tag::K_OUTER); // or Join::Full
+    }
+
+    if (tag || inner)
+        expect(Tok::Tag::K_JOIN, "`JOIN` operator");
+    else if (accept(Tok::Tag::K_JOIN))
+        return Join::Inner;
+    else
+        return {};
+
+    return (Join::Tag)tag;
+}
+
+/// One entry of the `FROM` list: a chain of `JOIN`s over table factors, left-associative.
+AST<Expr> Parser::parse_table_ref() {
+    auto track = tracker();
+    auto lhs   = parse_table_factor();
+
+    while (auto tag = parse_join_op()) {
+        auto rhs = parse_table_factor();
+
+        Join::Spec spec;
+        if (accept(Tok::Tag::K_ON)) {
+            spec = parse_expr("search condition for an `ON` clause of a `JOIN` specification");
+        } else if (accept(Tok::Tag::K_USING)) {
+            Syms syms;
+            parse_col_list("join column list for a `USING` clause of a `JOIN` specification", syms);
+            spec = std::move(syms);
+        }
+
+        lhs = ast<Join>(track, std::move(lhs), *tag, std::move(rhs), std::move(spec));
+    }
+
+    return lhs;
+}
+
+/// A table primary and whatever binds to it: `LATERAL`, `WITH ORDINALITY`, and a correlation name.
+/// Binding these here rather than to the whole `FROM` entry is what lets each side of a `JOIN` carry
+/// its own - `a AS x JOIN b AS y ON ...`.
+AST<Expr> Parser::parse_table_factor() {
     auto track   = tracker();
     bool lateral = (bool)accept(Tok::Tag::K_LATERAL);
-    auto expr    = parse_expr("table reference of a `FROM` clause", Tok::Prec::Join);
+    auto expr    = parse_table_primary();
 
     bool ordinality = false;
     if (ahead().isa(Tok::Tag::K_WITH) && ahead(1).isa(Tok::Tag::V_id) && ahead(1).sym() == non_key(N_ORDINALITY)) {
@@ -1278,7 +1316,25 @@ AST<Select::From> Parser::parse_from() {
         as = lex().sym();
     if (as && ahead().isa(Tok::Tag::D_paren_l)) parse_col_list("column name list of a `FROM` clause", cols);
 
-    return ast<Select::From>(track, lateral, std::move(expr), ordinality, as, std::move(cols));
+    // Nothing bound to it? Then the primary is the table reference, and no node stands in between.
+    if (!lateral && !ordinality && !as) return expr;
+    return ast<TableRef>(track, lateral, std::move(expr), ordinality, as, std::move(cols));
+}
+
+/// A table name, a function call such as `unnest(a)`, a derived table, or a parenthesized table
+/// reference. The last two both start with a `(`: what follows tells them apart, as a derived table
+/// is a query and nothing else is.
+AST<Expr> Parser::parse_table_primary() {
+    if (ahead().isa(Tok::Tag::D_paren_l) && !ISA(ahead(1).tag(), C_QUERY)) {
+        // `( <table reference> )` - these parentheses only group, so they leave no node behind.
+        eat(Tok::Tag::D_paren_l);
+        auto _    = anchor(Tok::Tag::D_paren_r);
+        auto expr = parse_table_ref();
+        expect(Tok::Tag::D_paren_r, "closing delimiter of a parenthesized table reference");
+        return expr;
+    }
+
+    return parse_expr("table reference of a `FROM` clause");
 }
 
 /*
@@ -1528,9 +1584,52 @@ AST<Expr> Parser::parse_query(fe::Cite ctxt, bool value_ok) {
         }
     }
 
-    if (ctes.empty() && orders.empty() && !offset && !fetch && !limit) return body;
+    ASTs<Lock> locks;
+    while (ahead().isa(Tok::Tag::K_FOR))
+        locks.emplace_back(parse_lock());
+
+    if (ctes.empty() && orders.empty() && !offset && !fetch && !limit && locks.empty()) return body;
     return ast<Query>(track, recursive, std::move(ctes), std::move(body), std::move(orders), std::move(offset),
-                      std::move(fetch), std::move(limit));
+                      std::move(fetch), std::move(limit), std::move(locks));
+}
+
+/// `FOR UPDATE|NO KEY UPDATE|SHARE|KEY SHARE [OF <tables>] [NOWAIT|SKIP LOCKED]`.
+/// Of the words involved only `FOR`, `NO`, `UPDATE`, and `OF` are reserved; the rest are plain
+/// identifiers that mean something here and nowhere else.
+AST<Lock> Parser::parse_lock() {
+    auto track = tracker();
+    eat(Tok::Tag::K_FOR);
+
+    auto strength = Lock::Update;
+    if (accept(Tok::Tag::K_NO)) {
+        expect_non_key(N_KEY, "`FOR NO KEY UPDATE` clause");
+        expect(Tok::Tag::K_UPDATE, "`FOR NO KEY UPDATE` clause");
+        strength = Lock::No_Key_Update;
+    } else if (accept_non_key(N_KEY)) {
+        expect_non_key(N_SHARE, "`FOR KEY SHARE` clause");
+        strength = Lock::Key_Share;
+    } else if (accept_non_key(N_SHARE)) {
+        strength = Lock::Share;
+    } else {
+        expect(Tok::Tag::K_UPDATE, "`FOR` clause of a query expression");
+    }
+
+    std::deque<Syms> tables;
+    if (accept(Tok::Tag::K_OF)) {
+        do
+            tables.emplace_back(parse_name("table name of an `OF` clause"));
+        while (accept(Tok::Tag::T_comma));
+    }
+
+    auto wait = Lock::Block;
+    if (accept_non_key(N_NOWAIT)) {
+        wait = Lock::Nowait;
+    } else if (accept_non_key(N_SKIP)) {
+        expect_non_key(N_LOCKED, "`SKIP LOCKED` of a `FOR` clause");
+        wait = Lock::Skip_Locked;
+    }
+
+    return ast<Lock>(track, strength, std::move(tables), wait);
 }
 
 } // namespace sql
