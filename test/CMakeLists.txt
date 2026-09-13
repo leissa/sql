@@ -21,9 +21,14 @@ add_sql_tests(parse idempotent)
 # Fixtures that must be rejected, with their diagnostics pinned by a golden file.
 add_sql_tests(error error)
 
-# The Join Order Benchmark plus its schema: a large real-world corpus. No goldens - these only
-# assert that every query parses and that its dump round-trips.
+# Corpora of one query per line, every one of which must be rejected. No goldens - these only
+# assert that nothing slips through.
+add_sql_tests(reject reject)
+
+# The Join Order Benchmark plus its schema, and TPC-H: large real-world corpora. No goldens -
+# these only assert that every query parses and that its dump round-trips.
 add_sql_tests(job idempotent)
+add_sql_tests(tpch idempotent)
 
 # Regenerate every golden file: `cmake --build build --target bless`.
 add_custom_target(bless

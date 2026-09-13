@@ -182,19 +182,24 @@ Nothing links against the parser.
 ctest --test-dir build --output-on-failure
 ```
 
-There are three kinds of test, one CTest entry per fixture:
+There are four kinds of test, one CTest entry per fixture:
 
 | Test | Fixtures | Asserts |
 | --- | --- | --- |
 | `parse/parse/<name>` | `test/parse/` | Parses cleanly, and the dump matches the neighboring `.out` golden. |
 | `error/error/<name>` | `test/error/` | Is rejected, with the diagnostics matching the neighboring `.out` golden. |
-| `idempotent/...` | `test/parse/`, `test/job/` | Dumping a dump reproduces it verbatim. |
+| `reject/reject/<name>` | `test/reject/` | Every query in the corpus, one per line, is rejected. |
+| `idempotent/...` | `test/parse/`, `test/job/`, `test/tpch/` | Dumping a dump reproduces it verbatim. |
 
 That last one is the interesting one: it holds the printer and the parser to each other, since
 whatever the printer emits, the parser has to read back into the very same AST.
-It runs over the curated fixtures and over `test/job/`, the [Join Order
-Benchmark](https://github.com/gregrahn/join-order-benchmark) - 113 real-world queries plus their
-schema, which get no goldens of their own.
+It runs over the curated fixtures and over two real-world corpora that get no goldens of their own:
+`test/job/`, the [Join Order Benchmark](https://github.com/gregrahn/join-order-benchmark) - 113
+queries plus their schema - and `test/tpch/`, the 22 TPC-H queries.
+
+The corpora under `test/tpch/`, `test/reject/`, and `test/parse/hyrise.sql` come from the
+[hyrise/sql-parser](https://github.com/hyrise/sql-parser) test suite; each file says in its header
+what was adapted and what was left out.
 
 To run a single test, or one group:
 ```sh

@@ -9,6 +9,8 @@ Modes
   error       `sql <file>` must fail; its diagnostics must match the `.out` golden.
   idempotent  Dumping a dump must reproduce it verbatim - the printer has to emit
               syntax the parser reads back into the very same AST.
+  reject      The fixture is a corpus, one query per line, and `sql -` must fail on
+              every one of them. No golden - the point is only that none slips through.
 
 `--bless` rewrites the golden instead of comparing against it.
 """
@@ -54,7 +56,7 @@ def check_golden(golden, actual, kind, bless):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sql", required=True, help="path to the sql binary")
-    parser.add_argument("--mode", required=True, choices=("parse", "error", "idempotent"))
+    parser.add_argument("--mode", required=True, choices=("parse", "error", "idempotent", "reject"))
     parser.add_argument("--bless", action="store_true", help="rewrite the golden file")
     parser.add_argument("file", type=pathlib.Path, help="the .sql fixture")
     args = parser.parse_args()
@@ -84,6 +86,19 @@ def main():
             print("error: expected the parse to fail, but it succeeded", file=sys.stderr)
             return 1
         return check_golden(golden, res.stderr, "diagnostics", args.bless)
+
+    if args.mode == "reject":
+        slipped = []
+        for num, line in enumerate(fixture.read_text().splitlines(), 1):
+            query = line.strip()
+            if not query or query.startswith("--"):
+                continue
+            if run(sql, ["-"], cwd, stdin=query + "\n").returncode == 0:
+                slipped.append((num, query))
+        for num, query in slipped:
+            print(f"error: {name}:{num}: expected a rejection, got a clean parse", file=sys.stderr)
+            print(f"    {query}", file=sys.stderr)
+        return 1 if slipped else 0
 
     # idempotent
     first = run(sql, ["-d", name], cwd)
