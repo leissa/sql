@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+#include "fe/term.h"
+
 using namespace std::literals;
 
 // clang-format off
@@ -171,20 +173,20 @@ bool Parser::accept_non_key(NonKey nk) {
     return true;
 }
 
-void Parser::expect_non_key(NonKey nk, std::string_view ctxt) {
-    if (!accept_non_key(nk)) syntax_err(std::format("`{}`", Non_Key_Strs[(size_t)nk]), ctxt);
+void Parser::expect_non_key(NonKey nk, fe::Cite ctxt) {
+    if (!accept_non_key(nk)) syntax_err(fe::format_cite("`{}`", Non_Key_Strs[(size_t)nk]), ctxt);
 }
 
 bool Parser::isa_sym() const { return ahead().isa(Tok::Tag::V_id) || ahead().isa_key(); }
 
-Sym Parser::parse_sym(std::string_view ctxt) {
+Sym Parser::parse_sym(fe::Cite ctxt) {
     if (ahead().isa(Tok::Tag::V_id)) return lex().sym();
     if (ahead().isa_key()) return driver().sym(to_lower(Tok::tag2str(lex().tag())));
     syntax_err("identifier", ctxt);
     return sym_error_;
 }
 
-Syms Parser::parse_name(std::string_view ctxt) {
+Syms Parser::parse_name(fe::Cite ctxt) {
     Syms syms;
     syms.emplace_back(parse_sym(ctxt));
     while (accept(Tok::Tag::T_dot))
@@ -192,7 +194,7 @@ Syms Parser::parse_name(std::string_view ctxt) {
     return syms;
 }
 
-void Parser::parse_col_list(std::string ctxt, Syms& syms) {
+void Parser::parse_col_list(fe::Cite ctxt, Syms& syms) {
     parse_list(ctxt, [&]() { syms.emplace_back(parse_sym("column name")); });
 }
 
@@ -282,7 +284,7 @@ AST<Interval> Parser::parse_interval() {
     return ast<Interval>(track, from, std::move(from_args), to, std::move(to_args));
 }
 
-AST<Type> Parser::parse_type(std::string_view ctxt) {
+AST<Type> Parser::parse_type(fe::Cite ctxt) {
     auto track = tracker();
 
     // Optional trailing `NOT NULL` - a plain `NULL` explicitly spells out the default.
@@ -402,7 +404,7 @@ AST<Expr> Parser::parse_like(Tracker track, AST<Expr>&& lhs, bool negated) {
     return ast<Like>(track, std::move(lhs), std::move(pattern), std::move(escape), negated, similar);
 }
 
-AST<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
+AST<Expr> Parser::parse_expr(fe::Cite ctxt, Tok::Prec cur_prec) {
     auto track = tracker();
     auto lhs   = parse_primary_or_unary_expr(ctxt);
 
@@ -491,7 +493,7 @@ AST<Expr> Parser::parse_expr(std::string_view ctxt, Tok::Prec cur_prec) {
     return lhs;
 }
 
-AST<Expr> Parser::parse_primary_or_unary_expr(std::string_view ctxt) {
+AST<Expr> Parser::parse_primary_or_unary_expr(fe::Cite ctxt) {
     switch (ahead().tag()) {
         case Tok::Tag::K_CASE: return parse_case();
         case Tok::Tag::K_CAST: return parse_cast();
@@ -823,7 +825,7 @@ AST<Constraint> Parser::parse_constraint(bool table_level) {
         tag  = Constraint::Default;
         expr = parse_expr("default value");
     } else {
-        syntax_err("constraint", table_level ? "table constraint" : "column constraint");
+        syntax_err("constraint", fe::Cite(table_level ? "table constraint" : "column constraint"));
     }
 
     // The referential actions of a foreign key, in either order.
@@ -1430,7 +1432,7 @@ AST<Expr> Parser::parse_table() {
     return ast<Table>(track, parse_name("table name"));
 }
 
-AST<Expr> Parser::parse_query_primary(std::string_view ctxt, bool value_ok) {
+AST<Expr> Parser::parse_query_primary(fe::Cite ctxt, bool value_ok) {
     switch (ahead().tag()) {
         case Tok::Tag::K_SELECT: return parse_select();
         case Tok::Tag::K_VALUES: return parse_values();
@@ -1445,7 +1447,7 @@ AST<Expr> Parser::parse_query_primary(std::string_view ctxt, bool value_ok) {
     if (ahead().isa(Tok::Tag::D_paren_l)) {
         auto track = tracker();
         ASTs<Expr> args;
-        parse_list(std::string(ctxt), [&]() { args.emplace_back(parse_query(ctxt, false)); });
+        parse_list(fe::Cite(ctxt), [&]() { args.emplace_back(parse_query(ctxt, false)); });
         return ast<ParenExprList>(track, std::move(args));
     }
 
@@ -1453,7 +1455,7 @@ AST<Expr> Parser::parse_query_primary(std::string_view ctxt, bool value_ok) {
     return ast<ErrExpr>(curr_);
 }
 
-AST<Expr> Parser::parse_query_term(std::string_view ctxt, bool value_ok) {
+AST<Expr> Parser::parse_query_term(fe::Cite ctxt, bool value_ok) {
     auto track = tracker();
     auto lhs   = parse_query_primary(ctxt, value_ok);
 
@@ -1468,7 +1470,7 @@ AST<Expr> Parser::parse_query_term(std::string_view ctxt, bool value_ok) {
     return lhs;
 }
 
-AST<Expr> Parser::parse_query(std::string_view ctxt, bool value_ok) {
+AST<Expr> Parser::parse_query(fe::Cite ctxt, bool value_ok) {
     auto track = tracker();
 
     bool recursive = false;

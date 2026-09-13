@@ -5,6 +5,7 @@ add_library(libsql
     tok.cpp
 )
 set_target_properties(libsql PROPERTIES PREFIX "")
+set_target_properties(libsql PROPERTIES DEFINE_SYMBOL fe_EXPORTS)
 
 target_include_directories(libsql
     PUBLIC
@@ -15,7 +16,7 @@ target_link_libraries(libsql
     PUBLIC
         absl::flat_hash_map absl::flat_hash_set
         absl::node_hash_map absl::node_hash_set
-        fe fe-lib
+        fe
 )
 target_compile_features(libsql PUBLIC cxx_std_${CMAKE_CXX_STANDARD}) # make property public.
 

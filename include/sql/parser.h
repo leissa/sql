@@ -33,16 +33,16 @@ private:
     Sym non_key(NonKey nk) const { return non_keys_[(size_t)nk]; }
     bool isa_non_key(NonKey) const;
     bool accept_non_key(NonKey);
-    void expect_non_key(NonKey, std::string_view ctxt);
+    void expect_non_key(NonKey, fe::Cite ctxt);
     ///@}
 
     /// Accepts a reserved word as an identifier, too: the standard's reserved-word list is far
     /// larger than what real-world SQL treats as reserved. A later check sorts out the illegal ones.
-    Sym parse_sym(std::string_view ctxt);
-    bool isa_sym() const;                   ///< Would Parser::parse_sym succeed?
-    Syms parse_name(std::string_view ctxt); ///< A possibly qualified name: `t`, `s.t`, `c.s.t`.
+    Sym parse_sym(fe::Cite ctxt);
+    bool isa_sym() const;           ///< Would Parser::parse_sym succeed?
+    Syms parse_name(fe::Cite ctxt); ///< A possibly qualified name: `t`, `s.t`, `c.s.t`.
 
-    AST<Type> parse_type(std::string_view ctxt);
+    AST<Type> parse_type(fe::Cite ctxt);
     AST<Interval> parse_interval(); ///< The `<field> [(p)] [TO <field> [(p)]]` of an `INTERVAL`.
 
     /// @name Statements
@@ -67,9 +67,9 @@ private:
     /// @p value_ok widens that to any value expression - which is what makes `(a, b)` and
     /// `(SELECT ...)` share a single parenthesized syntax.
     ///@{
-    AST<Expr> parse_query(std::string_view ctxt, bool value_ok = true);
-    AST<Expr> parse_query_term(std::string_view ctxt, bool value_ok); ///< `INTERSECT` binds tighter than `UNION`.
-    AST<Expr> parse_query_primary(std::string_view ctxt, bool value_ok);
+    AST<Expr> parse_query(fe::Cite ctxt, bool value_ok = true);
+    AST<Expr> parse_query_term(fe::Cite ctxt, bool value_ok); ///< `INTERSECT` binds tighter than `UNION`.
+    AST<Expr> parse_query_primary(fe::Cite ctxt, bool value_ok);
     AST<Expr> parse_select();
     AST<Expr> parse_values();
     AST<Expr> parse_table();
@@ -79,8 +79,8 @@ private:
 
     /// @name Value expressions
     ///@{
-    AST<Expr> parse_expr(std::string_view ctxt, Tok::Prec = Tok::Prec::Bot);
-    AST<Expr> parse_primary_or_unary_expr(std::string_view ctxt);
+    AST<Expr> parse_expr(fe::Cite ctxt, Tok::Prec = Tok::Prec::Bot);
+    AST<Expr> parse_primary_or_unary_expr(fe::Cite ctxt);
     AST<Expr> parse_between(Tracker, AST<Expr>&&, bool negated);
     AST<Expr> parse_like(Tracker, AST<Expr>&&, bool negated);
     AST<Expr> parse_id_or_func(); ///< A qualified name - and, if a `(` follows, the call it introduces.
@@ -104,13 +104,13 @@ private:
     std::optional<Join::Tag> parse_join_op();
 
     /// Parses a parenthesized, comma-separated column name list into @p syms.
-    void parse_col_list(std::string ctxt, Syms& syms);
+    void parse_col_list(fe::Cite ctxt, Syms& syms);
     ///@}
 
     /// Parses a @p sep-separated sequence of items via @p f up to - but not including - @p delim.
     /// Whatever fits nowhere in between is discarded - unless an enclosing context anchors it.
     template<class F>
-    void parse_seq(std::string_view ctxt, F f, Tok::Tag delim, Tok::Tag sep = Tok::Tag::T_comma) {
+    void parse_seq(fe::Cite ctxt, F f, Tok::Tag delim, Tok::Tag sep = Tok::Tag::T_comma) {
         if (!ahead().isa(delim)) {
             do {
                 f();
@@ -123,7 +123,7 @@ private:
     /// As above, but the sequence is enclosed in @p delim_l and its matching closing delimiter.
     /// The latter stays anchored while the items are parsed and is expected once they are done.
     template<class F>
-    void parse_list(std::string ctxt, F f, Tok::Tag delim_l = Tok::Tag::D_paren_l, Tok::Tag sep = Tok::Tag::T_comma) {
+    void parse_list(fe::Cite ctxt, F f, Tok::Tag delim_l = Tok::Tag::D_paren_l, Tok::Tag sep = Tok::Tag::T_comma) {
         expect(delim_l, ctxt);
         auto delim_r = (Tok::Tag)((int)delim_l + 1);
         auto _       = anchor(delim_r);
