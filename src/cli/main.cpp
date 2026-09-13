@@ -7,20 +7,18 @@
 #include "sql/parser.h"
 
 int main(int argc, char** argv) {
+    // fe::CodeDiag renders a diagnostic when it is *recorded*, so decide on color up front.
+    fe::term::resolve_mode();
+    sql::Driver driver; // outlives the handler below: it writes into the Driver's Diag
+
     try {
-        // fe::CodeDiag renders a diagnostic when it is *recorded*, so decide on color up front.
-        fe::term::resolve_mode();
-
-        sql::Driver driver; // outlives the handler below: it writes into the Driver's Diag
-
         // TODO put version number into cmake magic
         bool show_help = false, show_version = false, dump = false;
         std::string input;
 
         auto loc_style = [&](const std::string& t) -> std::string {
             // clang-format off
-            if (false) {}
-            else if (t == "full"  ) driver.diag().loc_style = fe::Loc::Style::Full;
+            if      (t == "full"  ) driver.diag().loc_style = fe::Loc::Style::Full;
             else if (t == "rowcol") driver.diag().loc_style = fe::Loc::Style::RowCol;
             else if (t == "row"   ) driver.diag().loc_style = fe::Loc::Style::Row;
             else if (t == "msvc"  ) driver.diag().loc_style = fe::Loc::Style::MSVC;
