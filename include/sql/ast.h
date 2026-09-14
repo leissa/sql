@@ -1336,7 +1336,7 @@ public:
     /// What to do about a row someone else holds: block (the default), fail, or pass it over.
     enum Wait { Block, Nowait, Skip_Locked };
 
-    Lock(Loc loc, Strength strength, std::deque<Syms>&& tables, Wait wait)
+    Lock(Loc loc, Strength strength, fe::Vector<Syms>&& tables, Wait wait)
         : Node(loc)
         , strength_(strength)
         , tables_(std::move(tables))
@@ -1350,7 +1350,7 @@ public:
 
 private:
     Strength strength_;
-    std::deque<Syms> tables_;
+    fe::Vector<Syms> tables_;
     Wait wait_;
 };
 

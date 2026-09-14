@@ -1604,7 +1604,7 @@ AST<Lock> Parser::parse_lock() {
         expect(Tok::Tag::K_UPDATE, "`FOR` clause of a query expression");
     }
 
-    std::deque<Syms> tables;
+    fe::Vector<Syms> tables;
     if (accept(Tok::Tag::K_OF)) {
         do
             tables.emplace_back(parse_name("table name of an `OF` clause"));
