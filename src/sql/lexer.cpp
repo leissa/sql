@@ -65,8 +65,8 @@ Tok Lexer::lex() {
         if (accept(':')) {
             if (accept('=')) return {loc_, Tok::Tag::T_assign};
             // `:name` is a named parameter marker - one character of lookahead settles it.
-            if (accept([](char32_t c) { return c == '_' || utf8::isalpha(c); })) {
-                while (accept([](char32_t c) { return c == '_' || utf8::isalnum(c); })) {}
+            if (utf8::isalpha(ahead()) || ahead() == '_') {
+                accept_while([](char32_t c) { return c == '_' || utf8::isalnum(c); });
                 return {loc_, Tok::Tag::V_param, needs_fold(view()) ? driver_.sym(lower()) : driver_.sym(view())};
             }
             return {loc_, Tok::Tag::T_colon};
@@ -110,8 +110,8 @@ Tok Lexer::lex() {
 
         // lex identifier or keyword
         if (utf8::isalpha(ahead()) || ahead() == '_') {
-            auto sv  = accept_while([](char32_t c) { return c == '_' || utf8::isalnum(c); });
-            auto sym = needs_fold(sv) ? driver_.sym(lower()) : driver_.sym(sv);
+            accept_while([](char32_t c) { return c == '_' || utf8::isalnum(c); });
+            auto sym = needs_fold(view()) ? driver_.sym(lower()) : driver_.sym(view());
             if (auto i = keys_.find(sym); i != keys_.end()) return {loc_, i->second}; // keyword
             return {loc_, sym};                                                       // identifier
         }
