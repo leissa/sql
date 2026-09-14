@@ -419,6 +419,72 @@ Throughput is more is better, instructions fewer is better; the winner of each p
 | generated, 32 MiB | `--once` | **111.3 MB/s** | 43.9 MB/s | **13.4 G** vs 26.0 G |
 | generated, 256 MiB | `--once` | **113.9 MB/s** | 43.1 MB/s | **39.8 G** vs 69.6 G |
 
+<table>
+  <thead>
+    <tr>
+      <th rowspan="2">Corpus</th>
+      <th rowspan="2">Mode</th>
+      <th colspan="2">Throughput</th>
+      <th colspan="2">Instructions</th>
+    </tr>
+    <tr>
+      <th>Ours</th>
+      <th>HyRise</th>
+      <th>Ours</th>
+      <th>HyRise</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>JOB, 113 queries</td>
+      <td><code>--each</code></td>
+      <td><strong>103.7 MB/s</strong></td>
+      <td>59.5 MB/s</td>
+      <td><strong>0.59 G</strong></td>
+      <td>1.04 G</td>
+    </tr>
+    <tr>
+      <td>JOB</td>
+      <td><code>--once</code></td>
+      <td><strong>157.8 MB/s</strong></td>
+      <td>68.1 MB/s</td>
+      <td><strong>0.48 G</strong></td>
+      <td>1.05 G</td>
+    </tr>
+    <tr>
+      <td>TPC-H, 22 queries</td>
+      <td><code>--each</code></td>
+      <td><strong>67.8 MB/s</strong></td>
+      <td>50.1 MB/s</td>
+      <td><strong>0.21 G</strong></td>
+      <td>0.28 G</td>
+    </tr>
+    <tr>
+      <td>TPC-H</td>
+      <td><code>--once</code></td>
+      <td><strong>114.1 MB/s</strong></td>
+      <td>59.3 MB/s</td>
+      <td><strong>0.16 G</strong></td>
+      <td>0.29 G</td>
+    </tr>
+    <tr>
+      <td>generated, 32 MiB</td>
+      <td><code>--once</code></td>
+      <td><strong>111.3 MB/s</strong></td>
+      <td>43.9 MB/s</td>
+      <td><strong>13.4 G</strong></td>
+      <td>26.0 G</td>
+    </tr>
+    <tr>
+      <td>generated, 256 MiB</td>
+      <td><code>--once</code></td>
+      <td><strong>113.9 MB/s</strong></td>
+      <td>43.1 MB/s</td>
+      <td><strong>39.8 G</strong></td>
+      <td>69.6 G</td>
+    </tr>
+  </tbody>
+</table>
 Lexing alone, against their flex scanner: 290.7 MB/s to 147.2 on JOB, and 204.5 to 114.7 on the
 32 MiB corpus.
 Peak [resident set size](https://en.wikipedia.org/wiki/Resident_set_size) - the RAM a process has
