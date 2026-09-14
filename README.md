@@ -410,7 +410,7 @@ between runs:
 
 - **Throughput** is *more is better*.
 - **Instructions** is *fewer is better*.
-- The **winner** of each pair is in **bold*.
+- The **winner** of each pair is in **bold**.
 
 <table>
   <thead>
