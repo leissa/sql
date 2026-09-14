@@ -408,19 +408,24 @@ Both built `Release` and pinned to one 5.15 GHz Zen 5 core of a Ryzen AI 9 HX PR
 `hyperfine` for the wall clock and `perf stat -e instructions` for a figure that does not drift
 between runs:
 
+Throughput is more is better, instructions fewer is better; the winner of each pair is in bold.
+
 | corpus | mode | ours | hyrise | instructions |
 | --- | --- | --- | --- | --- |
-| JOB, 113 queries | `--each` | 103.7 MB/s | 59.5 MB/s | 0.59 G vs 1.04 G |
-| JOB | `--once` | 157.8 MB/s | 68.1 MB/s | 0.48 G vs 1.05 G |
-| TPC-H, 22 queries | `--each` | 67.8 MB/s | 50.1 MB/s | 0.21 G vs 0.28 G |
-| TPC-H | `--once` | 114.1 MB/s | 59.3 MB/s | 0.16 G vs 0.29 G |
-| generated, 32 MiB | `--once` | 111.3 MB/s | 43.9 MB/s | 13.4 G vs 26.0 G |
-| generated, 256 MiB | `--once` | 113.9 MB/s | 43.1 MB/s | 39.8 G vs 69.6 G |
+| JOB, 113 queries | `--each` | **103.7 MB/s** | 59.5 MB/s | **0.59 G** vs 1.04 G |
+| JOB | `--once` | **157.8 MB/s** | 68.1 MB/s | **0.48 G** vs 1.05 G |
+| TPC-H, 22 queries | `--each` | **67.8 MB/s** | 50.1 MB/s | **0.21 G** vs 0.28 G |
+| TPC-H | `--once` | **114.1 MB/s** | 59.3 MB/s | **0.16 G** vs 0.29 G |
+| generated, 32 MiB | `--once` | **111.3 MB/s** | 43.9 MB/s | **13.4 G** vs 26.0 G |
+| generated, 256 MiB | `--once` | **113.9 MB/s** | 43.1 MB/s | **39.8 G** vs 69.6 G |
 
 Lexing alone, against their flex scanner: 290.7 MB/s to 147.2 on JOB, and 204.5 to 114.7 on the
 32 MiB corpus.
-Peak RSS over 500k times `SELECT a FROM t;` is 146 MiB against their 284 - 306 bytes per statement to
-their 596.
+Peak [resident set size](https://en.wikipedia.org/wiki/Resident_set_size) - the RAM a process has
+actually touched, at its high-water mark - over 500k times `SELECT a FROM t;` is 146 MiB against
+their 284, or 306 bytes per statement to their 596.
+That is the number to watch for an embedding, because the AST *is* the output and is held for as long
+as the caller needs it.
 
 Two things worth reading off that table.
 Throughput does not fall off as the corpus grows, because the per-statement footprint is small enough
