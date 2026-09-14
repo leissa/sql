@@ -1,9 +1,6 @@
 #pragma once
 
-#include <cassert>
-
 #include <array>
-#include <bit>
 
 #include <fe/driver.h>
 
@@ -11,46 +8,8 @@
 
 namespace sql {
 
-/// The reserved words, keyed by the Sym the Lexer has just interned.
-/// Not a fe::SymMap: that one hashes and compares the very same interned pointer, but pays a
-/// splitmix64 and a SwissTable group probe for it - four times the instructions of one open probe.
-class Keys {
-public:
-    static constexpr size_t Num_Slots = std::bit_ceil(size_t(2 * Num_Keys)); ///< Keeps the load factor below 1/2.
-    static constexpr size_t Log_Slots = std::bit_width(Num_Slots) - 1;
-    static constexpr size_t Mask      = Num_Slots - 1;
-    static constexpr uint64_t Magic   = 0x9E3779B97F4A7C15ull; ///< 2^64/phi - Fibonacci hashing.
-
-    void emplace(Sym sym, Tok::Tag tag) {
-        for (auto i = idx(sym);; i = (i + 1) & Mask) {
-            assert(slots_[i].sym != sym && "duplicate reserved word");
-            if (slots_[i].sym.empty()) {
-                slots_[i] = {sym, tag};
-                return;
-            }
-        }
-    }
-
-    /// Tok::Tag::Nil if @p sym does not spell a reserved word.
-    Tok::Tag operator[](Sym sym) const {
-        for (auto i = idx(sym);; i = (i + 1) & Mask) {
-            if (slots_[i].sym == sym) return slots_[i].tag;
-            if (slots_[i].sym.empty()) return Tok::Tag::Nil;
-        }
-    }
-
-private:
-    struct Slot {
-        Sym sym;
-        Tok::Tag tag = Tok::Tag::Nil;
-    };
-
-    /// Takes the *high* bits of the product: a long Sym is an 8-byte aligned pointer and a short
-    /// one's low byte is a size of 1..7, so masking the low bits would cluster.
-    static size_t idx(Sym sym) { return (sym.raw() * Magic) >> (64 - Log_Slots); }
-
-    std::array<Slot, Num_Slots> slots_ = {};
-};
+/// The reserved words the Lexer looks up, keyed by the Sym it has just interned.
+using Keys = fe::SymTab<Tok::Tag, Num_Keys>;
 
 /// Owns the SymPool - and, with it, everything interned from it once and for all: the reserved words
 /// the Lexer looks up, the non-reserved ones the Parser compares against, and the Sym that stands in
