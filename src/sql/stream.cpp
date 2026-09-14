@@ -82,24 +82,26 @@ template<> struct std::formatter<sql::Str>   : fe::ostream_formatter {};
 namespace sql {
 
 /// Wraps @p syms as Ident%s - use as `fe::Join` argument.
-static auto idents(const Syms& syms) {
+static auto idents(fe::View<Sym> syms) {
     return syms | std::views::transform([](Sym sym) { return Ident(sym); });
 }
 
 /// A possibly qualified name such as `s.t` - no parentheses, unlike parens() below.
-static auto qname(const Syms& syms) { return fe::Join(idents(syms), "."); }
+static auto qname(fe::View<Sym> syms) { return fe::Join(idents(syms), "."); }
 
 /// A parenthesized list of Node%s preceded by @p prefix - or nothing at all if @p range is empty.
+/// @p range is captured by value: a node hands out a fe::View, which would dangle by the time the
+/// fe::StreamFn runs.
 template<std::ranges::input_range R>
-static auto parens(const R& range, std::string_view prefix = "") {
-    return fe::StreamFn{[&range, prefix](std::ostream& o) {
+static auto parens(R range, std::string_view prefix = "") {
+    return fe::StreamFn{[range, prefix](std::ostream& o) {
         if (!range.empty()) std::print(o, "{}({})", prefix, fe::Join(range));
     }};
 }
 
 /// Same, but for a list of identifiers such as a column list.
-static auto parens(const Syms& syms, std::string_view prefix = "") {
-    return fe::StreamFn{[&syms, prefix](std::ostream& o) {
+static auto parens(fe::View<Sym> syms, std::string_view prefix = "") {
+    return fe::StreamFn{[syms, prefix](std::ostream& o) {
         if (!syms.empty()) std::print(o, "{}({})", prefix, fe::Join(idents(syms)));
     }};
 }

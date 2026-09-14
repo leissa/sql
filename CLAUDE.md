@@ -74,9 +74,13 @@ Four layers, each a thin specialization of an FE CRTP base:
   vs. unary `NOT` each need to peek one past the current token. Expressions use precedence climbing
   over `Tok::Prec`; everything else is straight recursive descent.
 - **AST + printer** (`ast.h`, `stream.cpp`) — ~64 node classes, all arena-allocated via
-  `Driver::ast<T>()` and held as `AST<T>` = `fe::Arena::Ptr<const T>`. Node lists are
-  `ASTs<T>`/`Syms`, i.e. `fe::Vector` (small-buffer): qualified names have one to three parts and
-  most other lists are just as short, so they must not go to the heap.
+  `Driver::ast<T>()` and held as `AST<T>` = `fe::Arena::Ref<const T>`, a non-owning pointer: the
+  Arena reclaims everything at once, so no node has a destructor and none is ever run. A node's
+  child lists sit in the very same allocation, right behind it: it derives from `fe::Trailing`,
+  names their element types in `Trail_Types`, and hands each out as a `fe::View` via `trail<I>()`.
+  `ASTs<T>`/`Syms` are only the Parser's scratch buffers. Two consequences to respect: everything a
+  node stores must stay trivially destructible, and the trailing ranges are passed as the **last**
+  arguments of `Driver::ast<T>()`, in the order `Trail_Types` declares them.
 
 ### Conventions that are easy to get wrong
 

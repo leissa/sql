@@ -112,8 +112,8 @@ Tok Lexer::lex() {
         if (utf8::isalpha(ahead()) || ahead() == '_') {
             accept_while([](char32_t c) { return c == '_' || utf8::isalnum(c); });
             auto sym = needs_fold(view()) ? driver_.sym(lower()) : driver_.sym(view());
-            if (auto i = keys_.find(sym); i != keys_.end()) return {loc_, i->second}; // keyword
-            return {loc_, sym};                                                       // identifier
+            if (auto tag = keys_[sym]; tag != Tok::Tag::Nil) return {loc_, tag}; // keyword
+            return {loc_, sym};                                                  // identifier
         }
 
         // string literal or - double-quoted, hence case-sensitive - delimited identifier

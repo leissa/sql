@@ -3,10 +3,13 @@
 #include <concepts>
 
 #include <ostream>
+#include <tuple>
 #include <variant>
 
+#include <fe/arena.h>
 #include <fe/cast.h>
 #include <fe/format.h>
+#include <fe/trailing.h>
 #include <fe/vector.h>
 
 #include "sql/tok.h"
@@ -15,12 +18,12 @@ namespace sql {
 
 class Expr;
 
+/// Nodes live in the Driver's Arena and are never destroyed, so this merely points at one.
 template<class T>
-using AST = fe::Arena::Ptr<const T>;
+using AST = fe::Arena::Ref<const T>;
 
-/// A list of AST nodes or of Sym%bols. fe::Vector keeps a few elements inline, which is what these
-/// want: a qualified name has one to three parts, and most other lists are just as short - a
-/// `std::deque` would put every one of them on the heap in a 512-byte chunk of its own.
+/// Scratch buffers the Parser fills before it creates a node; a node keeps its own lists right
+/// behind itself - see fe::Trailing - and hands them out as a fe::View.
 template<class T>
 using ASTs = fe::Vector<AST<T>>;
 using Syms = fe::Vector<Sym>;
@@ -30,7 +33,6 @@ class Node : public fe::RuntimeCast<Node> {
 public:
     Node(Loc loc)
         : loc_(loc) {}
-    virtual ~Node() {}
 
     Loc loc() const { return loc_; }
     void dump() const;
@@ -55,27 +57,25 @@ std::ostream& operator<<(std::ostream& o, const AST<T>& ast) {
 
 /// The `<field> [(p)] [TO <field> [(p)]]` tail shared by the `INTERVAL` type and the `INTERVAL`
 /// literal: `INTERVAL '1-2' YEAR TO MONTH`, `CAST(x AS INTERVAL DAY(3) TO SECOND(6))`.
-class Interval : public Node {
+class Interval : public Node, public fe::Trailing<Interval> {
 public:
-    Interval(Loc loc, Tok::Tag from, ASTs<Expr>&& from_args, Tok::Tag to, ASTs<Expr>&& to_args)
+    using Trail_Types = std::tuple<AST<Expr>, AST<Expr>>;
+
+    Interval(Loc loc, Tok::Tag from, Tok::Tag to)
         : Node(loc)
         , from_(from)
-        , from_args_(std::move(from_args))
-        , to_(to)
-        , to_args_(std::move(to_args)) {}
+        , to_(to) {}
 
     Tok::Tag from() const { return from_; }
-    const auto& from_args() const { return from_args_; }
+    auto from_args() const { return trail<0>(); }
     Tok::Tag to() const { return to_; } ///< Tok::Tag::Nil if there is no `TO` field.
-    const auto& to_args() const { return to_args_; }
+    auto to_args() const { return trail<1>(); }
 
     void stream(std::ostream&) const override;
 
 private:
     Tok::Tag from_;
-    ASTs<Expr> from_args_;
     Tok::Tag to_;
-    ASTs<Expr> to_args_;
 };
 
 /*
@@ -96,25 +96,20 @@ private:
 
 /// A type named by a reserved word - optionally `VARYING` and/or with parenthesized arguments:
 /// `INTEGER`, `CHARACTER VARYING(12)`, `NUMERIC(10, 2)`, `TIMESTAMP WITH TIME ZONE`.
-class SimpleType : public Type {
+class SimpleType : public Type, public fe::Trailing<SimpleType> {
 public:
-    SimpleType(Loc loc,
-               Tok::Tag tag,
-               bool varying,
-               ASTs<Expr>&& args,
-               Tok::Tag zone,
-               AST<Interval>&& interval,
-               bool not_null)
+    using Trail_Types = std::tuple<AST<Expr>>;
+
+    SimpleType(Loc loc, Tok::Tag tag, bool varying, Tok::Tag zone, AST<Interval> interval, bool not_null)
         : Type(loc, not_null)
         , tag_(tag)
         , varying_(varying)
-        , args_(std::move(args))
         , zone_(zone)
-        , interval_(std::move(interval)) {}
+        , interval_(interval) {}
 
     Tok::Tag tag() const { return tag_; }
     bool varying() const { return varying_; }
-    const auto& args() const { return args_; }
+    auto args() const { return trail<0>(); }
     /// Tok::Tag::K_WITH or Tok::Tag::K_WITHOUT for a `[WITHOUT] TIME ZONE`; Tok::Tag::Nil otherwise.
     Tok::Tag zone() const { return zone_; }
     const Interval* interval() const { return interval_.get(); } ///< Qualifier of an `INTERVAL` type.
@@ -124,27 +119,26 @@ public:
 private:
     Tok::Tag tag_;
     bool varying_;
-    ASTs<Expr> args_;
     Tok::Tag zone_;
     AST<Interval> interval_;
 };
 
 /// A type named by an identifier, i.e. anything not a reserved word: `text`, `jsonb`, `uuid`, ...
-class NamedType : public Type {
+class NamedType : public Type, public fe::Trailing<NamedType> {
 public:
-    NamedType(Loc loc, Sym sym, ASTs<Expr>&& args, bool not_null)
+    using Trail_Types = std::tuple<AST<Expr>>;
+
+    NamedType(Loc loc, Sym sym, bool not_null)
         : Type(loc, not_null)
-        , sym_(sym)
-        , args_(std::move(args)) {}
+        , sym_(sym) {}
 
     Sym sym() const { return sym_; }
-    const auto& args() const { return args_; }
+    auto args() const { return trail<0>(); }
 
     void stream(std::ostream&) const override;
 
 private:
     Sym sym_;
-    ASTs<Expr> args_;
 };
 
 /*
@@ -168,9 +162,9 @@ class Order : public Node {
 public:
     enum Nulls { Nulls_None, Nulls_First, Nulls_Last };
 
-    Order(Loc loc, AST<Expr>&& expr, bool desc, Nulls nulls)
+    Order(Loc loc, AST<Expr> expr, bool desc, Nulls nulls)
         : Node(loc)
-        , expr_(std::move(expr))
+        , expr_(expr)
         , desc_(desc)
         , nulls_(nulls) {}
 
@@ -194,10 +188,10 @@ public:
     public:
         enum Tag { Unbounded_Preceding, Preceding, Current_Row, Following, Unbounded_Following };
 
-        Bound(Loc loc, Tag tag, AST<Expr>&& expr)
+        Bound(Loc loc, Tag tag, AST<Expr> expr)
             : Node(loc)
             , tag_(tag)
-            , expr_(std::move(expr)) {}
+            , expr_(expr) {}
 
         Tag tag() const { return tag_; }
         const Expr* expr() const { return expr_.get(); }
@@ -211,11 +205,11 @@ public:
 
     enum Exclude { Exclude_None, Exclude_Current_Row, Exclude_Group, Exclude_Ties, Exclude_No_Others };
 
-    Frame(Loc loc, Tok::Tag unit, AST<Bound>&& lo, AST<Bound>&& hi, Exclude exclude)
+    Frame(Loc loc, Tok::Tag unit, AST<Bound> lo, AST<Bound> hi, Exclude exclude)
         : Node(loc)
         , unit_(unit)
-        , lo_(std::move(lo))
-        , hi_(std::move(hi))
+        , lo_(lo)
+        , hi_(hi)
         , exclude_(exclude) {}
 
     Tok::Tag unit() const { return unit_; } ///< Tok::Tag::K_ROWS, Tok::Tag::K_RANGE, or Tok::Tag::K_GROUPS.
@@ -234,20 +228,20 @@ private:
 
 /// A window specification: the `(...)` of an `OVER` clause or of a `WINDOW` definition.
 /// A bare Window::name with nothing else refers to a window defined in the `WINDOW` clause.
-class Window : public Node {
+class Window : public Node, public fe::Trailing<Window> {
 public:
-    Window(Loc loc, Sym name, bool paren, ASTs<Expr>&& partitions, ASTs<Order>&& orders, AST<Frame>&& frame)
+    using Trail_Types = std::tuple<AST<Expr>, AST<Order>>;
+
+    Window(Loc loc, Sym name, bool paren, AST<Frame> frame)
         : Node(loc)
         , name_(name)
         , paren_(paren)
-        , partitions_(std::move(partitions))
-        , orders_(std::move(orders))
-        , frame_(std::move(frame)) {}
+        , frame_(frame) {}
 
     Sym name() const { return name_; }    ///< An existing window this one refines; may be empty.
     bool paren() const { return paren_; } ///< Tells the parenthesized `OVER (w)` from the bare `OVER w`.
-    const auto& partitions() const { return partitions_; }
-    const auto& orders() const { return orders_; }
+    auto partitions() const { return trail<0>(); }
+    auto orders() const { return trail<1>(); }
     const Frame* frame() const { return frame_.get(); }
 
     void stream(std::ostream&) const override;
@@ -255,8 +249,6 @@ public:
 private:
     Sym name_;
     bool paren_;
-    ASTs<Expr> partitions_;
-    ASTs<Order> orders_;
     AST<Frame> frame_;
 };
 
@@ -271,7 +263,7 @@ enum class Behavior { None, Cascade, Restrict };
 /// A column- or table-level constraint of a Create statement.
 /// One node covers all flavors: which of Constraint::cols, Constraint::table, Constraint::ref_cols,
 /// and Constraint::expr carry meaning depends on Constraint::tag.
-class Constraint : public Node {
+class Constraint : public Node, public fe::Trailing<Constraint> {
 public:
     enum Tag {
         Primary_Key, ///< `PRIMARY KEY [(cols)]`
@@ -285,30 +277,21 @@ public:
     /// A referential action of an `ON DELETE`/`ON UPDATE` clause.
     enum Action { Action_None, No_Action, Restrict, Cascade, Set_Null, Set_Default };
 
-    Constraint(Loc loc,
-               Sym name,
-               Tag tag,
-               Syms&& cols,
-               Syms&& table,
-               Syms&& ref_cols,
-               AST<Expr>&& expr,
-               Action on_delete,
-               Action on_update)
+    using Trail_Types = std::tuple<Sym, Sym, Sym>;
+
+    Constraint(Loc loc, Sym name, Tag tag, AST<Expr> expr, Action on_delete, Action on_update)
         : Node(loc)
         , name_(name)
         , tag_(tag)
-        , cols_(std::move(cols))
-        , table_(std::move(table))
-        , ref_cols_(std::move(ref_cols))
-        , expr_(std::move(expr))
+        , expr_(expr)
         , on_delete_(on_delete)
         , on_update_(on_update) {}
 
     Sym name() const { return name_; } ///< From a leading `CONSTRAINT <name>`; may be empty.
     Tag tag() const { return tag_; }
-    const auto& cols() const { return cols_; }
-    const auto& table() const { return table_; } ///< The referenced table, possibly qualified.
-    const auto& ref_cols() const { return ref_cols_; }
+    auto cols() const { return trail<0>(); }
+    auto table() const { return trail<1>(); } ///< The referenced table, possibly qualified.
+    auto ref_cols() const { return trail<2>(); }
     const Expr* expr() const { return expr_.get(); }
     Action on_delete() const { return on_delete_; }
     Action on_update() const { return on_update_; }
@@ -318,9 +301,6 @@ public:
 private:
     Sym name_;
     Tag tag_;
-    Syms cols_;
-    Syms table_;
-    Syms ref_cols_;
     AST<Expr> expr_;
     Action on_delete_;
     Action on_update_;
@@ -400,11 +380,11 @@ private:
 /// A typed literal: `DATE '2024-01-01'`, `TIMESTAMP '...'`, `INTERVAL '1-2' YEAR TO MONTH`.
 class TypedVal : public Val {
 public:
-    TypedVal(Loc loc, Tok::Tag tag, Sym sym, AST<Interval>&& interval)
+    TypedVal(Loc loc, Tok::Tag tag, Sym sym, AST<Interval> interval)
         : Val(loc)
         , tag_(tag)
         , sym_(sym)
-        , interval_(std::move(interval)) {}
+        , interval_(interval) {}
 
     Tok::Tag tag() const { return tag_; }                        ///< `DATE`, `TIME`, `TIMESTAMP`, or `INTERVAL`.
     Sym sym() const { return sym_; }                             ///< The *unquoted* body of the literal.
@@ -437,34 +417,34 @@ private:
  * Expr
  */
 
-class ParenExprList : public Expr {
+class ParenExprList : public Expr, public fe::Trailing<ParenExprList> {
 public:
-    ParenExprList(Loc loc, ASTs<Expr>&& args)
-        : Expr(loc)
-        , args_(std::move(args)) {}
+    using Trail_Types = std::tuple<AST<Expr>>;
 
-    const auto& args() const { return args_; }
+    ParenExprList(Loc loc)
+        : Expr(loc) {}
+
+    auto args() const { return trail<0>(); }
 
     void stream(std::ostream&) const override;
 
 private:
-    ASTs<Expr> args_;
 };
 
-class Id : public Expr {
+class Id : public Expr, public fe::Trailing<Id> {
 public:
-    Id(Loc loc, Syms&& syms, bool asterisk)
+    using Trail_Types = std::tuple<Sym>;
+
+    Id(Loc loc, bool asterisk)
         : Expr(loc)
-        , syms_(syms)
         , asterisk_(asterisk) {}
 
-    const auto& syms() const { return syms_; }
+    auto syms() const { return trail<0>(); }
     bool asterisk() const { return asterisk_; }
 
     void stream(std::ostream&) const override;
 
 private:
-    Syms syms_;
     bool asterisk_ = false;
 
 public:
@@ -473,10 +453,10 @@ public:
 
 class UnExpr : public Expr {
 public:
-    UnExpr(Loc loc, Tok::Tag tag, AST<Expr>&& rhs)
+    UnExpr(Loc loc, Tok::Tag tag, AST<Expr> rhs)
         : Expr(loc)
         , tag_(tag)
-        , rhs_(std::move(rhs)) {}
+        , rhs_(rhs) {}
 
     Tok::Tag tag() const { return tag_; }
     const Expr* rhs() const { return rhs_.get(); }
@@ -490,37 +470,27 @@ private:
 
 /// Any `name(args)` call - an aggregate like `COUNT(DISTINCT x)` just as much as a scalar function.
 /// The trailing clauses are what turn one into an ordered-set aggregate or a window function.
-class Func : public Expr {
+class Func : public Expr, public fe::Trailing<Func> {
 public:
-    Func(Loc loc,
-         Syms&& syms,
-         bool distinct,
-         ASTs<Expr>&& args,
-         ASTs<Order>&& withins,
-         AST<Expr>&& filter,
-         AST<Window>&& over)
-        : Expr(loc)
-        , syms_(std::move(syms))
-        , distinct_(distinct)
-        , args_(std::move(args))
-        , withins_(std::move(withins))
-        , filter_(std::move(filter))
-        , over_(std::move(over)) {}
+    using Trail_Types = std::tuple<Sym, AST<Expr>, AST<Order>>;
 
-    const auto& syms() const { return syms_; } ///< The function name, possibly schema-qualified.
+    Func(Loc loc, bool distinct, AST<Expr> filter, AST<Window> over)
+        : Expr(loc)
+        , distinct_(distinct)
+        , filter_(filter)
+        , over_(over) {}
+
+    auto syms() const { return trail<0>(); } ///< The function name, possibly schema-qualified.
     bool distinct() const { return distinct_; }
-    const auto& args() const { return args_; }
-    const auto& withins() const { return withins_; }     ///< `WITHIN GROUP (ORDER BY ...)`
+    auto args() const { return trail<1>(); }
+    auto withins() const { return trail<2>(); }          ///< `WITHIN GROUP (ORDER BY ...)`
     const Expr* filter() const { return filter_.get(); } ///< `FILTER (WHERE ...)`
     const Window* over() const { return over_.get(); }   ///< `OVER (...)`
 
     void stream(std::ostream&) const override;
 
 private:
-    Syms syms_;
     bool distinct_;
-    ASTs<Expr> args_;
-    ASTs<Order> withins_;
     AST<Expr> filter_;
     AST<Window> over_;
 };
@@ -528,11 +498,11 @@ private:
 /// `expr [NOT] BETWEEN lo AND hi`
 class Between : public Expr {
 public:
-    Between(Loc loc, AST<Expr>&& expr, AST<Expr>&& lo, AST<Expr>&& hi, bool negated)
+    Between(Loc loc, AST<Expr> expr, AST<Expr> lo, AST<Expr> hi, bool negated)
         : Expr(loc)
-        , expr_(std::move(expr))
-        , lo_(std::move(lo))
-        , hi_(std::move(hi))
+        , expr_(expr)
+        , lo_(lo)
+        , hi_(hi)
         , negated_(negated) {}
 
     const Expr* expr() const { return expr_.get(); }
@@ -554,11 +524,11 @@ class Like : public Expr {
 public:
     /// Tok::Tag::K_LIKE, Tok::Tag::K_ILIKE - the case-insensitive `LIKE` every dialect but the
     /// standard has - or Tok::Tag::K_SIMILAR, which matches a regular expression instead.
-    Like(Loc loc, AST<Expr>&& expr, AST<Expr>&& pattern, AST<Expr>&& escape, bool negated, Tok::Tag tag)
+    Like(Loc loc, AST<Expr> expr, AST<Expr> pattern, AST<Expr> escape, bool negated, Tok::Tag tag)
         : Expr(loc)
-        , expr_(std::move(expr))
-        , pattern_(std::move(pattern))
-        , escape_(std::move(escape))
+        , expr_(expr)
+        , pattern_(pattern)
+        , escape_(escape)
         , negated_(negated)
         , tag_(tag) {}
 
@@ -582,10 +552,10 @@ private:
 /// parentheses of its own and none of them can come between it and the expression it indexes.
 class Subscript : public Expr {
 public:
-    Subscript(Loc loc, AST<Expr>&& expr, AST<Expr>&& index)
+    Subscript(Loc loc, AST<Expr> expr, AST<Expr> index)
         : Expr(loc)
-        , expr_(std::move(expr))
-        , index_(std::move(index)) {}
+        , expr_(expr)
+        , index_(index) {}
 
     const Expr* expr() const { return expr_.get(); }
     const Expr* index() const { return index_.get(); }
@@ -600,10 +570,10 @@ private:
 /// `CAST(expr AS type)`
 class Cast : public Expr {
 public:
-    Cast(Loc loc, AST<Expr>&& expr, AST<Type>&& type)
+    Cast(Loc loc, AST<Expr> expr, AST<Type> type)
         : Expr(loc)
-        , expr_(std::move(expr))
-        , type_(std::move(type)) {}
+        , expr_(expr)
+        , type_(type) {}
 
     const Expr* expr() const { return expr_.get(); }
     const Type* type() const { return type_.get(); }
@@ -616,32 +586,32 @@ private:
 };
 
 /// `expr COLLATE <collation>`
-class Collate : public Expr {
+class Collate : public Expr, public fe::Trailing<Collate> {
 public:
-    Collate(Loc loc, AST<Expr>&& expr, Syms&& syms)
+    using Trail_Types = std::tuple<Sym>;
+
+    Collate(Loc loc, AST<Expr> expr)
         : Expr(loc)
-        , expr_(std::move(expr))
-        , syms_(std::move(syms)) {}
+        , expr_(expr) {}
 
     const Expr* expr() const { return expr_.get(); }
-    const auto& syms() const { return syms_; }
+    auto syms() const { return trail<0>(); }
 
     void stream(std::ostream&) const override;
 
 private:
     AST<Expr> expr_;
-    Syms syms_;
 };
 
 /// `CASE [operand] WHEN ... THEN ... [ELSE ...] END` - CaseExpr::operand is null for the *searched* form.
-class CaseExpr : public Expr {
+class CaseExpr : public Expr, public fe::Trailing<CaseExpr> {
 public:
     class When : public Node {
     public:
-        When(Loc loc, AST<Expr>&& cond, AST<Expr>&& then)
+        When(Loc loc, AST<Expr> cond, AST<Expr> then)
             : Node(loc)
-            , cond_(std::move(cond))
-            , then_(std::move(then)) {}
+            , cond_(cond)
+            , then_(then) {}
 
         const Expr* cond() const { return cond_.get(); }
         const Expr* then() const { return then_.get(); }
@@ -653,31 +623,31 @@ public:
         AST<Expr> then_;
     };
 
-    CaseExpr(Loc loc, AST<Expr>&& operand, ASTs<When>&& whens, AST<Expr>&& elze)
+    using Trail_Types = std::tuple<AST<When>>;
+
+    CaseExpr(Loc loc, AST<Expr> operand, AST<Expr> elze)
         : Expr(loc)
-        , operand_(std::move(operand))
-        , whens_(std::move(whens))
-        , elze_(std::move(elze)) {}
+        , operand_(operand)
+        , elze_(elze) {}
 
     const Expr* operand() const { return operand_.get(); }
-    const auto& whens() const { return whens_; }
+    auto whens() const { return trail<0>(); }
     const Expr* elze() const { return elze_.get(); }
 
     void stream(std::ostream&) const override;
 
 private:
     AST<Expr> operand_;
-    ASTs<When> whens_;
     AST<Expr> elze_;
 };
 
 /// `EXTRACT(<field> FROM expr)` - the field is kept as a Sym, so vendor fields like `epoch` work too.
 class Extract : public Expr {
 public:
-    Extract(Loc loc, Sym field, AST<Expr>&& expr)
+    Extract(Loc loc, Sym field, AST<Expr> expr)
         : Expr(loc)
         , field_(field)
-        , expr_(std::move(expr)) {}
+        , expr_(expr) {}
 
     Sym field() const { return field_; }
     const Expr* expr() const { return expr_.get(); }
@@ -693,11 +663,11 @@ private:
 /// The comma-separated `SUBSTRING(x, 1, 2)` is an ordinary Func instead.
 class Substring : public Expr {
 public:
-    Substring(Loc loc, AST<Expr>&& expr, AST<Expr>&& from, AST<Expr>&& four)
+    Substring(Loc loc, AST<Expr> expr, AST<Expr> from, AST<Expr> four)
         : Expr(loc)
-        , expr_(std::move(expr))
-        , from_(std::move(from))
-        , four_(std::move(four)) {}
+        , expr_(expr)
+        , from_(from)
+        , four_(four) {}
 
     const Expr* expr() const { return expr_.get(); }
     const Expr* from() const { return from_.get(); }
@@ -714,11 +684,11 @@ private:
 /// `TRIM([[LEADING|TRAILING|BOTH] [chars] FROM] expr)`
 class Trim : public Expr {
 public:
-    Trim(Loc loc, Tok::Tag tag, AST<Expr>&& chars, AST<Expr>&& expr)
+    Trim(Loc loc, Tok::Tag tag, AST<Expr> chars, AST<Expr> expr)
         : Expr(loc)
         , tag_(tag)
-        , chars_(std::move(chars))
-        , expr_(std::move(expr)) {}
+        , chars_(chars)
+        , expr_(expr) {}
 
     /// Tok::Tag::K_LEADING, Tok::Tag::K_TRAILING, Tok::Tag::K_BOTH, or Tok::Tag::Nil.
     Tok::Tag tag() const { return tag_; }
@@ -736,10 +706,10 @@ private:
 /// `POSITION(needle IN haystack)`
 class Position : public Expr {
 public:
-    Position(Loc loc, AST<Expr>&& needle, AST<Expr>&& haystack)
+    Position(Loc loc, AST<Expr> needle, AST<Expr> haystack)
         : Expr(loc)
-        , needle_(std::move(needle))
-        , haystack_(std::move(haystack)) {}
+        , needle_(needle)
+        , haystack_(haystack) {}
 
     const Expr* needle() const { return needle_.get(); }
     const Expr* haystack() const { return haystack_.get(); }
@@ -754,12 +724,12 @@ private:
 /// `OVERLAY(expr PLACING placing FROM from [FOR len])`
 class Overlay : public Expr {
 public:
-    Overlay(Loc loc, AST<Expr>&& expr, AST<Expr>&& placing, AST<Expr>&& from, AST<Expr>&& four)
+    Overlay(Loc loc, AST<Expr> expr, AST<Expr> placing, AST<Expr> from, AST<Expr> four)
         : Expr(loc)
-        , expr_(std::move(expr))
-        , placing_(std::move(placing))
-        , from_(std::move(from))
-        , four_(std::move(four)) {}
+        , expr_(expr)
+        , placing_(placing)
+        , from_(from)
+        , four_(four) {}
 
     const Expr* expr() const { return expr_.get(); }
     const Expr* placing() const { return placing_.get(); }
@@ -777,11 +747,11 @@ private:
 
 class BinExpr : public Expr {
 public:
-    BinExpr(Loc loc, AST<Expr>&& lhs, Tok::Tag tag, AST<Expr>&& rhs)
+    BinExpr(Loc loc, AST<Expr> lhs, Tok::Tag tag, AST<Expr> rhs)
         : Expr(loc)
-        , lhs_(std::move(lhs))
+        , lhs_(lhs)
         , tag_(tag)
-        , rhs_(std::move(rhs)) {}
+        , rhs_(rhs) {}
 
     const Expr* lhs() const { return lhs_.get(); }
     Tok::Tag tag() const { return tag_; }
@@ -797,8 +767,8 @@ private:
 
 class BinExprWithPreTag : public BinExpr {
 public:
-    BinExprWithPreTag(Loc loc, AST<Expr>&& lhs, Tok::Tag pretag, Tok::Tag tag, AST<Expr>&& rhs)
-        : BinExpr(loc, std::move(lhs), tag, std::move(rhs))
+    BinExprWithPreTag(Loc loc, AST<Expr> lhs, Tok::Tag pretag, Tok::Tag tag, AST<Expr> rhs)
+        : BinExpr(loc, lhs, tag, rhs)
         , pretag_(pretag) {}
     Tok::Tag pretag() const { return pretag_; }
 
@@ -811,8 +781,8 @@ private:
 /// A quantified comparison: `lhs = ANY (subquery)`, `lhs > ALL (subquery)`.
 class QuantExpr : public BinExpr {
 public:
-    QuantExpr(Loc loc, AST<Expr>&& lhs, Tok::Tag tag, Tok::Tag quant, AST<Expr>&& rhs)
-        : BinExpr(loc, std::move(lhs), tag, std::move(rhs))
+    QuantExpr(Loc loc, AST<Expr> lhs, Tok::Tag tag, Tok::Tag quant, AST<Expr> rhs)
+        : BinExpr(loc, lhs, tag, rhs)
         , quant_(quant) {}
 
     /// Tok::Tag::K_ALL, Tok::Tag::K_ANY, or Tok::Tag::K_SOME.
@@ -830,54 +800,54 @@ private:
 
 /// A grouping element beyond a plain expression: `ROLLUP (a, b)`, `CUBE (a, b)`,
 /// `GROUPING SETS ((a), ())`, or the empty grouping set `()`.
-class Grouping : public Expr {
+class Grouping : public Expr, public fe::Trailing<Grouping> {
 public:
     enum Tag { Rollup, Cube, Sets, Empty };
 
-    Grouping(Loc loc, Tag tag, ASTs<Expr>&& args)
+    using Trail_Types = std::tuple<AST<Expr>>;
+
+    Grouping(Loc loc, Tag tag)
         : Expr(loc)
-        , tag_(tag)
-        , args_(std::move(args)) {}
+        , tag_(tag) {}
 
     Tag tag() const { return tag_; }
-    const auto& args() const { return args_; }
+    auto args() const { return trail<0>(); }
 
     void stream(std::ostream&) const override;
 
 private:
     Tag tag_;
-    ASTs<Expr> args_;
 };
 
 /// A `VALUES` table: `VALUES (1, 'a'), (2, 'b')`. Stands on its own as a query, and is what an
 /// `INSERT` without a source query carries.
-class Values : public Expr {
+class Values : public Expr, public fe::Trailing<Values> {
 public:
-    Values(Loc loc, ASTs<Expr>&& rows)
-        : Expr(loc)
-        , rows_(std::move(rows)) {}
+    using Trail_Types = std::tuple<AST<Expr>>;
 
-    const auto& rows() const { return rows_; }
+    Values(Loc loc)
+        : Expr(loc) {}
+
+    auto rows() const { return trail<0>(); }
 
     void stream(std::ostream&) const override;
 
 private:
-    ASTs<Expr> rows_;
 };
 
 /// `TABLE <name>` - the explicit-table shorthand for `SELECT * FROM <name>`.
-class Table : public Expr {
+class Table : public Expr, public fe::Trailing<Table> {
 public:
-    Table(Loc loc, Syms&& syms)
-        : Expr(loc)
-        , syms_(std::move(syms)) {}
+    using Trail_Types = std::tuple<Sym>;
 
-    const auto& syms() const { return syms_; }
+    Table(Loc loc)
+        : Expr(loc) {}
+
+    auto syms() const { return trail<0>(); }
 
     void stream(std::ostream&) const override;
 
 private:
-    Syms syms_;
 };
 
 /*
@@ -886,76 +856,66 @@ private:
 
 /// `CREATE [GLOBAL|LOCAL TEMPORARY] TABLE [IF NOT EXISTS] <name> (<elems>)`, or
 /// `CREATE TABLE <name> [(cols)] AS <query>`.
-class Create : public Expr {
+class Create : public Expr, public fe::Trailing<Create> {
 public:
     /// One column definition: `<name> <type> <constraints>`.
-    class Elem : public Node {
+    class Elem : public Node, public fe::Trailing<Elem> {
     public:
-        Elem(Loc loc, Sym sym, AST<Type>&& type, ASTs<Constraint>&& constraints)
+        using Trail_Types = std::tuple<AST<Constraint>>;
+
+        Elem(Loc loc, Sym sym, AST<Type> type)
             : Node(loc)
             , sym_(sym)
-            , type_(std::move(type))
-            , constraints_(std::move(constraints)) {}
+            , type_(type) {}
 
         Sym sym() const { return sym_; }
         const Type* type() const { return type_.get(); }
-        const auto& constraints() const { return constraints_; }
+        auto constraints() const { return trail<0>(); }
 
         void stream(std::ostream&) const override;
 
     private:
         Sym sym_;
         AST<Type> type_;
-        ASTs<Constraint> constraints_;
     };
 
-    Create(Loc loc,
-           Syms&& syms,
-           bool temporary,
-           bool if_not_exists,
-           ASTs<Elem>&& elems,
-           ASTs<Constraint>&& constraints,
-           AST<Expr>&& query)
+    using Trail_Types = std::tuple<Sym, AST<Elem>, AST<Constraint>>;
+
+    Create(Loc loc, bool temporary, bool if_not_exists, AST<Expr> query)
         : Expr(loc)
-        , syms_(std::move(syms))
         , temporary_(temporary)
         , if_not_exists_(if_not_exists)
-        , elems_(std::move(elems))
-        , constraints_(std::move(constraints))
-        , query_(std::move(query)) {}
+        , query_(query) {}
 
-    const auto& syms() const { return syms_; }
+    auto syms() const { return trail<0>(); }
     bool temporary() const { return temporary_; }
     bool if_not_exists() const { return if_not_exists_; }
-    const auto& elems() const { return elems_; }
-    const auto& constraints() const { return constraints_; } ///< Table-level constraints.
-    const Expr* query() const { return query_.get(); }       ///< `CREATE TABLE ... AS <query>`; may be null.
+    auto elems() const { return trail<1>(); }
+    auto constraints() const { return trail<2>(); }    ///< Table-level constraints.
+    const Expr* query() const { return query_.get(); } ///< `CREATE TABLE ... AS <query>`; may be null.
 
     void stream(std::ostream&) const override;
 
 private:
-    Syms syms_;
     bool temporary_;
     bool if_not_exists_;
-    ASTs<Elem> elems_;
-    ASTs<Constraint> constraints_;
     AST<Expr> query_;
 };
 
 /// `CREATE [OR REPLACE] VIEW <name> [(cols)] AS <query> [WITH [CASCADED|LOCAL] CHECK OPTION]`
-class CreateView : public Expr {
+class CreateView : public Expr, public fe::Trailing<CreateView> {
 public:
-    CreateView(Loc loc, Syms&& syms, bool replace, Syms&& cols, AST<Expr>&& query, Tok::Tag check)
+    using Trail_Types = std::tuple<Sym, Sym>;
+
+    CreateView(Loc loc, bool replace, AST<Expr> query, Tok::Tag check)
         : Expr(loc)
-        , syms_(std::move(syms))
         , replace_(replace)
-        , cols_(std::move(cols))
-        , query_(std::move(query))
+        , query_(query)
         , check_(check) {}
 
-    const auto& syms() const { return syms_; }
+    auto syms() const { return trail<0>(); }
     bool replace() const { return replace_; }
-    const auto& cols() const { return cols_; }
+    auto cols() const { return trail<1>(); }
     const Expr* query() const { return query_.get(); }
     /// `WITH CHECK OPTION`: Tok::Tag::K_CASCADED, Tok::Tag::K_LOCAL, Tok::Tag::K_CHECK (unqualified),
     /// or Tok::Tag::Nil for no check option at all.
@@ -964,29 +924,27 @@ public:
     void stream(std::ostream&) const override;
 
 private:
-    Syms syms_;
     bool replace_;
-    Syms cols_;
     AST<Expr> query_;
     Tok::Tag check_;
 };
 
 /// `CREATE [UNIQUE] INDEX [IF NOT EXISTS] <name> ON <table> (<cols>)`
-class CreateIndex : public Expr {
+class CreateIndex : public Expr, public fe::Trailing<CreateIndex> {
 public:
-    CreateIndex(Loc loc, Sym sym, bool unique, bool if_not_exists, Syms&& table, ASTs<Order>&& cols)
+    using Trail_Types = std::tuple<Sym, AST<Order>>;
+
+    CreateIndex(Loc loc, Sym sym, bool unique, bool if_not_exists)
         : Expr(loc)
         , sym_(sym)
         , unique_(unique)
-        , if_not_exists_(if_not_exists)
-        , table_(std::move(table))
-        , cols_(std::move(cols)) {}
+        , if_not_exists_(if_not_exists) {}
 
     Sym sym() const { return sym_; }
     bool unique() const { return unique_; }
     bool if_not_exists() const { return if_not_exists_; }
-    const auto& table() const { return table_; }
-    const auto& cols() const { return cols_; } ///< Index keys, each with its own `ASC`/`DESC`.
+    auto table() const { return trail<0>(); }
+    auto cols() const { return trail<1>(); } ///< Index keys, each with its own `ASC`/`DESC`.
 
     void stream(std::ostream&) const override;
 
@@ -994,31 +952,29 @@ private:
     Sym sym_;
     bool unique_;
     bool if_not_exists_;
-    Syms table_;
-    ASTs<Order> cols_;
 };
 
 /// `CREATE SCHEMA [IF NOT EXISTS] <name>`
-class CreateSchema : public Expr {
+class CreateSchema : public Expr, public fe::Trailing<CreateSchema> {
 public:
-    CreateSchema(Loc loc, Syms&& syms, bool if_not_exists)
+    using Trail_Types = std::tuple<Sym>;
+
+    CreateSchema(Loc loc, bool if_not_exists)
         : Expr(loc)
-        , syms_(std::move(syms))
         , if_not_exists_(if_not_exists) {}
 
-    const auto& syms() const { return syms_; }
+    auto syms() const { return trail<0>(); }
     bool if_not_exists() const { return if_not_exists_; }
 
     void stream(std::ostream&) const override;
 
 private:
-    Syms syms_;
     bool if_not_exists_;
 };
 
 /// `ALTER TABLE <table> <action>` - the standard allows exactly one action per statement.
 /// As with Constraint, one node covers every flavor and Alter::tag says which fields carry meaning.
-class Alter : public Expr {
+class Alter : public Expr, public fe::Trailing<Alter> {
 public:
     enum Tag {
         Add_Column,      ///< `ADD [COLUMN] <elem>`
@@ -1034,28 +990,28 @@ public:
         Rename_Column,   ///< `RENAME [COLUMN] <sym> TO <sym2>`
     };
 
+    using Trail_Types = std::tuple<Sym>;
+
     Alter(Loc loc,
-          Syms&& table,
           Tag tag,
           Sym sym,
           Sym sym2,
-          AST<Create::Elem>&& elem,
-          AST<Constraint>&& constraint,
-          AST<Type>&& type,
-          AST<Expr>&& expr,
+          AST<Create::Elem> elem,
+          AST<Constraint> constraint,
+          AST<Type> type,
+          AST<Expr> expr,
           Behavior behavior)
         : Expr(loc)
-        , table_(std::move(table))
         , tag_(tag)
         , sym_(sym)
         , sym2_(sym2)
-        , elem_(std::move(elem))
-        , constraint_(std::move(constraint))
-        , type_(std::move(type))
-        , expr_(std::move(expr))
+        , elem_(elem)
+        , constraint_(constraint)
+        , type_(type)
+        , expr_(expr)
         , behavior_(behavior) {}
 
-    const auto& table() const { return table_; }
+    auto table() const { return trail<0>(); }
     Tag tag() const { return tag_; }
     Sym sym() const { return sym_; }   ///< The column, constraint, or new table name.
     Sym sym2() const { return sym2_; } ///< The new column name of an Alter::Rename_Column.
@@ -1068,7 +1024,6 @@ public:
     void stream(std::ostream&) const override;
 
 private:
-    Syms table_;
     Tag tag_;
     Sym sym_;
     Sym sym2_;
@@ -1080,19 +1035,20 @@ private:
 };
 
 /// `DROP TABLE|VIEW|INDEX|SCHEMA [IF EXISTS] <name> [CASCADE|RESTRICT]`
-class Drop : public Expr {
+class Drop : public Expr, public fe::Trailing<Drop> {
 public:
     enum Tag { Table, View, Index, Schema };
 
-    Drop(Loc loc, Tag tag, Syms&& syms, bool if_exists, Behavior behavior)
+    using Trail_Types = std::tuple<Sym>;
+
+    Drop(Loc loc, Tag tag, bool if_exists, Behavior behavior)
         : Expr(loc)
         , tag_(tag)
-        , syms_(std::move(syms))
         , if_exists_(if_exists)
         , behavior_(behavior) {}
 
     Tag tag() const { return tag_; }
-    const auto& syms() const { return syms_; }
+    auto syms() const { return trail<0>(); }
     bool if_exists() const { return if_exists_; }
     Behavior behavior() const { return behavior_; }
 
@@ -1100,24 +1056,23 @@ public:
 
 private:
     Tag tag_;
-    Syms syms_;
     bool if_exists_;
     Behavior behavior_;
 };
 
 /// `TRUNCATE TABLE <name>`
-class Truncate : public Expr {
+class Truncate : public Expr, public fe::Trailing<Truncate> {
 public:
-    Truncate(Loc loc, Syms&& syms)
-        : Expr(loc)
-        , syms_(std::move(syms)) {}
+    using Trail_Types = std::tuple<Sym>;
 
-    const auto& syms() const { return syms_; }
+    Truncate(Loc loc)
+        : Expr(loc) {}
+
+    auto syms() const { return trail<0>(); }
 
     void stream(std::ostream&) const override;
 
 private:
-    Syms syms_;
 };
 
 /// A transaction-control statement; Transact::sym names the savepoint where one is involved.
@@ -1157,21 +1112,22 @@ private:
 ///
 /// It is an Expr, not a part of Select, because a correlation name binds to a single table
 /// reference: in `a AS x JOIN b AS y`, each side carries its own, and the Join sees two of these.
-class TableRef : public Expr {
+class TableRef : public Expr, public fe::Trailing<TableRef> {
 public:
-    TableRef(Loc loc, bool lateral, AST<Expr>&& expr, bool ordinality, Sym as, Syms&& cols)
+    using Trail_Types = std::tuple<Sym>;
+
+    TableRef(Loc loc, bool lateral, AST<Expr> expr, bool ordinality, Sym as)
         : Expr(loc)
         , lateral_(lateral)
-        , expr_(std::move(expr))
+        , expr_(expr)
         , ordinality_(ordinality)
-        , as_(as)
-        , cols_(std::move(cols)) {}
+        , as_(as) {}
 
     bool lateral() const { return lateral_; }
     const Expr* expr() const { return expr_.get(); }
     bool ordinality() const { return ordinality_; } ///< `WITH ORDINALITY` of an `UNNEST`.
     Sym as() const { return as_; }
-    const auto& cols() const { return cols_; }
+    auto cols() const { return trail<0>(); }
 
     void stream(std::ostream&) const override;
 
@@ -1180,13 +1136,12 @@ private:
     AST<Expr> expr_;
     bool ordinality_;
     Sym as_;
-    Syms cols_;
 };
 
 class Join : public Expr {
 public:
     using On    = AST<Expr>;
-    using Using = Syms;
+    using Using = fe::View<Sym>;
     using Spec  = std::variant<std::monostate, On, Using>;
 
     enum Tag {
@@ -1202,12 +1157,12 @@ public:
         Cross,
     };
 
-    Join(Loc loc, AST<Expr>&& lhs, Tag tag, AST<Expr>&& rhs, Spec&& spec)
+    Join(Loc loc, AST<Expr> lhs, Tag tag, AST<Expr> rhs, Spec spec)
         : Expr(loc)
-        , lhs_(std::move(lhs))
+        , lhs_(lhs)
         , tag_(tag)
-        , rhs_(std::move(rhs))
-        , spec_(std::move(spec)) {}
+        , rhs_(rhs)
+        , spec_(spec) {}
 
     const Expr* lhs() const { return lhs_.get(); }
     Tag tag() const { return tag_; }
@@ -1223,32 +1178,32 @@ private:
     Spec spec_;
 };
 
-class Select : public Expr {
+class Select : public Expr, public fe::Trailing<Select> {
 public:
-    class Elem : public Node {
+    class Elem : public Node, public fe::Trailing<Elem> {
     public:
-        Elem(Loc loc, AST<Expr>&& expr, Syms&& syms)
+        using Trail_Types = std::tuple<Sym>;
+
+        Elem(Loc loc, AST<Expr> expr)
             : Node(loc)
-            , expr_(std::move(expr))
-            , syms_(std::move(syms)) {}
+            , expr_(expr) {}
 
         const Expr* expr() const { return expr_.get(); }
-        const auto& syms() const { return syms_; }
+        auto syms() const { return trail<0>(); }
 
         void stream(std::ostream&) const override;
 
     private:
         AST<Expr> expr_;
-        Syms syms_;
     };
 
     /// One entry of the `WINDOW` clause: `<name> AS (<window>)`.
     class WindowDef : public Node {
     public:
-        WindowDef(Loc loc, Sym sym, AST<Window>&& window)
+        WindowDef(Loc loc, Sym sym, AST<Window> window)
             : Node(loc)
             , sym_(sym)
-            , window_(std::move(window)) {}
+            , window_(window) {}
 
         Sym sym() const { return sym_; }
         const Window* window() const { return window_.get(); }
@@ -1260,42 +1215,29 @@ public:
         AST<Window> window_;
     };
 
-    Select(Loc loc,
-           bool all,
-           ASTs<Elem>&& elems,
-           ASTs<Expr>&& froms,
-           AST<Expr>&& where,
-           ASTs<Expr>&& groups,
-           AST<Expr>&& having,
-           ASTs<WindowDef>&& windows)
+    using Trail_Types = std::tuple<AST<Elem>, AST<Expr>, AST<Expr>, AST<WindowDef>>;
+
+    Select(Loc loc, bool all, AST<Expr> where, AST<Expr> having)
         : Expr(loc)
         , all_(all)
-        , elems_(std::move(elems))
-        , froms_(std::move(froms))
-        , where_(std::move(where))
-        , groups_(std::move(groups))
-        , having_(std::move(having))
-        , windows_(std::move(windows)) {}
+        , where_(where)
+        , having_(having) {}
 
     bool all() const { return all_; }
     bool distinct() const { return !all_; }
-    const auto& elems() const { return elems_; }
-    const auto& froms() const { return froms_; } ///< A table reference each; may be empty, as `SELECT 1` has no `FROM`.
+    auto elems() const { return trail<0>(); }
+    auto froms() const { return trail<1>(); } ///< A table reference each; may be empty, as `SELECT 1` has no `FROM`.
     const Expr* where() const { return where_.get(); }
-    const auto& groups() const { return groups_; }
+    auto groups() const { return trail<2>(); }
     const Expr* having() const { return having_.get(); }
-    const auto& windows() const { return windows_; }
+    auto windows() const { return trail<3>(); }
 
     void stream(std::ostream&) const override;
 
 private:
     bool all_;
-    ASTs<Elem> elems_;
-    ASTs<Expr> froms_;
     AST<Expr> where_;
-    ASTs<Expr> groups_;
     AST<Expr> having_;
-    ASTs<WindowDef> windows_;
 };
 
 /// `lhs UNION|INTERSECT|EXCEPT [ALL] rhs`
@@ -1303,12 +1245,12 @@ class SetOp : public Expr {
 public:
     enum Tag { Union, Intersect, Except };
 
-    SetOp(Loc loc, AST<Expr>&& lhs, Tag tag, bool all, AST<Expr>&& rhs)
+    SetOp(Loc loc, AST<Expr> lhs, Tag tag, bool all, AST<Expr> rhs)
         : Expr(loc)
-        , lhs_(std::move(lhs))
+        , lhs_(lhs)
         , tag_(tag)
         , all_(all)
-        , rhs_(std::move(rhs)) {}
+        , rhs_(rhs) {}
 
     const Expr* lhs() const { return lhs_.get(); }
     Tag tag() const { return tag_; }
@@ -1329,93 +1271,82 @@ private:
 /// `FOR UPDATE|NO KEY UPDATE|SHARE|KEY SHARE [OF <tables>] [NOWAIT|SKIP LOCKED]` - the row-locking
 /// clause a query expression may end in. Not in the standard, but every dialect that has rows to
 /// lock spells it this way.
-class Lock : public Node {
+class Lock : public Node, public fe::Trailing<Lock> {
 public:
     /// How hard to lock, weakest last - the order the standard dialects list them in.
     enum Strength { Update, No_Key_Update, Share, Key_Share };
     /// What to do about a row someone else holds: block (the default), fail, or pass it over.
     enum Wait { Block, Nowait, Skip_Locked };
 
-    Lock(Loc loc, Strength strength, fe::Vector<Syms>&& tables, Wait wait)
+    /// Each table is a possibly qualified name, so the names themselves live in the Arena, too.
+    using Trail_Types = std::tuple<fe::View<Sym>>;
+
+    Lock(Loc loc, Strength strength, Wait wait)
         : Node(loc)
         , strength_(strength)
-        , tables_(std::move(tables))
         , wait_(wait) {}
 
     Strength strength() const { return strength_; }
-    const auto& tables() const { return tables_; } ///< The `OF` list; empty locks every table of the query.
+    auto tables() const { return trail<0>(); } ///< The `OF` list; empty locks every table of the query.
     Wait wait() const { return wait_; }
 
     void stream(std::ostream&) const override;
 
 private:
     Strength strength_;
-    fe::Vector<Syms> tables_;
     Wait wait_;
 };
 
-class Query : public Expr {
+class Query : public Expr, public fe::Trailing<Query> {
 public:
     /// One common table expression: `<name> [(cols)] AS (<query>)`.
-    class Cte : public Node {
+    class Cte : public Node, public fe::Trailing<Cte> {
     public:
-        Cte(Loc loc, Sym sym, Syms&& cols, AST<Expr>&& query)
+        using Trail_Types = std::tuple<Sym>;
+
+        Cte(Loc loc, Sym sym, AST<Expr> query)
             : Node(loc)
             , sym_(sym)
-            , cols_(std::move(cols))
-            , query_(std::move(query)) {}
+            , query_(query) {}
 
         Sym sym() const { return sym_; }
-        const auto& cols() const { return cols_; }
+        auto cols() const { return trail<0>(); }
         const Expr* query() const { return query_.get(); }
 
         void stream(std::ostream&) const override;
 
     private:
         Sym sym_;
-        Syms cols_;
         AST<Expr> query_;
     };
 
-    Query(Loc loc,
-          bool recursive,
-          ASTs<Cte>&& ctes,
-          AST<Expr>&& body,
-          ASTs<Order>&& orders,
-          AST<Expr>&& offset,
-          AST<Expr>&& fetch,
-          AST<Expr>&& limit,
-          ASTs<Lock>&& locks)
+    using Trail_Types = std::tuple<AST<Cte>, AST<Order>, AST<Lock>>;
+
+    Query(Loc loc, bool recursive, AST<Expr> body, AST<Expr> offset, AST<Expr> fetch, AST<Expr> limit)
         : Expr(loc)
         , recursive_(recursive)
-        , ctes_(std::move(ctes))
-        , body_(std::move(body))
-        , orders_(std::move(orders))
-        , offset_(std::move(offset))
-        , fetch_(std::move(fetch))
-        , limit_(std::move(limit))
-        , locks_(std::move(locks)) {}
+        , body_(body)
+        , offset_(offset)
+        , fetch_(fetch)
+        , limit_(limit) {}
 
     bool recursive() const { return recursive_; }
-    const auto& ctes() const { return ctes_; }
+    auto ctes() const { return trail<0>(); }
     const Expr* body() const { return body_.get(); }
-    const auto& orders() const { return orders_; }
+    auto orders() const { return trail<1>(); }
     const Expr* offset() const { return offset_.get(); }
     const Expr* fetch() const { return fetch_.get(); }
     const Expr* limit() const { return limit_.get(); }
-    const auto& locks() const { return locks_; } ///< A query may end in more than one locking clause.
+    auto locks() const { return trail<2>(); } ///< A query may end in more than one locking clause.
 
     void stream(std::ostream&) const override;
 
 private:
     bool recursive_;
-    ASTs<Cte> ctes_;
     AST<Expr> body_;
-    ASTs<Order> orders_;
     AST<Expr> offset_;
     AST<Expr> fetch_;
     AST<Expr> limit_;
-    ASTs<Lock> locks_;
 };
 
 /*
@@ -1424,85 +1355,81 @@ private:
 
 /// `INSERT INTO <table> [(cols)] <query>` where the query is usually a Values table, or
 /// `INSERT INTO <table> DEFAULT VALUES`.
-class Insert : public Expr {
+class Insert : public Expr, public fe::Trailing<Insert> {
 public:
-    Insert(Loc loc, Syms&& syms, Syms&& cols, AST<Expr>&& query)
-        : Expr(loc)
-        , syms_(std::move(syms))
-        , cols_(std::move(cols))
-        , query_(std::move(query)) {}
+    using Trail_Types = std::tuple<Sym, Sym>;
 
-    const auto& syms() const { return syms_; }
-    const auto& cols() const { return cols_; }
+    Insert(Loc loc, AST<Expr> query)
+        : Expr(loc)
+        , query_(query) {}
+
+    auto syms() const { return trail<0>(); }
+    auto cols() const { return trail<1>(); }
     const Expr* query() const { return query_.get(); } ///< Null for `DEFAULT VALUES`.
 
     void stream(std::ostream&) const override;
 
 private:
-    Syms syms_;
-    Syms cols_;
     AST<Expr> query_;
 };
 
 /// `UPDATE <table> [AS <as>] SET <assigns> [WHERE <where>]`
-class Update : public Expr {
+class Update : public Expr, public fe::Trailing<Update> {
 public:
     /// One `<column> = <expr>` of the `SET` clause.
-    class Assign : public Node {
+    class Assign : public Node, public fe::Trailing<Assign> {
     public:
-        Assign(Loc loc, Syms&& syms, AST<Expr>&& expr)
-            : Node(loc)
-            , syms_(std::move(syms))
-            , expr_(std::move(expr)) {}
+        using Trail_Types = std::tuple<Sym>;
 
-        const auto& syms() const { return syms_; } ///< The target column, possibly qualified.
+        Assign(Loc loc, AST<Expr> expr)
+            : Node(loc)
+            , expr_(expr) {}
+
+        auto syms() const { return trail<0>(); } ///< The target column, possibly qualified.
         const Expr* expr() const { return expr_.get(); }
 
         void stream(std::ostream&) const override;
 
     private:
-        Syms syms_;
         AST<Expr> expr_;
     };
 
-    Update(Loc loc, Syms&& syms, Sym as, ASTs<Assign>&& assigns, AST<Expr>&& where)
-        : Expr(loc)
-        , syms_(std::move(syms))
-        , as_(as)
-        , assigns_(std::move(assigns))
-        , where_(std::move(where)) {}
+    using Trail_Types = std::tuple<Sym, AST<Assign>>;
 
-    const auto& syms() const { return syms_; }
+    Update(Loc loc, Sym as, AST<Expr> where)
+        : Expr(loc)
+        , as_(as)
+        , where_(where) {}
+
+    auto syms() const { return trail<0>(); }
     Sym as() const { return as_; }
-    const auto& assigns() const { return assigns_; }
+    auto assigns() const { return trail<1>(); }
     const Expr* where() const { return where_.get(); }
 
     void stream(std::ostream&) const override;
 
 private:
-    Syms syms_;
     Sym as_;
-    ASTs<Assign> assigns_;
     AST<Expr> where_;
 };
 
 /// `DELETE FROM <table> [AS <as>] [WHERE <where>]`
-class Delete : public Expr {
+class Delete : public Expr, public fe::Trailing<Delete> {
 public:
-    Delete(Loc loc, Syms&& syms, Sym as, AST<Expr>&& where)
-        : Expr(loc)
-        , syms_(std::move(syms))
-        , as_(as)
-        , where_(std::move(where)) {}
+    using Trail_Types = std::tuple<Sym>;
 
-    const auto& syms() const { return syms_; }
+    Delete(Loc loc, Sym as, AST<Expr> where)
+        : Expr(loc)
+        , as_(as)
+        , where_(where) {}
+
+    auto syms() const { return trail<0>(); }
     Sym as() const { return as_; }
     const Expr* where() const { return where_.get(); }
 
     void stream(std::ostream&) const override;
 
 private:
-    Syms syms_;
     Sym as_;
     AST<Expr> where_;
 };
@@ -1521,18 +1448,18 @@ public:
  */
 
 /// Just a HACK to have a list of Stmt%s.
-class Prog : public Node {
+class Prog : public Node, public fe::Trailing<Prog> {
 public:
-    Prog(Loc loc, ASTs<Expr>&& exprs)
-        : Node(loc)
-        , exprs_(std::move(exprs)) {}
+    using Trail_Types = std::tuple<AST<Expr>>;
 
-    const auto& exprs() const { return exprs_; }
+    Prog(Loc loc)
+        : Node(loc) {}
+
+    auto exprs() const { return trail<0>(); }
 
     void stream(std::ostream&) const override;
 
 private:
-    ASTs<Expr> exprs_;
 };
 
 } // namespace sql

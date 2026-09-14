@@ -93,10 +93,10 @@ private:
     ///@{
     AST<Expr> parse_expr(fe::Cite ctxt, Tok::Prec = Tok::Prec::Bot);
     AST<Expr> parse_primary_or_unary_expr(fe::Cite ctxt);
-    AST<Expr> parse_between(Tracker, AST<Expr>&&, bool negated);
-    AST<Expr> parse_like(Tracker, AST<Expr>&&, bool negated);
+    AST<Expr> parse_between(Tracker, AST<Expr>, bool negated);
+    AST<Expr> parse_like(Tracker, AST<Expr>, bool negated);
     AST<Expr> parse_id_or_func(); ///< A qualified name - and, if a `(` follows, the call it introduces.
-    AST<Expr> parse_func(Tracker, Syms&&);
+    AST<Expr> parse_func(Tracker, const Syms&);
     AST<Expr> parse_case();
     AST<Expr> parse_cast();
     AST<Expr> parse_special_func(); ///< `EXTRACT`, `SUBSTRING`, `TRIM`, `POSITION`, and `OVERLAY`.

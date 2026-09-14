@@ -24,7 +24,7 @@ private:
     std::string unquote(std::string_view body, uint32_t begin, char32_t delim);
 
     Driver& driver_;
-    const fe::SymMap<Tok::Tag>& keys_; ///< The Driver's reserved words - see Driver::keys.
+    const Keys& keys_; ///< The Driver's reserved words - see Driver::keys.
 };
 
 } // namespace sql

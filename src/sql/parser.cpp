@@ -237,7 +237,7 @@ AST<Prog> Parser::parse_prog() {
     }
 
     eat(Tok::Tag::EoF);
-    return ast<Prog>(track, std::move(exprs));
+    return ast<Prog>(track, exprs);
 }
 
 /// One `<direct SQL statement>`: a schema, data, or transaction statement - or a query expression.
@@ -285,7 +285,7 @@ AST<Interval> Parser::parse_interval() {
         }
     }
 
-    return ast<Interval>(track, from, std::move(from_args), to, std::move(to_args));
+    return ast<Interval>(track, from, to, from_args, to_args);
 }
 
 AST<Type> Parser::parse_type(fe::Cite ctxt) {
@@ -330,7 +330,7 @@ AST<Type> Parser::parse_type(fe::Cite ctxt) {
                 expect_non_key(N_ZONE, "`TIME ZONE` of a type");
             }
 
-            return ast<SimpleType>(track, tag, varying, std::move(args), zone, std::move(interval), parse_not_null());
+            return ast<SimpleType>(track, tag, varying, zone, interval, parse_not_null(), args);
         }
         default: break;
     }
@@ -340,7 +340,7 @@ AST<Type> Parser::parse_type(fe::Cite ctxt) {
         auto sym = lex().sym();
         ASTs<Expr> args;
         parse_args(args);
-        return ast<NamedType>(track, sym, std::move(args), parse_not_null());
+        return ast<NamedType>(track, sym, parse_not_null(), args);
     }
 
     if (!ctxt.empty()) {
@@ -358,16 +358,16 @@ AST<Type> Parser::parse_type(fe::Cite ctxt) {
 /// `expr [NOT] BETWEEN lo AND hi`.
 /// Both bounds parse above Tok::Prec::And so that the separating `AND` terminates the lower one
 /// instead of being swallowed as a conjunction.
-AST<Expr> Parser::parse_between(Tracker track, AST<Expr>&& lhs, bool negated) {
+AST<Expr> Parser::parse_between(Tracker track, AST<Expr> lhs, bool negated) {
     eat(Tok::Tag::K_BETWEEN);
     auto lo = parse_expr("lower bound of a `BETWEEN` expression", Tok::Prec::Not);
     expect(Tok::Tag::K_AND, "`BETWEEN` expression");
     auto hi = parse_expr("upper bound of a `BETWEEN` expression", Tok::Prec::Not);
-    return ast<Between>(track, std::move(lhs), std::move(lo), std::move(hi), negated);
+    return ast<Between>(track, lhs, lo, hi, negated);
 }
 
 /// `expr [NOT] LIKE pattern [ESCAPE escape]`, with `ILIKE` or `SIMILAR TO` in place of `LIKE`.
-AST<Expr> Parser::parse_like(Tracker track, AST<Expr>&& lhs, bool negated) {
+AST<Expr> Parser::parse_like(Tracker track, AST<Expr> lhs, bool negated) {
     // `ILIKE` is no reserved word, so it arrives as a plain identifier rather than as a Tok::Tag.
     auto tag = isa_non_key(N_ILIKE) ? Tok::Tag::K_ILIKE : ahead().tag();
     lex();
@@ -379,7 +379,7 @@ AST<Expr> Parser::parse_like(Tracker track, AST<Expr>&& lhs, bool negated) {
     AST<Expr> escape;
     if (accept(Tok::Tag::K_ESCAPE)) escape = parse_expr("`ESCAPE` clause of a `LIKE` expression", prec);
 
-    return ast<Like>(track, std::move(lhs), std::move(pattern), std::move(escape), negated, tag);
+    return ast<Like>(track, lhs, pattern, escape, negated, tag);
 }
 
 AST<Expr> Parser::parse_expr(fe::Cite ctxt, Tok::Prec cur_prec) {
@@ -397,27 +397,27 @@ AST<Expr> Parser::parse_expr(fe::Cite ctxt, Tok::Prec cur_prec) {
             eat(Tok::Tag::K_NOT);
 
             if (ahead().isa(Tok::Tag::K_BETWEEN)) {
-                lhs = parse_between(track, std::move(lhs), true);
+                lhs = parse_between(track, lhs, true);
             } else if (isa_like()) {
-                lhs = parse_like(track, std::move(lhs), true);
+                lhs = parse_like(track, lhs, true);
             } else {
                 auto tag = lex().tag();
                 auto rhs = parse_expr("right-hand side of binary expression with `NOT` in front of operator",
                                       next_prec(*prec));
-                lhs      = ast<BinExprWithPreTag>(track, std::move(lhs), Tok::Tag::K_NOT, tag, std::move(rhs));
+                lhs      = ast<BinExprWithPreTag>(track, lhs, Tok::Tag::K_NOT, tag, rhs);
             }
         } else if (ahead().isa(Tok::Tag::K_BETWEEN)) {
             if (*Tok::bin_prec(Tok::Tag::K_BETWEEN) < cur_prec) break;
-            lhs = parse_between(track, std::move(lhs), false);
+            lhs = parse_between(track, lhs, false);
         } else if (isa_like()) {
             if (*Tok::bin_prec(Tok::Tag::K_LIKE) < cur_prec) break;
-            lhs = parse_like(track, std::move(lhs), false);
+            lhs = parse_like(track, lhs, false);
         } else if (ahead().isa(Tok::Tag::K_COLLATE)) {
             // Postfix and tighter than anything else, so it never needs to look at what follows.
             if (Tok::Prec::Unary < cur_prec) break;
             eat(Tok::Tag::K_COLLATE);
             auto name = parse_name("collation name");
-            lhs       = ast<Collate>(track, std::move(lhs), std::move(name));
+            lhs       = ast<Collate>(track, lhs, name);
         } else if (ahead().isa(Tok::Tag::K_IS)) {
             if (*Tok::bin_prec(Tok::Tag::K_IS) < cur_prec) break;
             eat(Tok::Tag::K_IS);
@@ -430,7 +430,7 @@ AST<Expr> Parser::parse_expr(fe::Cite ctxt, Tok::Prec cur_prec) {
             }
 
             auto rhs = parse_expr("right-hand side of an `IS` expression", next_prec(Tok::Prec::Comp));
-            lhs      = ast<BinExpr>(track, std::move(lhs), tag, std::move(rhs));
+            lhs      = ast<BinExpr>(track, lhs, tag, rhs);
         } else if (auto prec = Tok::bin_prec(ahead().tag())) {
             if (*prec < cur_prec) break;
 
@@ -441,10 +441,10 @@ AST<Expr> Parser::parse_expr(fe::Cite ctxt, Tok::Prec cur_prec) {
             if (ISA(op, C_COMP) && ISA(ahead().tag(), C_QUANT) && ahead(1).isa(Tok::Tag::D_paren_l)) {
                 auto quant = lex().tag();
                 auto rhs   = parse_expr("subquery of a quantified comparison", next_prec(*prec));
-                lhs        = ast<QuantExpr>(track, std::move(lhs), op, quant, std::move(rhs));
+                lhs        = ast<QuantExpr>(track, lhs, op, quant, rhs);
             } else {
                 auto rhs = parse_expr("right-hand side of binary expression", next_prec(*prec));
-                lhs      = ast<BinExpr>(track, std::move(lhs), op, std::move(rhs));
+                lhs      = ast<BinExpr>(track, lhs, op, rhs);
             }
         } else {
             break;
@@ -493,7 +493,7 @@ AST<Expr> Parser::parse_primary_or_unary_expr(fe::Cite ctxt) {
         auto str = lex().sym();
         AST<Interval> interval;
         if (tag == Tok::Tag::K_INTERVAL && ISA(ahead().tag(), C_FIELD)) interval = parse_interval();
-        return ast<TypedVal>(track, tag, str, std::move(interval));
+        return ast<TypedVal>(track, tag, str, interval);
     }
 
     // Before the call below, so that `NOT (...)` stays an operator rather than a function.
@@ -527,10 +527,10 @@ AST<Expr> Parser::parse_primary_or_unary_expr(fe::Cite ctxt) {
             const auto* arg = args.front().get();
             if (!arg->isa<Select>() && !arg->isa<SetOp>() && !arg->isa<Query>() && !arg->isa<Values>()
                 && !arg->isa<Table>())
-                return std::move(args.front());
+                return args.front();
         }
 
-        return ast<ParenExprList>(track, std::move(args));
+        return ast<ParenExprList>(track, args);
     }
 
     if (!ctxt.empty()) {
@@ -555,8 +555,8 @@ AST<Expr> Parser::parse_id_or_func() {
         syms.emplace_back(parse_sym("identifer chain"));
     }
 
-    auto expr = !asterisk && ahead().isa(Tok::Tag::D_paren_l) ? parse_func(track, std::move(syms))
-                                                              : ast<Id>(track, std::move(syms), asterisk);
+    auto expr
+        = !asterisk && ahead().isa(Tok::Tag::D_paren_l) ? parse_func(track, syms) : ast<Id>(track, asterisk, syms);
 
     // `a[i]`, and `a[i][j]` for the nested ones. Binding it here rather than in the operator loop is
     // what keeps it tighter than the unary operators: `- a[1]` negates the element, not the array.
@@ -565,7 +565,7 @@ AST<Expr> Parser::parse_id_or_func() {
         auto _     = anchor(Tok::Tag::D_brckt_r);
         auto index = parse_expr("index of a subscript");
         expect(Tok::Tag::D_brckt_r, "closing delimiter of a subscript");
-        expr = ast<Subscript>(track, std::move(expr), std::move(index));
+        expr = ast<Subscript>(track, expr, index);
     }
 
     return expr;
@@ -573,7 +573,7 @@ AST<Expr> Parser::parse_id_or_func() {
 
 /// The argument list of a call plus whatever trailing clauses turn it into an ordered-set aggregate
 /// or a window function. The name has already been parsed by Parser::parse_id_or_func.
-AST<Expr> Parser::parse_func(Tracker track, Syms&& syms) {
+AST<Expr> Parser::parse_func(Tracker track, const Syms& syms) {
     bool distinct = false;
     ASTs<Expr> args;
     {
@@ -613,8 +613,7 @@ AST<Expr> Parser::parse_func(Tracker track, Syms&& syms) {
     AST<Window> over;
     if (accept(Tok::Tag::K_OVER)) over = parse_window();
 
-    return ast<Func>(track, std::move(syms), distinct, std::move(args), std::move(withins), std::move(filter),
-                     std::move(over));
+    return ast<Func>(track, distinct, filter, over, syms, args, withins);
 }
 
 AST<Expr> Parser::parse_special_func() {
@@ -628,7 +627,7 @@ AST<Expr> Parser::parse_special_func() {
 
     auto close = [&](auto&& node) {
         expect(Tok::Tag::D_paren_r, "closing delimiter of a `{}` expression", Tok::tag2str(tag));
-        return std::move(node);
+        return node;
     };
 
     switch (tag) {
@@ -636,13 +635,13 @@ AST<Expr> Parser::parse_special_func() {
             auto field = parse_sym("field of an `EXTRACT` expression");
             expect(Tok::Tag::K_FROM, "`EXTRACT` expression");
             auto expr = parse_expr("operand of an `EXTRACT` expression");
-            return close(ast<Extract>(track, field, std::move(expr)));
+            return close(ast<Extract>(track, field, expr));
         }
         case Tok::Tag::K_POSITION: {
             auto needle = parse_expr("needle of a `POSITION` expression", tight);
             expect(Tok::Tag::K_IN, "`POSITION` expression");
             auto haystack = parse_expr("haystack of a `POSITION` expression");
-            return close(ast<Position>(track, std::move(needle), std::move(haystack)));
+            return close(ast<Position>(track, needle, haystack));
         }
         case Tok::Tag::K_OVERLAY: {
             auto expr = parse_expr("operand of an `OVERLAY` expression");
@@ -652,7 +651,7 @@ AST<Expr> Parser::parse_special_func() {
             auto from = parse_expr("start of an `OVERLAY` expression");
             AST<Expr> four;
             if (accept(Tok::Tag::K_FOR)) four = parse_expr("length of an `OVERLAY` expression");
-            return close(ast<Overlay>(track, std::move(expr), std::move(placing), std::move(from), std::move(four)));
+            return close(ast<Overlay>(track, expr, placing, from, four));
         }
         case Tok::Tag::K_TRIM: {
             auto spec = Tok::Tag::Nil;
@@ -665,13 +664,13 @@ AST<Expr> Parser::parse_special_func() {
                 // Without a `FROM` there is nothing to trim away - what was parsed *is* the operand.
                 auto first = parse_expr("operand of a `TRIM` expression");
                 if (accept(Tok::Tag::K_FROM)) {
-                    chars = std::move(first);
+                    chars = first;
                     expr  = parse_expr("operand of a `TRIM` expression");
                 } else {
-                    expr = std::move(first);
+                    expr = first;
                 }
             }
-            return close(ast<Trim>(track, spec, std::move(chars), std::move(expr)));
+            return close(ast<Trim>(track, spec, chars, expr));
         }
         case Tok::Tag::K_SUBSTRING: {
             auto expr = parse_expr("operand of a `SUBSTRING` expression");
@@ -679,19 +678,18 @@ AST<Expr> Parser::parse_special_func() {
                 auto from = parse_expr("start of a `SUBSTRING` expression");
                 AST<Expr> four;
                 if (accept(Tok::Tag::K_FOR)) four = parse_expr("length of a `SUBSTRING` expression");
-                return close(ast<Substring>(track, std::move(expr), std::move(from), std::move(four)));
+                return close(ast<Substring>(track, expr, from, four));
             }
 
             // The comma-separated `SUBSTRING(x, 1, 2)` is just an ordinary call.
             ASTs<Expr> args;
-            args.emplace_back(std::move(expr));
+            args.emplace_back(expr);
             while (accept(Tok::Tag::T_comma))
                 args.emplace_back(parse_expr("argument of a `SUBSTRING` expression"));
 
             Syms syms;
             syms.emplace_back(driver().sym(to_lower(Tok::tag2str(tag))));
-            return close(
-                ast<Func>(track, std::move(syms), false, std::move(args), ASTs<Order>{}, AST<Expr>{}, AST<Window>{}));
+            return close(ast<Func>(track, false, AST<Expr>{}, AST<Window>{}, syms, args, ASTs<Order>{}));
         }
         default: fe::unreachable();
     }
@@ -708,7 +706,7 @@ AST<Expr> Parser::parse_cast() {
     auto type = parse_type("target type of a `CAST` expression");
     expect(Tok::Tag::D_paren_r, "closing delimiter of a `CAST` expression");
 
-    return ast<Cast>(track, std::move(expr), std::move(type));
+    return ast<Cast>(track, expr, type);
 }
 
 AST<Expr> Parser::parse_case() {
@@ -727,14 +725,14 @@ AST<Expr> Parser::parse_case() {
         auto cond = parse_expr("condition of a `WHEN` clause");
         expect(Tok::Tag::K_THEN, "`WHEN` clause of a `CASE` expression");
         auto then = parse_expr("result of a `WHEN` clause");
-        whens.emplace_back(ast<CaseExpr::When>(when_track, std::move(cond), std::move(then)));
+        whens.emplace_back(ast<CaseExpr::When>(when_track, cond, then));
     } while (ahead().isa(Tok::Tag::K_WHEN));
 
     AST<Expr> elze;
     if (accept(Tok::Tag::K_ELSE)) elze = parse_expr("`ELSE` clause of a `CASE` expression");
     expect(Tok::Tag::K_END, "`CASE` expression");
 
-    return ast<CaseExpr>(track, std::move(operand), std::move(whens), std::move(elze));
+    return ast<CaseExpr>(track, operand, elze, whens);
 }
 
 /*
@@ -814,8 +812,7 @@ AST<Constraint> Parser::parse_constraint(bool table_level) {
         }
     }
 
-    return ast<Constraint>(track, name, tag, std::move(cols), std::move(table), std::move(ref_cols), std::move(expr),
-                           on_delete, on_update);
+    return ast<Constraint>(track, name, tag, expr, on_delete, on_update, cols, table, ref_cols);
 }
 
 /*
@@ -829,7 +826,7 @@ AST<Create::Elem> Parser::parse_col_def() {
     ASTs<Constraint> constraints;
     while (ISA(ahead().tag(), C_COL_CONSTRAINT))
         constraints.emplace_back(parse_constraint(false));
-    return ast<Create::Elem>(track, sym, std::move(type), std::move(constraints));
+    return ast<Create::Elem>(track, sym, type, constraints);
 }
 
 AST<Expr> Parser::parse_create() {
@@ -878,8 +875,7 @@ AST<Expr> Parser::parse_create_table(Tracker track, bool temporary) {
         });
     }
 
-    return ast<Create>(track, std::move(syms), temporary, if_not_exists, std::move(elems), std::move(constraints),
-                       std::move(query));
+    return ast<Create>(track, temporary, if_not_exists, query, syms, elems, constraints);
 }
 
 AST<Expr> Parser::parse_create_view(Tracker track, bool replace) {
@@ -898,7 +894,7 @@ AST<Expr> Parser::parse_create_view(Tracker track, bool replace) {
         expect_non_key(N_OPTION, "`WITH CHECK OPTION` of a `CREATE VIEW` expression");
     }
 
-    return ast<CreateView>(track, std::move(syms), replace, std::move(cols), std::move(query), check);
+    return ast<CreateView>(track, replace, query, check, syms, cols);
 }
 
 AST<Expr> Parser::parse_create_index(Tracker track, bool unique) {
@@ -910,13 +906,13 @@ AST<Expr> Parser::parse_create_index(Tracker track, bool unique) {
     ASTs<Order> cols;
     parse_list("index column list", [&]() { cols.emplace_back(parse_order()); });
 
-    return ast<CreateIndex>(track, sym, unique, if_not_exists, std::move(table), std::move(cols));
+    return ast<CreateIndex>(track, sym, unique, if_not_exists, table, cols);
 }
 
 AST<Expr> Parser::parse_create_schema(Tracker track) {
     bool if_not_exists = parse_if_exists(true);
     auto syms          = parse_name("schema name");
-    return ast<CreateSchema>(track, std::move(syms), if_not_exists);
+    return ast<CreateSchema>(track, if_not_exists, syms);
 }
 
 AST<Expr> Parser::parse_alter() {
@@ -994,8 +990,7 @@ AST<Expr> Parser::parse_alter() {
         syntax_err("`ADD`, `DROP`, `ALTER`, or `RENAME`", "`ALTER TABLE` expression");
     }
 
-    return ast<Alter>(track, std::move(table), tag, sym, sym2, std::move(elem), std::move(constraint), std::move(type),
-                      std::move(expr), behavior);
+    return ast<Alter>(track, tag, sym, sym2, elem, constraint, type, expr, behavior, table);
 }
 
 AST<Expr> Parser::parse_drop() {
@@ -1016,7 +1011,7 @@ AST<Expr> Parser::parse_drop() {
 
     bool if_exists = parse_if_exists(false);
     auto syms      = parse_name("name of a `DROP` expression");
-    return ast<Drop>(track, tag, std::move(syms), if_exists, parse_behavior());
+    return ast<Drop>(track, tag, if_exists, parse_behavior(), syms);
 }
 
 AST<Expr> Parser::parse_truncate() {
@@ -1024,7 +1019,7 @@ AST<Expr> Parser::parse_truncate() {
     eat(Tok::Tag::K_TRUNCATE);
     expect(Tok::Tag::K_TABLE, "`TRUNCATE` expression");
     auto syms = parse_name("table name");
-    return ast<Truncate>(track, std::move(syms));
+    return ast<Truncate>(track, syms);
 }
 
 AST<Expr> Parser::parse_transact() {
@@ -1090,7 +1085,7 @@ AST<Expr> Parser::parse_insert() {
     else
         query = parse_query("source of an `INSERT` expression", false);
 
-    return ast<Insert>(track, std::move(syms), std::move(cols), std::move(query));
+    return ast<Insert>(track, query, syms, cols);
 }
 
 AST<Expr> Parser::parse_update() {
@@ -1107,11 +1102,11 @@ AST<Expr> Parser::parse_update() {
         auto col          = parse_name("column name of a `SET` clause");
         expect(Tok::Tag::T_eq, "assignment of a `SET` clause");
         auto expr = parse_expr("value of a `SET` clause");
-        assigns.emplace_back(ast<Update::Assign>(assign_track, std::move(col), std::move(expr)));
+        assigns.emplace_back(ast<Update::Assign>(assign_track, expr, col));
     } while (accept(Tok::Tag::T_comma));
 
     auto where = accept(Tok::Tag::K_WHERE) ? parse_expr("`WHERE` expression") : nullptr;
-    return ast<Update>(track, std::move(syms), as, std::move(assigns), std::move(where));
+    return ast<Update>(track, as, where, syms, assigns);
 }
 
 AST<Expr> Parser::parse_delete() {
@@ -1123,7 +1118,7 @@ AST<Expr> Parser::parse_delete() {
     if (accept(Tok::Tag::K_AS)) as = parse_sym("`AS` clause");
 
     auto where = accept(Tok::Tag::K_WHERE) ? parse_expr("`WHERE` expression") : nullptr;
-    return ast<Delete>(track, std::move(syms), as, std::move(where));
+    return ast<Delete>(track, as, where, syms);
 }
 
 /*
@@ -1153,7 +1148,7 @@ AST<Expr> Parser::parse_group_elem() {
 
     ASTs<Expr> args;
     parse_list("grouping element list", [&]() { args.emplace_back(parse_group_elem()); });
-    return ast<Grouping>(track, tag, std::move(args));
+    return ast<Grouping>(track, tag, args);
 }
 
 AST<Expr> Parser::parse_select() {
@@ -1187,7 +1182,7 @@ AST<Expr> Parser::parse_select() {
             } else if (ahead().isa(Tok::Tag::V_id) && !isa_non_key(N_LIMIT)) {
                 syms.emplace_back(lex().sym()); // an alias may drop the `AS`
             }
-            elems.emplace_back(ast<Select::Elem>(track, std::move(expr), std::move(syms)));
+            elems.emplace_back(ast<Select::Elem>(track, expr, syms));
         } while (accept(Tok::Tag::T_comma));
     }
 
@@ -1218,12 +1213,11 @@ AST<Expr> Parser::parse_select() {
             auto sym       = parse_sym("window name");
             expect(Tok::Tag::K_AS, "`WINDOW` clause");
             auto window = parse_window();
-            windows.emplace_back(ast<Select::WindowDef>(win_track, sym, std::move(window)));
+            windows.emplace_back(ast<Select::WindowDef>(win_track, sym, window));
         } while (accept(Tok::Tag::T_comma));
     }
 
-    return ast<Select>(track, all, std::move(elems), std::move(froms), std::move(where), std::move(groups),
-                       std::move(having), std::move(windows));
+    return ast<Select>(track, all, where, having, elems, froms, groups, windows);
 }
 
 /*
@@ -1271,10 +1265,10 @@ AST<Expr> Parser::parse_table_ref() {
         } else if (accept(Tok::Tag::K_USING)) {
             Syms syms;
             parse_col_list("join column list for a `USING` clause of a `JOIN` specification", syms);
-            spec = std::move(syms);
+            spec = driver().copy(syms);
         }
 
-        lhs = ast<Join>(track, std::move(lhs), *tag, std::move(rhs), std::move(spec));
+        lhs = ast<Join>(track, lhs, *tag, rhs, spec);
     }
 
     return lhs;
@@ -1308,7 +1302,7 @@ AST<Expr> Parser::parse_table_factor() {
 
     // Nothing bound to it? Then the primary is the table reference, and no node stands in between.
     if (!lateral && !ordinality && !as) return expr;
-    return ast<TableRef>(track, lateral, std::move(expr), ordinality, as, std::move(cols));
+    return ast<TableRef>(track, lateral, expr, ordinality, as, cols);
 }
 
 /// A table name, a function call such as `unnest(a)`, a derived table, or a parenthesized table
@@ -1349,7 +1343,7 @@ AST<Order> Parser::parse_order() {
         }
     }
 
-    return ast<Order>(track, std::move(expr), desc, nulls);
+    return ast<Order>(track, expr, desc, nulls);
 }
 
 AST<Window> Parser::parse_window() {
@@ -1358,7 +1352,7 @@ AST<Window> Parser::parse_window() {
     // `OVER w` names a window defined in the `WINDOW` clause and takes no parentheses.
     if (!ahead().isa(Tok::Tag::D_paren_l)) {
         auto sym = parse_sym("window name");
-        return ast<Window>(track, sym, false, ASTs<Expr>{}, ASTs<Order>{}, AST<Frame>{});
+        return ast<Window>(track, sym, false, AST<Frame>{}, ASTs<Expr>{}, ASTs<Order>{});
     }
 
     eat(Tok::Tag::D_paren_l);
@@ -1389,7 +1383,7 @@ AST<Window> Parser::parse_window() {
     if (ISA(ahead().tag(), C_FRAME_UNIT)) frame = parse_frame();
 
     expect(Tok::Tag::D_paren_r, "closing delimiter of a window specification");
-    return ast<Window>(track, name, true, std::move(partitions), std::move(orders), std::move(frame));
+    return ast<Window>(track, name, true, frame, partitions, orders);
 }
 
 AST<Frame::Bound> Parser::parse_frame_bound() {
@@ -1409,9 +1403,9 @@ AST<Frame::Bound> Parser::parse_frame_bound() {
 
     // Above Tok::Prec::And, so the `AND` of a `BETWEEN` terminates the offset instead of joining it.
     auto expr = parse_expr("offset of a window frame bound", Tok::Prec::Not);
-    if (accept_non_key(N_PRECEDING)) return ast<Frame::Bound>(track, Frame::Bound::Preceding, std::move(expr));
+    if (accept_non_key(N_PRECEDING)) return ast<Frame::Bound>(track, Frame::Bound::Preceding, expr);
     expect_non_key(N_FOLLOWING, "window frame bound");
-    return ast<Frame::Bound>(track, Frame::Bound::Following, std::move(expr));
+    return ast<Frame::Bound>(track, Frame::Bound::Following, expr);
 }
 
 AST<Frame> Parser::parse_frame() {
@@ -1444,7 +1438,7 @@ AST<Frame> Parser::parse_frame() {
         }
     }
 
-    return ast<Frame>(track, unit, std::move(lo), std::move(hi), exclude);
+    return ast<Frame>(track, unit, lo, hi, exclude);
 }
 
 /*
@@ -1462,14 +1456,14 @@ AST<Expr> Parser::parse_values() {
             ASTs<Expr> args;
             parse_list("row of a `VALUES` clause",
                        [&]() { args.emplace_back(parse_expr("value of a `VALUES` clause")); });
-            rows.emplace_back(ast<ParenExprList>(row_track, std::move(args)));
+            rows.emplace_back(ast<ParenExprList>(row_track, args));
         } else {
             // A one-column row needs no parentheses of its own.
             rows.emplace_back(parse_expr("value of a `VALUES` clause"));
         }
     } while (accept(Tok::Tag::T_comma));
 
-    return ast<Values>(track, std::move(rows));
+    return ast<Values>(track, rows);
 }
 
 AST<Expr> Parser::parse_table() {
@@ -1494,7 +1488,7 @@ AST<Expr> Parser::parse_query_primary(fe::Cite ctxt, bool value_ok) {
         auto track = tracker();
         ASTs<Expr> args;
         parse_list(fe::Cite(ctxt), [&]() { args.emplace_back(parse_query(ctxt, false)); });
-        return ast<ParenExprList>(track, std::move(args));
+        return ast<ParenExprList>(track, args);
     }
 
     syntax_err("query expression", ctxt);
@@ -1510,7 +1504,7 @@ AST<Expr> Parser::parse_query_term(fe::Cite ctxt, bool value_ok) {
         bool all = (bool)accept(Tok::Tag::K_ALL);
         if (!all) accept(Tok::Tag::K_DISTINCT);
         auto rhs = parse_query_primary("right-hand side of an `INTERSECT` expression", value_ok);
-        lhs      = ast<SetOp>(track, std::move(lhs), SetOp::Intersect, all, std::move(rhs));
+        lhs      = ast<SetOp>(track, lhs, SetOp::Intersect, all, rhs);
     }
 
     return lhs;
@@ -1533,7 +1527,7 @@ AST<Expr> Parser::parse_query(fe::Cite ctxt, bool value_ok) {
             auto _     = anchor(Tok::Tag::D_paren_r);
             auto query = parse_query("body of a common table expression", false);
             expect(Tok::Tag::D_paren_r, "closing delimiter of a common table expression");
-            ctes.emplace_back(ast<Query::Cte>(cte_track, sym, std::move(cols), std::move(query)));
+            ctes.emplace_back(ast<Query::Cte>(cte_track, sym, query, cols));
         } while (accept(Tok::Tag::T_comma));
     }
 
@@ -1544,7 +1538,7 @@ AST<Expr> Parser::parse_query(fe::Cite ctxt, bool value_ok) {
         bool all = (bool)accept(Tok::Tag::K_ALL);
         if (!all) accept(Tok::Tag::K_DISTINCT);
         auto rhs = parse_query_term("right-hand side of a `UNION` or `EXCEPT` expression", value_ok);
-        body     = ast<SetOp>(track, std::move(body), tag, all, std::move(rhs));
+        body     = ast<SetOp>(track, body, tag, all, rhs);
     }
 
     ASTs<Order> orders;
@@ -1579,8 +1573,7 @@ AST<Expr> Parser::parse_query(fe::Cite ctxt, bool value_ok) {
         locks.emplace_back(parse_lock());
 
     if (ctes.empty() && orders.empty() && !offset && !fetch && !limit && locks.empty()) return body;
-    return ast<Query>(track, recursive, std::move(ctes), std::move(body), std::move(orders), std::move(offset),
-                      std::move(fetch), std::move(limit), std::move(locks));
+    return ast<Query>(track, recursive, body, offset, fetch, limit, ctes, orders, locks);
 }
 
 /// `FOR UPDATE|NO KEY UPDATE|SHARE|KEY SHARE [OF <tables>] [NOWAIT|SKIP LOCKED]`.
@@ -1604,10 +1597,10 @@ AST<Lock> Parser::parse_lock() {
         expect(Tok::Tag::K_UPDATE, "`FOR` clause of a query expression");
     }
 
-    fe::Vector<Syms> tables;
+    fe::Vector<fe::View<Sym>> tables;
     if (accept(Tok::Tag::K_OF)) {
         do
-            tables.emplace_back(parse_name("table name of an `OF` clause"));
+            tables.emplace_back(driver().copy(parse_name("table name of an `OF` clause")));
         while (accept(Tok::Tag::T_comma));
     }
 
@@ -1619,7 +1612,7 @@ AST<Lock> Parser::parse_lock() {
         wait = Lock::Skip_Locked;
     }
 
-    return ast<Lock>(track, strength, std::move(tables), wait);
+    return ast<Lock>(track, strength, wait, tables);
 }
 
 } // namespace sql

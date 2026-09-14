@@ -5,7 +5,7 @@ using namespace std::literals;
 namespace sql {
 
 Driver::Driver() {
-#define CODE(t, str) keys_[sym(to_lower(str##sv))] = Tok::Tag::t;
+#define CODE(t, str) keys_.emplace(sym(to_lower(str##sv)), Tok::Tag::t);
     SQL_KEY(CODE)
 #undef CODE
 
