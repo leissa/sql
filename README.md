@@ -12,7 +12,7 @@
 [![Windows](https://img.shields.io/github/actions/workflow/status/leissa/sql/windows.yml?style=flat-square&label=⊞%20Windows&branch=main)](https://github.com/leissa/sql/actions/workflows/windows.yml?query=branch%3Amain)
 [![Format](https://img.shields.io/github/actions/workflow/status/leissa/sql/format.yml?style=flat-square&logo=clang&logoColor=white&label=Format&branch=main)](https://github.com/leissa/sql/actions/workflows/format.yml?query=branch%3Amain)
 
-A small SQL parser, handwritten on top of [**FE**](https://github.com/leissa/fe).
+A small SQL parser, handwritten on top of [**FE**](https://leissa.github.io/fe/).
 
 It lexes and parses a substantial subset of SQL into an arena-allocated AST, and can print that AST
 back out as SQL.
