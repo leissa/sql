@@ -16,6 +16,7 @@ A small SQL parser, handwritten on top of [**FE**](https://github.com/leissa/fe)
 
 It lexes and parses a substantial subset of SQL into an arena-allocated AST, and can print that AST
 back out as SQL.
+The [grammar](#-grammar) below spells out exactly which subset.
 Diagnostics carry precise `path:row:col` locations, and the parser recovers rather than giving up on
 the first error.
 
@@ -29,88 +30,6 @@ This is a compact, readable example of a handwritten recursive-descent frontend:
 - a black-box test suite that holds the parser and the printer to each other.
 
 It is deliberately small enough to read in one sitting.
-
-## ✨ What It Parses
-
-**Statements**
-
-A program is a `;`-separated list of *statements* - not of arbitrary expressions.
-A stray `;` is an empty statement and is skipped.
-
-- `CREATE TABLE` - column definitions, and column- and table-level constraints:
-  `NOT NULL`, `PRIMARY KEY`, `UNIQUE`, `CHECK`, `DEFAULT`, `REFERENCES`, `FOREIGN KEY`, and named
-  `CONSTRAINT`s, with `ON DELETE`/`ON UPDATE` referential actions.
-  Also `[GLOBAL|LOCAL] TEMPORARY`, `IF NOT EXISTS`, and `CREATE TABLE ... AS <query>`.
-- `CREATE [OR REPLACE] VIEW` with an optional column list and `WITH [CASCADED|LOCAL] CHECK OPTION`,
-  `CREATE [UNIQUE] INDEX`, and `CREATE SCHEMA`.
-- `ALTER TABLE` - `ADD`/`DROP` a column or a constraint, `ALTER COLUMN` to set or drop a `DEFAULT`,
-  a `NOT NULL`, or the data type, and `RENAME` the table or a column.
-- `DROP TABLE|VIEW|INDEX|SCHEMA`, with `IF EXISTS` and `CASCADE`/`RESTRICT`; `TRUNCATE TABLE`.
-- `SELECT` - `ALL`/`DISTINCT`, aliases with and without `AS`, `WHERE`, `GROUP BY`, `HAVING`,
-  `WINDOW`. The `FROM` clause is optional, so `SELECT 1` parses.
-- `INSERT INTO` - from a `VALUES` table, from a query, or `DEFAULT VALUES`.
-- `UPDATE` / `DELETE` - with an optional correlation name and `WHERE` clause.
-- Transaction control: `START TRANSACTION` / `BEGIN`, `COMMIT`, `ROLLBACK [TO SAVEPOINT ...]`,
-  `SAVEPOINT`, and `RELEASE SAVEPOINT`.
-- Names are qualified wherever a table is named: `s.t`, `cat.sch.tab`.
-
-**Query expressions**
-
-- `WITH [RECURSIVE]` common table expressions, each with an optional column list.
-- `UNION`, `INTERSECT`, and `EXCEPT`, each with `ALL`/`DISTINCT`.
-  `INTERSECT` binds tighter, and both chains are left-associative.
-- A `VALUES` table and the explicit `TABLE <name>` stand on their own as queries.
-- `ORDER BY` with `ASC`/`DESC` and `NULLS FIRST`/`NULLS LAST`, plus `OFFSET`, `FETCH`, and `LIMIT`
-  in any order and combination.
-- Row locking: `FOR UPDATE`, `FOR NO KEY UPDATE`, `FOR SHARE`, and `FOR KEY SHARE`, each with an
-  optional `OF <tables>` and a trailing `NOWAIT` or `SKIP LOCKED`.
-- `GROUP BY` elements beyond a plain expression: `ROLLUP`, `CUBE`, `GROUPING SETS`, and the empty
-  grouping set `()`.
-- Subqueries anywhere an expression is allowed, including derived tables in `FROM`, `LATERAL` ones,
-  and `UNNEST(...) WITH ORDINALITY`.
-
-**Joins**
-
-- `INNER`, `LEFT`, `RIGHT`, and `FULL` (with optional `OUTER`), plus `CROSS` and `NATURAL`.
-- `ON <condition>` and `USING (<columns>)`, in arbitrarily long chains.
-- A correlation name binds to one table reference, so both sides of a join can carry their own:
-  `a AS x JOIN b AS y ON x.id = y.id`. Parentheses around a table reference merely group.
-
-**Value expressions**
-
-- The usual arithmetic, comparison, and boolean operators, correctly ranked and left-associative,
-  plus `||` concatenation and `%`.
-- `IS [NOT]`, `IS [NOT] DISTINCT FROM`, `[NOT] IN`, `[NOT] BETWEEN`, and `EXISTS`.
-- `[NOT] LIKE`, `[NOT] ILIKE`, and `[NOT] SIMILAR TO`, each with an optional `ESCAPE`.
-- Quantified comparisons: `a = ANY (...)`, `a > ALL (...)`, `a <> SOME (...)`.
-- `CASE` in both the simple and the searched form, `CAST(... AS <type>)`, and `... COLLATE <name>`.
-- Function and aggregate calls, including `COUNT(*)` and `COUNT(DISTINCT x)`, with the trailing
-  `WITHIN GROUP (ORDER BY ...)`, `FILTER (WHERE ...)`, and `OVER` clauses.
-- Window specifications: `PARTITION BY`, `ORDER BY`, a `ROWS`/`RANGE`/`GROUPS` frame with
-  `BETWEEN ... AND ...` and `EXCLUDE`, and references to a window named in the `WINDOW` clause.
-- The functions the standard spells with keyword-separated arguments: `EXTRACT(f FROM x)`,
-  `SUBSTRING(x FROM a FOR b)`, `TRIM([BOTH] c FROM x)`, `POSITION(a IN b)`,
-  `OVERLAY(x PLACING y FROM a FOR b)`.
-- Qualified references such as `t.a` and `t.*`, and qualified calls such as `s.f(x)`.
-- Array subscripts, `a[i]` and `a[i][j]`, binding tighter than any operator.
-
-**Types**
-
-- `INTEGER`, `INT`, `SMALLINT`, `BIGINT`, `BOOLEAN`, `DATE`, `REAL`, `DOUBLE PRECISION`, `FLOAT`,
-  `TIME`, `TIMESTAMP`, `INTERVAL`, `NUMERIC`, `DECIMAL`, `DEC`, `CHAR`, `CHARACTER [VARYING]`,
-  `VARCHAR`, `BINARY`, `VARBINARY`, `BLOB`, `CLOB` - with length and precision arguments.
-- `[WITHOUT] TIME ZONE`, and an interval qualifier such as `INTERVAL DAY(3) TO SECOND(6)`.
-- Any identifier is accepted as a type name too, so vendor types like `text` or `uuid` just work.
-
-**Lexical**
-
-- Keywords are case insensitive and unquoted identifiers fold to lower case.
-- Double-quoted delimited identifiers keep their case; a doubled `"` escapes one.
-- Single-quoted string literals, where a doubled `'` escapes one.
-- Integer literals, and real ones with a fraction and/or an exponent: `1.5`, `.5`, `2.5E-3`.
-- Typed literals: `DATE '...'`, `TIME '...'`, `TIMESTAMP '...'`, `INTERVAL '1-2' YEAR TO MONTH`.
-- Dynamic parameter markers in all three spellings: `?`, `$1`, and `:name`.
-- `--` line comments and `/* ... */` block comments.
 
 ## 🧭 Design: Parse Loosely, Check Later
 
@@ -146,6 +65,7 @@ saying so gives a better diagnostic than running off the end of the file.
 
 The grammar below is the one this parser actually implements - not the standard's, which is both
 larger and stricter.
+It is complete: every construct the parser accepts has a production here.
 It is deliberately *ambiguous*: `expr ::= expr '+' expr | expr '*' expr` says which operators exist,
 and the [precedence table](#precedence) below says how to read them.
 Spelling the levels out as a chain of nonterminals would say the same thing far less legibly, and
@@ -170,6 +90,7 @@ string   ::= "'" { char } "'"               (* '' escapes one ' *)
 param    ::= '?' | '$' integer | ':' ident
 ```
 
+Keywords are case insensitive, being folded the same way.
 Comments are `-- to end of line` and `/* ... */`.
 
 ### Statements
@@ -478,6 +399,39 @@ The two modes answer different questions. `--each` is what an embedding that par
 time pays, setup included; `--once` pays the setup once and leaves parsing throughput. What is left
 between them is registering each source and constructing a Parser - both O(1), since the few hundred
 reserved and non-reserved words are interned once per Driver rather than once per Parser.
+
+#### Against hyrise/sql-parser
+
+[hyrise/sql-parser](https://github.com/hyrise/sql-parser) makes a fair yardstick: a bison/flex parser
+of comparable scope, and the source of several of the corpora above.
+Both built `Release` and pinned to one 5.15 GHz Zen 5 core of a Ryzen AI 9 HX PRO 370, with
+`hyperfine` for the wall clock and `perf stat -e instructions` for a figure that does not drift
+between runs:
+
+| corpus | mode | ours | hyrise | instructions |
+| --- | --- | --- | --- | --- |
+| JOB, 113 queries | `--each` | 103.7 MB/s | 59.5 MB/s | 0.59 G vs 1.04 G |
+| JOB | `--once` | 157.8 MB/s | 68.1 MB/s | 0.48 G vs 1.05 G |
+| TPC-H, 22 queries | `--each` | 67.8 MB/s | 50.1 MB/s | 0.21 G vs 0.28 G |
+| TPC-H | `--once` | 114.1 MB/s | 59.3 MB/s | 0.16 G vs 0.29 G |
+| generated, 32 MiB | `--once` | 111.3 MB/s | 43.9 MB/s | 13.4 G vs 26.0 G |
+| generated, 256 MiB | `--once` | 113.9 MB/s | 43.1 MB/s | 39.8 G vs 69.6 G |
+
+Lexing alone, against their flex scanner: 290.7 MB/s to 147.2 on JOB, and 204.5 to 114.7 on the
+32 MiB corpus.
+Peak RSS over 500k times `SELECT a FROM t;` is 146 MiB against their 284 - 306 bytes per statement to
+their 596.
+
+Two things worth reading off that table.
+Throughput does not fall off as the corpus grows, because the per-statement footprint is small enough
+that the working set does not grow with it either.
+And the margin is narrowest in `--each`, where registering each source and hashing its path is a
+larger share of the work than parsing - that, rather than anything in the parser, is what the two
+modes still differ by.
+
+The two do not do quite the same work per byte, in both directions: their scanner recognizes keywords
+inside the DFA, where this one interns and looks up every word, but it is also byte-oriented and
+never decodes UTF-8, where this one decodes and validates every code point.
 
 After deliberately changing what the parser accepts or how it prints, regenerate the goldens and
 review the resulting diff:
