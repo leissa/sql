@@ -12,13 +12,6 @@ namespace sql {
 
 namespace utf8 = fe::utf8;
 
-namespace {
-/// Most SQL identifiers are already lower-case; the ones that are not are nearly always keywords.
-bool needs_fold(std::string_view sv) {
-    return std::ranges::any_of(sv, [](char c) { return utf8::isupper(c); });
-}
-} // namespace
-
 Lexer::Lexer(Driver& driver, const fe::Src& src)
     : fe::Lexer<1, Lexer>(src)
     , driver_(driver)
@@ -65,10 +58,7 @@ Tok Lexer::lex() {
         if (accept(':')) {
             if (accept('=')) return {loc_, Tok::Tag::T_assign};
             // `:name` is a named parameter marker - one character of lookahead settles it.
-            if (utf8::isalpha(ahead()) || ahead() == '_') {
-                accept_while([](char32_t c) { return c == '_' || utf8::isalnum(c); });
-                return {loc_, Tok::Tag::V_param, needs_fold(view()) ? driver_.sym(lower()) : driver_.sym(view())};
-            }
+            if (utf8::isalpha(ahead()) || ahead() == '_') return {loc_, Tok::Tag::V_param, lex_word()};
             return {loc_, Tok::Tag::T_colon};
         }
         if (accept('+')) return {loc_, Tok::Tag::T_add};
@@ -110,8 +100,7 @@ Tok Lexer::lex() {
 
         // lex identifier or keyword
         if (utf8::isalpha(ahead()) || ahead() == '_') {
-            accept_while([](char32_t c) { return c == '_' || utf8::isalnum(c); });
-            auto sym = needs_fold(view()) ? driver_.sym(lower()) : driver_.sym(view());
+            auto sym = lex_word();
             if (auto tag = keys_.find(sym)) return {loc_, *tag}; // keyword
             return {loc_, sym};                                  // identifier
         }
@@ -122,6 +111,21 @@ Tok Lexer::lex() {
 
         recover_char();
     }
+}
+
+/// Lexes an identifier-shaped word and interns it, case-folded into Lexer::word_.
+/// @note Lexer::lex has already consumed the `:` of a parameter marker, if there was one, and it is part of the Sym.
+Sym Lexer::lex_word() {
+    accept_while([](char32_t c) { return c == '_' || utf8::isalnum(c); });
+
+    auto sv = view();
+    // Most SQL identifiers are already lower-case; the ones that are not are nearly always keywords.
+    if (!std::ranges::any_of(sv, [](char c) { return utf8::isupper(c); })) return driver_.sym(sv);
+    if (sv.size() > word_.size()) return driver_.sym(lower());
+
+    for (size_t i = 0, e = sv.size(); i != e; ++i)
+        word_[i] = (char)utf8::tolower(sv[i]);
+    return driver_.sym(std::string_view(word_.data(), sv.size()));
 }
 
 /// Lexes a numeric literal. A `.` or an exponent makes it a Tok::Tag::V_real, whose Sym keeps the
