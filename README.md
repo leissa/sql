@@ -408,80 +408,73 @@ Both built `Release` and pinned to one 5.15 GHz Zen 5 core of a Ryzen AI 9 HX PR
 `hyperfine` for the wall clock and `perf stat -e instructions` for a figure that does not drift
 between runs:
 
-Throughput is more is better, instructions fewer is better; the winner of each pair is in bold.
-
-| corpus | mode | ours | hyrise | instructions |
-| --- | --- | --- | --- | --- |
-| JOB, 113 queries | `--each` | **103.7 MB/s** | 59.5 MB/s | **0.59 G** vs 1.04 G |
-| JOB | `--once` | **157.8 MB/s** | 68.1 MB/s | **0.48 G** vs 1.05 G |
-| TPC-H, 22 queries | `--each` | **67.8 MB/s** | 50.1 MB/s | **0.21 G** vs 0.28 G |
-| TPC-H | `--once` | **114.1 MB/s** | 59.3 MB/s | **0.16 G** vs 0.29 G |
-| generated, 32 MiB | `--once` | **111.3 MB/s** | 43.9 MB/s | **13.4 G** vs 26.0 G |
-| generated, 256 MiB | `--once` | **113.9 MB/s** | 43.1 MB/s | **39.8 G** vs 69.6 G |
+- **Throughput** is *more is better*.
+- **Instructions** is *fewer is better*.
+- The **winner** of each pair is in **bold*.
 
 <table>
   <thead>
     <tr>
       <th rowspan="2">Corpus</th>
       <th rowspan="2">Mode</th>
-      <th colspan="2">Throughput</th>
-      <th colspan="2">Instructions</th>
+      <th colspan="2">Throughput (MB/s) </th>
+      <th colspan="2">Instructions (G) </th>
     </tr>
     <tr>
       <th>Ours</th>
-      <th>HyRise</th>
+      <th>Hyrise</th>
       <th>Ours</th>
-      <th>HyRise</th>
+      <th>Hyrise</th>
     </tr>
   </thead>
   <tbody>
     <tr>
       <td>JOB, 113 queries</td>
       <td><code>--each</code></td>
-      <td><strong>103.7 MB/s</strong></td>
-      <td>59.5 MB/s</td>
-      <td><strong>0.59 G</strong></td>
-      <td>1.04 G</td>
+      <td><strong>103.7</strong></td>
+      <td>59.5</td>
+      <td><strong>0.59</strong></td>
+      <td>1.04</td>
     </tr>
     <tr>
       <td>JOB</td>
       <td><code>--once</code></td>
-      <td><strong>157.8 MB/s</strong></td>
-      <td>68.1 MB/s</td>
-      <td><strong>0.48 G</strong></td>
-      <td>1.05 G</td>
+      <td><strong>157.8</strong></td>
+      <td>68.1</td>
+      <td><strong>0.48</strong></td>
+      <td>1.05</td>
     </tr>
     <tr>
       <td>TPC-H, 22 queries</td>
       <td><code>--each</code></td>
-      <td><strong>67.8 MB/s</strong></td>
-      <td>50.1 MB/s</td>
-      <td><strong>0.21 G</strong></td>
-      <td>0.28 G</td>
+      <td><strong>67.8</strong></td>
+      <td>50.1</td>
+      <td><strong>0.21</strong></td>
+      <td>0.28</td>
     </tr>
     <tr>
       <td>TPC-H</td>
       <td><code>--once</code></td>
-      <td><strong>114.1 MB/s</strong></td>
-      <td>59.3 MB/s</td>
-      <td><strong>0.16 G</strong></td>
-      <td>0.29 G</td>
+      <td><strong>114.1</strong></td>
+      <td>59.3</td>
+      <td><strong>0.16</strong></td>
+      <td>0.29</td>
     </tr>
     <tr>
       <td>generated, 32 MiB</td>
       <td><code>--once</code></td>
-      <td><strong>111.3 MB/s</strong></td>
-      <td>43.9 MB/s</td>
-      <td><strong>13.4 G</strong></td>
-      <td>26.0 G</td>
+      <td><strong>111.3</strong></td>
+      <td>43.9</td>
+      <td><strong>13.4</strong></td>
+      <td>26.0</td>
     </tr>
     <tr>
       <td>generated, 256 MiB</td>
       <td><code>--once</code></td>
-      <td><strong>113.9 MB/s</strong></td>
-      <td>43.1 MB/s</td>
-      <td><strong>39.8 G</strong></td>
-      <td>69.6 G</td>
+      <td><strong>113.9</strong></td>
+      <td>43.1</td>
+      <td><strong>39.8</strong></td>
+      <td>69.6</td>
     </tr>
   </tbody>
 </table>
