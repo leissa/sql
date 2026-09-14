@@ -2,6 +2,8 @@
 
 #include <cassert>
 
+#include <string>
+
 #include <fe/format.h>
 #include <fe/loc.h>
 #include <fe/sym.h>
@@ -11,6 +13,9 @@ namespace sql {
 using fe::Loc;
 using fe::Pos;
 using fe::Sym;
+
+/// Folds @p sv to lower case - the shape in which reserved words are interned and looked up.
+std::string to_lower(std::string_view sv);
 
 // clang-format off
 #define SQL_TOK(m)                              \

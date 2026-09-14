@@ -1,5 +1,8 @@
 #include "sql/lexer.h"
 
+#include <charconv>
+
+#include <limits>
 #include <ranges>
 
 using namespace std::literals;
@@ -8,21 +11,16 @@ namespace sql {
 
 namespace utf8 = fe::utf8;
 
-static std::string to_lower(std::string_view sv) {
-    std::string res;
-    for (auto c : sv)
-        res += tolower(c);
-    return res;
-}
-
 Lexer::Lexer(Driver& driver, const fe::Src& src)
     : fe::Lexer<1, Lexer>(src)
-    , driver_(driver) {
-#define CODE(t, str) keywords_[driver_.sym(to_lower(str##s))] = Tok::Tag::t;
-    SQL_KEY(CODE)
-#undef CODE
-}
+    , driver_(driver)
+    , keys_(driver.keys()) {}
 
+// The one hot loop in the whole parser: `accept` and utf8::decode have to end up inside it. GCC
+// budgets inlining per translation unit, and this one is small, so say so outright.
+#if defined(__GNUC__) || defined(__clang__)
+[[gnu::flatten]]
+#endif
 Tok Lexer::lex() {
     while (true) {
         start();
@@ -62,7 +60,7 @@ Tok Lexer::lex() {
             if (accept<Append::Lower>([](char32_t c) { return c == '_' || utf8::isalpha(c); })) {
                 while (accept<Append::Lower>(
                     [](char32_t c) { return c == '_' || utf8::isalpha(c) || utf8::isdigit(c); })) {}
-                return {loc_, Tok::Tag::V_param, driver_.sym(str_)};
+                return {loc_, Tok::Tag::V_param, driver_.sym(str())};
             }
             return {loc_, Tok::Tag::T_colon};
         }
@@ -76,10 +74,10 @@ Tok Lexer::lex() {
         }
 
         // A dynamic parameter marker: `?`, `$1`, or `:name`. Sym holds the marker verbatim.
-        if (accept('?')) return {loc_, Tok::Tag::V_param, driver_.sym(str_)};
+        if (accept('?')) return {loc_, Tok::Tag::V_param, driver_.sym(str())};
         if (accept('$')) {
             while (accept(utf8::isdigit)) {}
-            return {loc_, Tok::Tag::V_param, driver_.sym(str_)};
+            return {loc_, Tok::Tag::V_param, driver_.sym(str())};
         }
 
         // sub or single-line comment
@@ -108,9 +106,9 @@ Tok Lexer::lex() {
         if (accept<Append::Lower>([](char32_t c) { return c == '_' || utf8::isalpha(c); })) {
             while (accept<Append::Lower>([](char32_t c) { return c == '_' || utf8::isalpha(c) || utf8::isdigit(c); })) {
             }
-            auto sym = driver_.sym(str_);
-            if (auto i = keywords_.find(sym); i != keywords_.end()) return {loc_, i->second}; // keyword
-            return {loc_, sym};                                                               // identifier
+            auto sym = driver_.sym(str());
+            if (auto i = keys_.find(sym); i != keys_.end()) return {loc_, i->second}; // keyword
+            return {loc_, sym};                                                       // identifier
         }
 
         // string literal or - double-quoted, hence case-sensitive - delimited identifier
@@ -125,7 +123,7 @@ Tok Lexer::lex() {
 /// literal verbatim - that is what lets the printer emit it back unchanged.
 /// @note Lexer::lex has already consumed a leading `.`, if there was one.
 Tok Lexer::lex_num() {
-    bool real = str_ == ".";
+    bool real = str() == ".";
     while (accept(utf8::isdigit)) {}
     if (!real && accept('.')) {
         real = true;
@@ -138,15 +136,19 @@ Tok Lexer::lex_num() {
         while (accept(utf8::isdigit)) {}
     }
 
-    if (!real) return {loc_, std::strtoull(str_.c_str(), nullptr, 10)};
-    return {loc_, Tok::Tag::V_real, driver_.sym(str_)};
+    if (!real) {
+        uint64_t u64 = std::numeric_limits<uint64_t>::max(); // std::from_chars leaves it alone on overflow
+        std::from_chars(str().data(), str().data() + str().size(), u64);
+        return {loc_, u64};
+    }
+    return {loc_, Tok::Tag::V_real, driver_.sym(str())};
 }
 
 Tok Lexer::lex_str(char32_t delim, Tok::Tag tag) {
     while (true) {
         if (accept<Append::Off>(delim)) {
             if (!accept<Append::Off>(delim)) break;
-            str_ += (char)delim;
+            append((char)delim);
         } else if (ahead() == utf8::EoF) {
             error().e(loc_, "unterminated string literal");
             break;
@@ -155,32 +157,32 @@ Tok Lexer::lex_str(char32_t delim, Tok::Tag tag) {
         }
     }
 
-    return {loc_, tag, driver_.sym(str_)};
+    return {loc_, tag, driver_.sym(str())};
 }
 
 void Lexer::lex_char() {
     if (accept<Append::Off>('\\')) {
         // clang-format off
-        if      (accept<Append::Off>('\'')) str_ += '\'';
-        else if (accept<Append::Off>('\\')) str_ += '\\';
-        else if (accept<Append::Off>( '"')) str_ += '\"';
-        else if (accept<Append::Off>( '0')) str_ += '\0';
-        else if (accept<Append::Off>( 'a')) str_ += '\a';
-        else if (accept<Append::Off>( 'b')) str_ += '\b';
-        else if (accept<Append::Off>( 'f')) str_ += '\f';
-        else if (accept<Append::Off>( 'n')) str_ += '\n';
-        else if (accept<Append::Off>( 'r')) str_ += '\r';
-        else if (accept<Append::Off>( 't')) str_ += '\t';
-        else if (accept<Append::Off>( 'v')) str_ += '\v';
+        if      (accept<Append::Off>('\'')) append('\'');
+        else if (accept<Append::Off>('\\')) append('\\');
+        else if (accept<Append::Off>( '"')) append('\"');
+        else if (accept<Append::Off>( '0')) append('\0');
+        else if (accept<Append::Off>( 'a')) append('\a');
+        else if (accept<Append::Off>( 'b')) append('\b');
+        else if (accept<Append::Off>( 'f')) append('\f');
+        else if (accept<Append::Off>( 'n')) append('\n');
+        else if (accept<Append::Off>( 'r')) append('\r');
+        else if (accept<Append::Off>( 't')) append('\t');
+        else if (accept<Append::Off>( 'v')) append('\v');
         else error().e(loc_.anew_end(), "invalid escape character `\\{}`", (char)ahead());
         // clang-format on
         return;
     }
 
-    // Append the original bytes: re-encoding via `str_ += char32_t` would truncate multi-byte UTF-8.
+    // The original bytes, not `char32_t`: a multi-byte code point must survive verbatim.
     auto loc = peek();
+    append(buf_.substr(loc.begin.off, loc.size()));
     next();
-    str_.append(buf_.substr(loc.begin.off, loc.size()));
 }
 
 void Lexer::eat_comments() {

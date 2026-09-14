@@ -30,6 +30,8 @@ add_sql_tests(reject reject)
 add_sql_tests(job idempotent)
 add_sql_tests(tpch idempotent)
 
+add_subdirectory(bench)
+
 # Regenerate every golden file: `cmake --build build --target bless`.
 add_custom_target(bless
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/bless.py

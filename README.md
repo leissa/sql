@@ -158,16 +158,16 @@ Notation: `[ x ]` is optional, `{ x }` repeats zero or more times, `|` separates
 ### Lexical
 
 ```ebnf
-ident   ::= ( letter | '_' ) { letter | digit | '_' }   (* folded to lower case *)
-          | '"' { char } '"'                       (* delimited: keeps its case, "" escapes one " *)
-name    ::= ident | keyword                        (* a reserved word is a fine name - see above *)
-qname   ::= name { '.' name }                      (* t, s.t, cat.sch.tab *)
+ident    ::= ( letter | '_' ) { letter | digit | '_' }  (* folded to lower case *)
+           | '"' { char } '"'               (* delimited: keeps its case, "" escapes one " *)
+name     ::= ident | keyword                (* a reserved word is a fine name - see above *)
+qname    ::= name { '.' name }              (* t, s.t, cat.sch.tab *)
 col-list ::= '(' name { ',' name } ')'
 
-integer ::= digit { digit }
-real    ::= [ digit { digit } ] '.' digit { digit } [ exponent ] | digit { digit } exponent
-string  ::= "'" { char } "'"                       (* '' escapes one ' *)
-param   ::= '?' | '$' integer | ':' ident
+integer  ::= digit { digit }
+real     ::= [ digit { digit } ] '.' digit { digit } [ exponent ] | digit { digit } exponent
+string   ::= "'" { char } "'"               (* '' escapes one ' *)
+param    ::= '?' | '$' integer | ':' ident
 ```
 
 Comments are `-- to end of line` and `/* ... */`.
@@ -451,6 +451,33 @@ To run a single test, or one group:
 ctest --test-dir build -R '^parse/parse/expr$' --output-on-failure
 ctest --test-dir build -R '^idempotent/job/' --output-on-failure
 ```
+
+### Benchmarking
+
+`test/bench/` times the parser over a corpus of `.sql` files. It is no CTest entry - a benchmark is
+not a pass/fail test - so build it on demand:
+
+```sh
+cmake --build build --target bench
+./build/bin/bench test/job/*.sql            # a Driver and a Parser per file
+./build/bin/bench --once test/job/*.sql     # the whole corpus through a single Parser
+./build/bin/bench --lex test/job/*.sql      # lexing alone, with nothing built on top
+```
+
+The fixtures are small - a few hundred bytes each - so a run over them measures the per-statement
+overheads more than anything else. For a corpus where the arena, the SymPool, and the lexer's
+buffers get to amortize, generate one:
+
+```sh
+test/bench/gen.py --mb 64 -o /tmp/big.sql   # names out of the JOB and TPC-H vocabulary, reused
+test/bench/gen.py --mb 64 --stress-names -o /tmp/big.sql   # every identifier distinct instead
+./build/bin/bench --once /tmp/big.sql
+```
+
+The two modes answer different questions. `--each` is what an embedding that parses one query at a
+time pays, setup included; `--once` pays the setup once and leaves parsing throughput. What is left
+between them is registering each source and constructing a Parser - both O(1), since the few hundred
+reserved and non-reserved words are interned once per Driver rather than once per Parser.
 
 After deliberately changing what the parser accepts or how it prints, regenerate the goldens and
 review the resulting diff:

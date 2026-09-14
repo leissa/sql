@@ -143,8 +143,8 @@ private:
     }
 
     Lexer lexer_;
-    Sym sym_error_;                          ///< Stands in for a Sym that failed to parse.
-    std::array<Sym, Num_Non_Keys> non_keys_; ///< Indexed by NonKey; see Parser::non_key.
+    Sym sym_error_;                                 ///< Stands in for a Sym that failed to parse.
+    const std::array<Sym, Num_Non_Keys>& non_keys_; ///< The Driver's table; see Parser::non_key.
 
     friend class fe::Parser<Tok, Tok::Tag, 2, Parser>;
 };

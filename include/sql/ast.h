@@ -7,6 +7,7 @@
 
 #include <fe/cast.h>
 #include <fe/format.h>
+#include <fe/vector.h>
 
 #include "sql/tok.h"
 
@@ -16,9 +17,13 @@ class Expr;
 
 template<class T>
 using AST = fe::Arena::Ptr<const T>;
+
+/// A list of AST nodes or of Sym%bols. fe::Vector keeps a few elements inline, which is what these
+/// want: a qualified name has one to three parts, and most other lists are just as short - a
+/// `std::deque` would put every one of them on the heap in a 512-byte chunk of its own.
 template<class T>
-using ASTs = std::deque<AST<T>>;
-using Syms = std::deque<Sym>;
+using ASTs = fe::Vector<AST<T>>;
+using Syms = fe::Vector<Sym>;
 
 /// Base class for all @p Expr%essions.
 class Node : public fe::RuntimeCast<Node> {

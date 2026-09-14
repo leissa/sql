@@ -7,6 +7,14 @@ using namespace std::literals;
 
 namespace sql {
 
+std::string to_lower(std::string_view sv) {
+    std::string res;
+    res.reserve(sv.size());
+    for (auto c : sv)
+        res += tolower(c);
+    return res;
+}
+
 std::string_view Tok::tag2str(Tok::Tag tag) {
     switch (tag) {
 #define CODE(t, str) \
@@ -29,13 +37,7 @@ bool Tok::isa_key(std::string_view lower) {
     // has none at hand. Hashing the spelling instead is pool-independent and allocates nothing.
     static const auto keys = [] {
         absl::flat_hash_set<std::string> res;
-#define CODE(t, str)                 \
-    {                                \
-        std::string key;             \
-        for (auto c : str##sv)       \
-            key += tolower(c);       \
-        res.emplace(std::move(key)); \
-    }
+#define CODE(t, str) res.emplace(to_lower(str##sv));
         SQL_KEY(CODE)
 #undef CODE
         return res;

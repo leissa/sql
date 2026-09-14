@@ -24,7 +24,7 @@ private:
     void lex_char();
 
     Driver& driver_;
-    fe::SymMap<Tok::Tag> keywords_;
+    const fe::SymMap<Tok::Tag>& keys_; ///< The Driver's reserved words - see Driver::keys.
 };
 
 } // namespace sql

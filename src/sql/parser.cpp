@@ -152,20 +152,10 @@ static constexpr std::string_view Non_Key_Strs[] = {
 #undef CODE
 };
 
-static std::string to_lower(std::string_view sv) {
-    std::string res;
-    for (auto c : sv)
-        res += tolower(c);
-    return res;
-}
-
 Parser::Parser(Driver& driver, const fe::Src& src)
     : lexer_(driver, src)
-    , sym_error_(driver.sym("<error>"s)) {
-    size_t i = 0;
-#define CODE(t, str) non_keys_[i++] = driver.sym(to_lower(str##s));
-    SQL_NON_KEY(CODE)
-#undef CODE
+    , sym_error_(driver.sym_error())
+    , non_keys_(driver.non_keys()) {
     init();
 }
 
