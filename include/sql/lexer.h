@@ -19,9 +19,9 @@ public:
 private:
     void eat_comments();
     Tok lex_num(); ///< Lex an integer or real literal.
-    /// Lex the body of a @p delim-quoted literal; a doubled @p delim escapes one occurrence of it.
     Tok lex_str(char32_t delim, Tok::Tag);
-    void lex_char();
+    Sym sym_str(uint32_t begin, uint32_t end, char32_t delim, bool esc);
+    std::string unquote(std::string_view body, uint32_t begin, char32_t delim);
 
     Driver& driver_;
     const fe::SymMap<Tok::Tag>& keys_; ///< The Driver's reserved words - see Driver::keys.

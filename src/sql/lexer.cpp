@@ -2,6 +2,7 @@
 
 #include <charconv>
 
+#include <algorithm>
 #include <limits>
 #include <ranges>
 
@@ -10,6 +11,13 @@ using namespace std::literals;
 namespace sql {
 
 namespace utf8 = fe::utf8;
+
+namespace {
+/// Most SQL identifiers are already lower-case; the ones that are not are nearly always keywords.
+bool needs_fold(std::string_view sv) {
+    return std::ranges::any_of(sv, [](char c) { return utf8::isupper(c); });
+}
+} // namespace
 
 Lexer::Lexer(Driver& driver, const fe::Src& src)
     : fe::Lexer<1, Lexer>(src)
@@ -57,10 +65,9 @@ Tok Lexer::lex() {
         if (accept(':')) {
             if (accept('=')) return {loc_, Tok::Tag::T_assign};
             // `:name` is a named parameter marker - one character of lookahead settles it.
-            if (accept<Append::Lower>([](char32_t c) { return c == '_' || utf8::isalpha(c); })) {
-                while (accept<Append::Lower>(
-                    [](char32_t c) { return c == '_' || utf8::isalpha(c) || utf8::isdigit(c); })) {}
-                return {loc_, Tok::Tag::V_param, driver_.sym(str())};
+            if (accept([](char32_t c) { return c == '_' || utf8::isalpha(c); })) {
+                while (accept([](char32_t c) { return c == '_' || utf8::isalnum(c); })) {}
+                return {loc_, Tok::Tag::V_param, needs_fold(view()) ? driver_.sym(lower()) : driver_.sym(view())};
             }
             return {loc_, Tok::Tag::T_colon};
         }
@@ -74,17 +81,16 @@ Tok Lexer::lex() {
         }
 
         // A dynamic parameter marker: `?`, `$1`, or `:name`. Sym holds the marker verbatim.
-        if (accept('?')) return {loc_, Tok::Tag::V_param, driver_.sym(str())};
+        if (accept('?')) return {loc_, Tok::Tag::V_param, driver_.sym(view())};
         if (accept('$')) {
             while (accept(utf8::isdigit)) {}
-            return {loc_, Tok::Tag::V_param, driver_.sym(str())};
+            return {loc_, Tok::Tag::V_param, driver_.sym(view())};
         }
 
         // sub or single-line comment
         if (accept('-')) {
             if (accept('-')) {
-                while (ahead() != utf8::EoF && ahead() != '\n')
-                    next();
+                accept_while([](char32_t c) { return c != '\n'; });
                 continue;
             }
             return {loc_, Tok::Tag::T_sub};
@@ -103,17 +109,16 @@ Tok Lexer::lex() {
         if (utf8::isdigit(ahead())) return lex_num();
 
         // lex identifier or keyword
-        if (accept<Append::Lower>([](char32_t c) { return c == '_' || utf8::isalpha(c); })) {
-            while (accept<Append::Lower>([](char32_t c) { return c == '_' || utf8::isalpha(c) || utf8::isdigit(c); })) {
-            }
-            auto sym = driver_.sym(str());
+        if (utf8::isalpha(ahead()) || ahead() == '_') {
+            auto sv  = accept_while([](char32_t c) { return c == '_' || utf8::isalnum(c); });
+            auto sym = needs_fold(sv) ? driver_.sym(lower()) : driver_.sym(sv);
             if (auto i = keys_.find(sym); i != keys_.end()) return {loc_, i->second}; // keyword
             return {loc_, sym};                                                       // identifier
         }
 
         // string literal or - double-quoted, hence case-sensitive - delimited identifier
-        if (accept<Append::Off>('\'')) return lex_str('\'', Tok::Tag::V_str);
-        if (accept<Append::Off>('\"')) return lex_str('\"', Tok::Tag::V_id);
+        if (accept('\'')) return lex_str('\'', Tok::Tag::V_str);
+        if (accept('\"')) return lex_str('\"', Tok::Tag::V_id);
 
         recover_char();
     }
@@ -123,7 +128,7 @@ Tok Lexer::lex() {
 /// literal verbatim - that is what lets the printer emit it back unchanged.
 /// @note Lexer::lex has already consumed a leading `.`, if there was one.
 Tok Lexer::lex_num() {
-    bool real = str() == ".";
+    bool real = view() == ".";
     while (accept(utf8::isdigit)) {}
     if (!real && accept('.')) {
         real = true;
@@ -138,57 +143,79 @@ Tok Lexer::lex_num() {
 
     if (!real) {
         uint64_t u64 = std::numeric_limits<uint64_t>::max(); // std::from_chars leaves it alone on overflow
-        std::from_chars(str().data(), str().data() + str().size(), u64);
+        std::from_chars(view().data(), view().data() + view().size(), u64);
         return {loc_, u64};
     }
-    return {loc_, Tok::Tag::V_real, driver_.sym(str())};
+    return {loc_, Tok::Tag::V_real, driver_.sym(view())};
 }
 
+/// Lexes the body of a @p delim-quoted literal; a doubled @p delim escapes one occurrence of it.
+/// The body is a slice of Lexer::buf_ unless an escape made it diverge - see Lexer::unquote.
 Tok Lexer::lex_str(char32_t delim, Tok::Tag tag) {
+    auto begin = loc_.end.off; // just past the opening delim
+    bool esc   = false;
+
     while (true) {
-        if (accept<Append::Off>(delim)) {
-            if (!accept<Append::Off>(delim)) break;
-            append((char)delim);
+        if (accept(delim)) {
+            if (!accept(delim)) return {loc_, tag, sym_str(begin, loc_.end.off - 1, delim, esc)};
+            esc = true;
         } else if (ahead() == utf8::EoF) {
             error().e(loc_, "unterminated string literal");
-            break;
+            return {loc_, tag, sym_str(begin, loc_.end.off, delim, esc)};
+        } else if (accept('\\')) {
+            esc = true;
+            if (ahead() != utf8::EoF) next();
         } else {
-            lex_char();
+            next();
         }
     }
-
-    return {loc_, tag, driver_.sym(str())};
 }
 
-void Lexer::lex_char() {
-    if (accept<Append::Off>('\\')) {
-        // clang-format off
-        if      (accept<Append::Off>('\'')) append('\'');
-        else if (accept<Append::Off>('\\')) append('\\');
-        else if (accept<Append::Off>( '"')) append('\"');
-        else if (accept<Append::Off>( '0')) append('\0');
-        else if (accept<Append::Off>( 'a')) append('\a');
-        else if (accept<Append::Off>( 'b')) append('\b');
-        else if (accept<Append::Off>( 'f')) append('\f');
-        else if (accept<Append::Off>( 'n')) append('\n');
-        else if (accept<Append::Off>( 'r')) append('\r');
-        else if (accept<Append::Off>( 't')) append('\t');
-        else if (accept<Append::Off>( 'v')) append('\v');
-        else error().e(loc_.anew_end(), "invalid escape character `\\{}`", (char)ahead());
-        // clang-format on
-        return;
+Sym Lexer::sym_str(uint32_t begin, uint32_t end, char32_t delim, bool esc) {
+    auto body = buf_.substr(begin, end - begin);
+    return driver_.sym(esc ? std::string_view(unquote(body, begin, delim)) : body);
+}
+
+/// Resolves the escapes of @p body, which starts at byte @p begin of Lexer::buf_.
+std::string Lexer::unquote(std::string_view body, uint32_t begin, char32_t delim) {
+    std::string res;
+    res.reserve(body.size());
+
+    for (size_t i = 0, e = body.size(); i != e; ++i) {
+        auto c = body[i];
+        if (c == (char)delim) { // a doubled delim stands for one
+            ++i;
+        } else if (c == '\\' && i + 1 != e) {
+            switch (body[++i]) {
+                    // clang-format off
+                case '\'': res += '\''; break;
+                case '\\': res += '\\'; break;
+                case  '"': res += '\"'; break;
+                case  '0': res += '\0'; break;
+                case  'a': res += '\a'; break;
+                case  'b': res += '\b'; break;
+                case  'f': res += '\f'; break;
+                case  'n': res += '\n'; break;
+                case  'r': res += '\r'; break;
+                case  't': res += '\t'; break;
+                case  'v': res += '\v'; break;
+                // clang-format on
+                default:
+                    auto loc = fe::Loc(src_, fe::Pos(begin + (uint32_t)i - 1), fe::Pos(begin + (uint32_t)i + 1));
+                    error().e(loc, "invalid escape character `\\{}`", body[i]);
+                    res += body[i]; // recover by taking it at face value
+            }
+            continue;
+        }
+        res += c;
     }
 
-    // The original bytes, not `char32_t`: a multi-byte code point must survive verbatim.
-    auto loc = peek();
-    append(buf_.substr(loc.begin.off, loc.size()));
-    next();
+    return res;
 }
 
 void Lexer::eat_comments() {
     while (true) {
-        while (ahead() != utf8::EoF && ahead() != '*')
-            next();
+        accept_while([](char32_t c) { return c != '*'; });
         if (ahead() == utf8::EoF) {
             error().e(loc_, "non-terminated multiline comment");
             return;
