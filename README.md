@@ -478,6 +478,7 @@ between runs:
     </tr>
   </tbody>
 </table>
+
 Lexing alone, against their flex scanner: 290.7 MB/s to 147.2 on JOB, and 204.5 to 114.7 on the
 32 MiB corpus.
 Peak [resident set size](https://en.wikipedia.org/wiki/Resident_set_size) - the RAM a process has
