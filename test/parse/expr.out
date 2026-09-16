@@ -23,3 +23,4 @@ SELECT a FROM t WHERE (a ILIKE 'x%');
 SELECT a FROM t WHERE (a NOT ILIKE 'x%');
 SELECT a FROM t WHERE (a ILIKE 'x!%' ESCAPE '!');
 SELECT ilike FROM t;
+SELECT ((2 ^ 3) ^ 2), (a * (b ^ c)), ((- a) ^ 2) FROM t;

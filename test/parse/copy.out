@@ -1,0 +1,9 @@
+COPY students FROM 'students.tbl';
+COPY students FROM 'students.tbl' (format tbl, encoding 'Dictionary');
+COPY s.students (name, grade) FROM 'students.csv' (format csv, delimiter '|', null '', header);
+COPY students FROM STDIN;
+COPY good_students FROM 'students.tbl' WHERE (grade > (SELECT avg(grade) FROM alumni));
+COPY students TO 'students.tbl';
+COPY students TO 'students.bin' (format binary);
+COPY students TO STDOUT (format csv);
+COPY (SELECT name, count(*) FROM students GROUP BY name) TO 'names.csv' (format csv);

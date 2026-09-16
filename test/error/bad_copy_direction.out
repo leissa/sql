@@ -1,0 +1,13 @@
+bad_copy_direction.sql:1:8-1:11: error: expected `FROM` or `TO`, got `INTO` while parsing `COPY` expression
+    1 | COPY t INTO 'f';
+      |        ^^^^
+bad_copy_direction.sql:1:8-1:11: error: expected file name, got `INTO` while parsing `COPY` expression
+    1 | COPY t INTO 'f';
+      |        ^^^^
+bad_copy_direction.sql:1:8-1:11: error: ignoring unmatched `INTO` while parsing statement list
+    1 | COPY t INTO 'f';
+      |        ^^^^
+bad_copy_direction.sql:1:13-1:15: error: ignoring unmatched `'f'` while parsing statement list
+    1 | COPY t INTO 'f';
+      |             ^^^
+4 error(s) encountered

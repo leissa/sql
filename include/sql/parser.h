@@ -61,6 +61,11 @@ private:
     AST<Expr> parse_insert();
     AST<Expr> parse_update();
     AST<Expr> parse_delete();
+    AST<Expr> parse_prepare();
+    AST<Expr> parse_execute();
+    AST<Expr> parse_deallocate();
+    AST<Expr> parse_show();
+    AST<Expr> parse_copy();
     ///@}
 
     /// @name Query expressions

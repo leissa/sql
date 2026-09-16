@@ -1,0 +1,4 @@
+bad_prepare.sql:1:11-1:16: error: expected `AS`, got `SELECT` while parsing `PREPARE` expression
+    1 | PREPARE p SELECT 1;
+      |           ^^^^^^
+1 error(s) encountered

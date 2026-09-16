@@ -566,6 +566,19 @@ private:
     AST<Expr> index_;
 };
 
+/// `ARRAY[a, b, c]` - an array value constructor by enumeration.
+class Array : public Expr, public fe::VLA<Array> {
+public:
+    using VLA_Types = std::tuple<AST<Expr>>;
+
+    Array(Loc loc)
+        : Expr(loc) {}
+
+    auto args() const { return vla<0>(); }
+
+    void stream(std::ostream&) const override;
+};
+
 /// `CAST(expr AS type)`
 class Cast : public Expr {
 public:
@@ -999,7 +1012,9 @@ public:
           AST<Constraint> constraint,
           AST<Type> type,
           AST<Expr> expr,
-          Behavior behavior)
+          Behavior behavior,
+          bool if_table_exists,
+          bool if_exists)
         : Expr(loc)
         , tag_(tag)
         , sym_(sym)
@@ -1008,7 +1023,9 @@ public:
         , constraint_(constraint)
         , type_(type)
         , expr_(expr)
-        , behavior_(behavior) {}
+        , behavior_(behavior)
+        , if_table_exists_(if_table_exists)
+        , if_exists_(if_exists) {}
 
     auto table() const { return vla<0>(); }
     Tag tag() const { return tag_; }
@@ -1019,6 +1036,8 @@ public:
     const Type* type() const { return type_.get(); }
     const Expr* expr() const { return expr_.get(); }
     Behavior behavior() const { return behavior_; }
+    bool if_table_exists() const { return if_table_exists_; } ///< `ALTER TABLE IF EXISTS`.
+    bool if_exists() const { return if_exists_; }             ///< Guards a dropped column or constraint.
 
     void stream(std::ostream&) const override;
 
@@ -1031,6 +1050,8 @@ private:
     AST<Type> type_;
     AST<Expr> expr_;
     Behavior behavior_;
+    bool if_table_exists_;
+    bool if_exists_;
 };
 
 /// `DROP TABLE|VIEW|INDEX|SCHEMA [IF EXISTS] <name> [CASCADE|RESTRICT]`
@@ -1072,6 +1093,139 @@ public:
     void stream(std::ostream&) const override;
 
 private:
+};
+
+/// `PREPARE <name> [(types)] AS <stmt>`, or `PREPARE <name> FROM '<stmt>'` with the statement
+/// left as text - which is the one form that does not nest a statement inside another.
+class Prepare : public Expr, public fe::VLA<Prepare> {
+public:
+    using VLA_Types = std::tuple<AST<Type>>;
+
+    Prepare(Loc loc, Sym sym, AST<Expr> stmt, Sym str)
+        : Expr(loc)
+        , sym_(sym)
+        , stmt_(stmt)
+        , str_(str) {}
+
+    Sym sym() const { return sym_; }
+    auto types() const { return vla<0>(); }          ///< The parameter types; may be empty.
+    const Expr* stmt() const { return stmt_.get(); } ///< Null for the `FROM '...'` form.
+    Sym str() const { return str_; }                 ///< The statement text; empty for the `AS` form.
+
+    void stream(std::ostream&) const override;
+
+private:
+    Sym sym_;
+    AST<Expr> stmt_;
+    Sym str_;
+};
+
+/// `EXECUTE <name> [(args)]` - Execute::paren tells a bare name from an empty argument list.
+class Execute : public Expr, public fe::VLA<Execute> {
+public:
+    using VLA_Types = std::tuple<AST<Expr>>;
+
+    Execute(Loc loc, Sym sym, bool paren)
+        : Expr(loc)
+        , sym_(sym)
+        , paren_(paren) {}
+
+    Sym sym() const { return sym_; }
+    auto args() const { return vla<0>(); }
+    bool paren() const { return paren_; }
+
+    void stream(std::ostream&) const override;
+
+private:
+    Sym sym_;
+    bool paren_;
+};
+
+/// `DEALLOCATE [PREPARE] <name>` - an empty Deallocate::sym is the `ALL` that drops every one.
+class Deallocate : public Expr {
+public:
+    Deallocate(Loc loc, Sym sym)
+        : Expr(loc)
+        , sym_(sym) {}
+
+    Sym sym() const { return sym_; }
+
+    void stream(std::ostream&) const override;
+
+private:
+    Sym sym_;
+};
+
+/// `SHOW TABLES`, or `SHOW COLUMNS <table>` - which `DESCRIBE <table>` is another spelling of.
+class Show : public Expr, public fe::VLA<Show> {
+public:
+    enum Tag { Tables, Columns };
+
+    using VLA_Types = std::tuple<Sym>;
+
+    Show(Loc loc, Tag tag)
+        : Expr(loc)
+        , tag_(tag) {}
+
+    Tag tag() const { return tag_; }
+    auto syms() const { return vla<0>(); } ///< The table of a Show::Columns; empty otherwise.
+
+    void stream(std::ostream&) const override;
+
+private:
+    Tag tag_;
+};
+
+/// `COPY <table> [(cols)] FROM <file> [(options)] [WHERE <where>]`, or
+/// `COPY {<table> [(cols)] | (<query>)} TO <file> [(options)]`.
+class Copy : public Expr, public fe::VLA<Copy> {
+public:
+    /// One option of the parenthesized list: `FORMAT csv`, `DELIMITER '|'`, `HEADER`.
+    class Option : public Node {
+    public:
+        Option(Loc loc, Sym sym, Sym name, AST<Expr> val)
+            : Node(loc)
+            , sym_(sym)
+            , name_(name)
+            , val_(val) {}
+
+        Sym sym() const { return sym_; }
+        /// A format is named rather than computed, so an argument may be a bare name.
+        Sym name() const { return name_; }
+        const Expr* val() const { return val_.get(); } ///< A computed argument; `HEADER` takes none at all.
+
+        void stream(std::ostream&) const override;
+
+    private:
+        Sym sym_;
+        Sym name_;
+        AST<Expr> val_;
+    };
+
+    using VLA_Types = std::tuple<Sym, Sym, AST<Option>>;
+
+    Copy(Loc loc, bool from, AST<Expr> query, Sym file, AST<Expr> where)
+        : Expr(loc)
+        , from_(from)
+        , query_(query)
+        , file_(file)
+        , where_(where) {}
+
+    bool from() const { return from_; } ///< `FROM` reads, `TO` writes.
+    auto syms() const { return vla<0>(); }
+    auto cols() const { return vla<1>(); }
+    const Expr* query() const { return query_.get(); } ///< `COPY (<query>) TO ...`; may be null.
+    Sym file() const { return file_; }                 ///< Empty for `STDIN`/`STDOUT`.
+    auto options() const { return vla<2>(); }
+    const Expr* where() const { return where_.get(); }
+
+    void stream(std::ostream&) const override;
+
+private:
+    bool from_;
+    AST<Expr> query_;
+    Sym file_;
+    AST<Expr> where_;
 };
 
 /// A transaction-control statement; Transact::sym names the savepoint where one is involved.

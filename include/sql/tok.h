@@ -51,6 +51,7 @@ std::string to_lower(std::string_view sv);
     m(T_mul,        "*")                        \
     m(T_div,        "/")                        \
     m(T_mod,        "%")                        \
+    m(T_pow,        "^")                        \
     m(T_concat,     "||")                       \
 
 // These are the *real* keywords - "reserved words"
@@ -602,6 +603,8 @@ std::string to_lower(std::string_view sv);
     m(N_WRITE, "WRITE") \
     m(N_ZONE, "ZONE") \
     /* Not in the standard, but so widely used that leaving them out is the bigger surprise. */ \
+    m(N_COLUMNS, "COLUMNS") \
+    m(N_COPY, "COPY") \
     m(N_IF, "IF") \
     m(N_ILIKE, "ILIKE") \
     m(N_INDEX, "INDEX") \
@@ -611,7 +614,11 @@ std::string to_lower(std::string_view sv);
     m(N_RENAME, "RENAME") \
     m(N_REPLACE, "REPLACE") \
     m(N_SHARE, "SHARE") \
-    m(N_SKIP, "SKIP")
+    m(N_SHOW, "SHOW") \
+    m(N_SKIP, "SKIP") \
+    m(N_STDIN, "STDIN") \
+    m(N_STDOUT, "STDOUT") \
+    m(N_TABLES, "TABLES")
 // clang-format on
 
 enum class NonKey {
@@ -655,6 +662,7 @@ public:
         Concat,
         Add,
         Mul,
+        Pow,
         Unary,
     };
 

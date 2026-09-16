@@ -306,6 +306,7 @@ void Like::stream(std::ostream& o) const {
 }
 
 void Subscript::stream(std::ostream& o) const { std::print(o, "{}[{}]", *expr(), *index()); }
+void Array::stream(std::ostream& o) const { std::print(o, "ARRAY[{}]", fe::Join(args())); }
 
 void Cast::stream(std::ostream& o) const { std::print(o, "CAST({} AS {})", *expr(), *type()); }
 void Collate::stream(std::ostream& o) const { std::print(o, "({} COLLATE {})", *expr(), qname(syms())); }
@@ -423,13 +424,14 @@ void CreateSchema::stream(std::ostream& o) const {
 }
 
 void Alter::stream(std::ostream& o) const {
-    std::print(o, "ALTER TABLE {}", qname(table()));
+    std::print(o, "ALTER TABLE {}{}", if_table_exists() ? "IF EXISTS " : "", qname(table()));
+    auto guard = if_exists() ? "IF EXISTS " : "";
 
     switch (tag()) {
         case Add_Column: std::print(o, " ADD COLUMN {}", *elem()); break;
         case Add_Constraint: std::print(o, " ADD {}", *constraint()); break;
-        case Drop_Column: std::print(o, " DROP COLUMN {}", Ident(sym())); break;
-        case Drop_Constraint: std::print(o, " DROP CONSTRAINT {}", Ident(sym())); break;
+        case Drop_Column: std::print(o, " DROP COLUMN {}{}", guard, Ident(sym())); break;
+        case Drop_Constraint: std::print(o, " DROP CONSTRAINT {}{}", guard, Ident(sym())); break;
         case Set_Default: std::print(o, " ALTER COLUMN {} SET DEFAULT {}", Ident(sym()), *expr()); break;
         case Drop_Default: std::print(o, " ALTER COLUMN {} DROP DEFAULT", Ident(sym())); break;
         case Set_Not_Null: std::print(o, " ALTER COLUMN {} SET NOT NULL", Ident(sym())); break;
@@ -455,6 +457,59 @@ void Drop::stream(std::ostream& o) const {
     if (if_exists()) o << "IF EXISTS ";
     o << qname(syms());
     stream_behavior(o, behavior());
+}
+
+void Prepare::stream(std::ostream& o) const {
+    std::print(o, "PREPARE {}{}", Ident(sym()), parens(types(), " "));
+    if (stmt())
+        std::print(o, " AS {}", *stmt());
+    else
+        std::print(o, " FROM {}", Str(str()));
+}
+
+void Execute::stream(std::ostream& o) const {
+    std::print(o, "EXECUTE {}", Ident(sym()));
+    if (paren()) std::print(o, " ({})", fe::Join(args()));
+}
+
+void Deallocate::stream(std::ostream& o) const {
+    o << "DEALLOCATE PREPARE ";
+    if (sym())
+        o << Ident(sym());
+    else
+        o << "ALL";
+}
+
+void Show::stream(std::ostream& o) const {
+    // clang-format off
+    switch (tag()) {
+        case Tables:  o << "SHOW TABLES";                            break;
+        case Columns: std::print(o, "SHOW COLUMNS {}", qname(syms())); break;
+    }
+    // clang-format on
+}
+
+void Copy::Option::stream(std::ostream& o) const {
+    o << Ident(sym());
+    if (name()) std::print(o, " {}", Ident(name()));
+    if (val()) std::print(o, " {}", *val());
+}
+
+void Copy::stream(std::ostream& o) const {
+    o << "COPY ";
+    if (query())
+        std::print(o, "({})", *query());
+    else
+        std::print(o, "{}{}", qname(syms()), parens(cols(), " "));
+
+    std::print(o, " {} ", from() ? "FROM" : "TO");
+    if (file())
+        o << Str(file());
+    else
+        o << (from() ? "STDIN" : "STDOUT");
+
+    o << parens(options(), " ");
+    if (where()) std::print(o, " WHERE {}", *where());
 }
 
 void Transact::stream(std::ostream& o) const {

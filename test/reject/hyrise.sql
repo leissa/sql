@@ -10,6 +10,9 @@
 -- names a window to refine rather than being a malformed specification, and since any identifier
 -- is a type name here, `FOREIGN (b) REFERENCES bar` reads as a column `foreign` of type `b`
 -- rather than as a botched `FOREIGN KEY`. Nested `WITH` clauses, which hyrise rejects, just work.
+-- The same goes for what a `COPY` option is called, whether it is repeated, and whether it suits
+-- the format, and for which expressions an `EXECUTE` argument may be - hyrise settles all of that
+-- in its grammar actions, this parser in a later pass.
 
 1
 gibberish;
@@ -28,15 +31,8 @@ SHOW COLUMNS;
 DESCRIBE;
 COPY;
 COPY students;
-COPY students FROM 'students_file' WITH (FORMAT XYZ);
-COPY students TO 'students_file' WITH (FORMAT XYZ);
-COPY students FROM 'students_file' WITH ();
-COPY students TO 'students_file' WITH ();
 COPY students TO 'students_file' WITH (FORMAT CSV ENCODING 'Dictionary');
 COPY students TO 'students_file' WITH FORMAT CSV;
-COPY students TO 'students_file' WITH (FORMAT CSV, FORMAT BINARY);
-COPY students TO 'students_file' WITH (ENCODING 'Dictionary', ENCODING 'FSST');
-COPY students FROM 'students_file' WITH (ENCODING Dictionary);
 select a + 2 as b(spam, eggs) from B;
 WITH a AS SELECT 1 SELECT 1;
 WITH a AS (SELECT ) SELECT 1;
@@ -70,10 +66,7 @@ SELECT * FROM foo INNER JOIN bar USING (foo.a);
 SELECT * FROM foo INNER JOIN bar USING (a b);
 SELECT * FROM foo INNER JOIN bar USING (a AS b);
 SELECT * FROM foo INNER JOIN bar USING (1);
--- INSERT, EXECUTE, and HINTS only allow specific expressions.
-EXECUTE statement_a(?);
-EXECUTE statement_a(CAST(column_a AS INT));
-EXECUTE statement_a(AVG(another_column));
+-- HINTS only allow specific expressions.
 SELECT * FROM foo WITH HINT (?);
 SELECT * FROM foo WITH HINT (CAST(column_a AS INT));
 SELECT * FROM foo WITH HINT (AVG(another_column));
@@ -86,11 +79,3 @@ SELECT * FROM students ORDER BY name ASC NULLS;
 SELECT * FROM students ORDER BY name FIRST;
 SELECT * FROM students ORDER BY name ASC LAST;
 SELECT * FROM students ORDER BY name DESC NULLS gibberish;
--- CSV options
-COPY students FROM 'file_path' WITH (FORMAT TBL, DELIMITER '|', NULL '', QUOTE '"');
-COPY students FROM 'file_path' WITH (DELIMITER '|', NULL '', QUOTE '"', FORMAT TBL);
-COPY students FROM 'file_path' WITH (DELIMITER '|', NULL '', FORMAT TBL, QUOTE '"');
-COPY students FROM 'file_path' WITH (DELIMITER '|', NULL '', QUOTE '"', NULL 'a');
-COPY students FROM 'file_path' WITH (NULL '', QUOTE '"', DELIMITER '|', DELIMITER '/');
-COPY students FROM 'file_path' WITH (QUOTE '"', NULL '', DELIMITER '/', QUOTE '_',);
-COPY students FROM 'file_path' WITH (FORMAT CSV, QUOTE '"', DELIMINIMITER '|');

@@ -3,10 +3,8 @@
 -- this parser insists on; the queries themselves are verbatim.
 --
 -- Left out are the ones written in hyrise's own dialect, which this parser does not claim to
--- speak - `CREATE TABLE ... FROM TBL FILE`, `COPY ... WITH (...)`, `PREPARE`/`EXECUTE`/
--- `DEALLOCATE`, `SHOW`/`DESCRIBE`, `WITH HINT (...)`, `SELECT TOP n`,
--- `ALTER TABLE ... DROP COLUMN IF EXISTS`, `TRUNCATE` without `TABLE`, and unquantified intervals
--- such as `- 1 MONTH`. A section whose every query went that way lost its label with them.
+-- speak - `CREATE TABLE ... FROM TBL FILE`, `WITH HINT (...)`, `SELECT TOP n`, and unquantified
+-- intervals such as `- 1 MONTH`. A section whose every query went that way lost its label with them.
 
 -- SELECT statement
 SELECT * FROM orders;
@@ -50,18 +48,49 @@ INSERT INTO some_schema.test_table SELECT * FROM another_schema.students;
 -- DELETE
 DELETE FROM students WHERE grade > 3.0;
 DELETE FROM students;
+TRUNCATE students;
 -- UPDATE
 UPDATE students SET grade = 1.3 WHERE name = 'Max Mustermann';
 UPDATE students SET grade = 1.3, name='Felix Fürstenberg' WHERE name = 'Max Mustermann';
 UPDATE students SET grade = 1.0;
 UPDATE some_schema.students SET grade = 1.0;
+-- ALTER
+ALTER TABLE mytable DROP COLUMN IF EXISTS mycolumn;
+ALTER TABLE IF EXISTS mytable DROP COLUMN IF EXISTS mycolumn;
 -- DROP
 DROP TABLE students;
 DROP TABLE IF EXISTS students;
 DROP VIEW IF EXISTS students;
 DROP INDEX myindex;
 DROP INDEX IF EXISTS myindex;
--- HINTS
+-- PREPARE
+PREPARE prep_inst FROM 'INSERT INTO test VALUES (?, ?, ?)';
+PREPARE prep2 FROM 'INSERT INTO test VALUES (?, 0, 0); INSERT INTO test VALUES (0, ?, 0); INSERT INTO test VALUES (0, 0, ?);';
+EXECUTE prep;
+DEALLOCATE PREPARE prep;
+-- COPY
+COPY students FROM 'student.tbl';
+COPY students FROM 'file_path' WITH (FORMAT TBL);
+COPY students FROM 'file_path' WITH (FORMAT CSV);
+COPY students FROM 'file_path' WITH (FORMAT BIN);
+COPY students FROM 'file_path' WITH (FORMAT BINARY);
+COPY students FROM 'file_path' WITH (FORMAT CSV, DELIMITER '|', NULL '', QUOTE '"');
+COPY students FROM 'file_path' WITH (DELIMITER '|', NULL '', FORMAT CSV, QUOTE '"');
+COPY students FROM 'file_path' WITH (DELIMITER '|', NULL '', QUOTE '"');
+COPY students FROM 'file_path' WITH (DELIMITER '|', FORMAT CSV);
+COPY students FROM 'file_path' (FORMAT TBL);
+COPY good_students FROM 'file_path' WHERE grade > (SELECT AVG(grade) from alumni);
+COPY students TO 'student.tbl';
+COPY students TO 'file_path' WITH (ENCODING 'some_encoding', FORMAT TBL);
+COPY students TO 'file_path' WITH (FORMAT CSV);
+COPY students TO 'file_path' WITH (FORMAT BIN);
+COPY students TO 'file_path' WITH (FORMAT BINARY);
+COPY students TO 'file_path' (FORMAT BINARY, ENCODING 'FSST');
+COPY students TO 'file_path' WITH (ENCODING 'Dictionary');
+COPY (SELECT firstname, COUNT(*) FROM students GROUP BY firstname) TO 'student_names.csv';
+SHOW TABLES;
+SHOW COLUMNS students;
+DESCRIBE students;
 SELECT * FROM t WHERE a = DATE '2000-01-01' + INTERVAL '30 DAYS';
 SELECT * FROM t WHERE a = DATE '2000-01-01' + INTERVAL '10' DAY;
 SELECT (CAST('2002-5-01' as DATE) + INTERVAL '60 days');

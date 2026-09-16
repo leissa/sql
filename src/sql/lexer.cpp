@@ -61,9 +61,15 @@ Tok Lexer::lex() {
             if (utf8::isalpha(ahead()) || ahead() == '_') return {loc_, Tok::Tag::V_param, lex_word()};
             return {loc_, Tok::Tag::T_colon};
         }
-        if (accept('+')) return {loc_, Tok::Tag::T_add};
-        if (accept('*')) return {loc_, Tok::Tag::T_mul};
-        if (accept('%')) return {loc_, Tok::Tag::T_mod};
+        // One decode for the whole run of single-character operators - `accept` inlines one each.
+        if (accept([](char32_t c) { return c == '+' || c == '*' || c == '%' || c == '^'; })) {
+            switch (view()[0]) {
+                case '+': return {loc_, Tok::Tag::T_add};
+                case '*': return {loc_, Tok::Tag::T_mul};
+                case '%': return {loc_, Tok::Tag::T_mod};
+                default: return {loc_, Tok::Tag::T_pow};
+            }
+        }
         if (accept('|')) {
             if (accept('|')) return {loc_, Tok::Tag::T_concat};
             error().e(peek(), "invalid input following `|`: `{}`", (char)ahead());

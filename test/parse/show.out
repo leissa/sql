@@ -1,0 +1,5 @@
+SHOW TABLES;
+SHOW COLUMNS students;
+SHOW COLUMNS s.students;
+SHOW COLUMNS students;
+SELECT show, tables, columns, copy FROM show;

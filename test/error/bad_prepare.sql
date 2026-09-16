@@ -1,0 +1,1 @@
+PREPARE p SELECT 1;

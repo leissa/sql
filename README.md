@@ -98,7 +98,8 @@ Comments are `-- to end of line` and `/* ... */`.
 ```ebnf
 prog ::= { [ stmt ] ';' }                          (* a stray ';' is an empty statement *)
 
-stmt ::= create | alter | drop | truncate | insert | update | delete | transact | query
+stmt ::= create | alter | drop | truncate | insert | update | delete | transact
+       | prepare | execute | deallocate | show | copy | query
 ```
 
 A statement is *not* a value expression: `1 + 2;` parses as an expression but is no statement.
@@ -125,18 +126,18 @@ constraint ::= [ CONSTRAINT name ]
 ref-action ::= ON ( DELETE | UPDATE )
                ( NO ACTION | RESTRICT | CASCADE | SET NULL | SET DEFAULT )
 
-alter ::= ALTER TABLE qname
+alter ::= ALTER TABLE [ IF EXISTS ] qname
           ( ADD constraint
           | ADD [ COLUMN ] col-def
-          | DROP CONSTRAINT name [ behavior ]
-          | DROP [ COLUMN ] name [ behavior ]
+          | DROP CONSTRAINT [ IF EXISTS ] name [ behavior ]
+          | DROP [ COLUMN ] [ IF EXISTS ] name [ behavior ]
           | ALTER [ COLUMN ] name ( SET DEFAULT expr | SET NOT NULL | SET DATA TYPE type
                                   | DROP DEFAULT | DROP NOT NULL )
           | RENAME TO name
           | RENAME [ COLUMN ] name TO name )
 
 drop     ::= DROP ( TABLE | VIEW | INDEX | SCHEMA ) [ IF EXISTS ] qname [ behavior ]
-truncate ::= TRUNCATE TABLE qname
+truncate ::= TRUNCATE [ TABLE ] qname
 behavior ::= CASCADE | RESTRICT
 
 insert ::= INSERT INTO qname [ col-list ] ( query | DEFAULT VALUES )
@@ -152,6 +153,29 @@ transact ::= ( BEGIN | START ) [ noise ]
 noise    ::= TRANSACTION | WORK
 ```
 
+A prepared statement is named by a bare `name`, never qualified.
+`PREPARE ... FROM` leaves the statement as text and is the one form that does not nest one statement
+inside another.
+
+```ebnf
+prepare    ::= PREPARE name [ '(' type { ',' type } ')' ] ( AS stmt | FROM string )
+execute    ::= EXECUTE name [ '(' [ expr { ',' expr } ] ')' ]
+deallocate ::= DEALLOCATE [ PREPARE ] ( name | ALL )
+
+show ::= SHOW TABLES | SHOW COLUMNS qname | DESCRIBE qname
+```
+
+`COPY` reads a table with `FROM` and writes one with `TO`; only the latter takes a query in place of
+a table, and only the former takes a `WHERE`, but as everywhere the grammar accepts both and leaves
+the pairing to a later check. The `WITH` before the option list is a noise word.
+
+```ebnf
+copy   ::= COPY ( qname [ col-list ] | '(' query ')' )
+           ( FROM ( string | STDIN ) | TO ( string | STDOUT ) )
+           [ [ WITH ] '(' option { ',' option } ')' ] [ WHERE expr ]
+option ::= name [ name | expr ]        (* FORMAT csv, DELIMITER '|', HEADER *)
+```
+
 ### Query expressions
 
 ```ebnf
@@ -164,7 +188,7 @@ query ::= [ WITH [ RECURSIVE ] cte { ',' cte } ]
 cte    ::= name [ col-list ] AS '(' query ')'
 offset ::= OFFSET expr [ ROW | ROWS ]
 fetch  ::= FETCH [ FIRST | NEXT ] expr [ ROW | ROWS ] ONLY
-limit  ::= LIMIT expr
+limit  ::= LIMIT ( expr | ALL )            (* ALL spells out no limit at all *)
 
 body ::= body ( UNION | EXCEPT | INTERSECT ) [ ALL | DISTINCT ] body
        | select | values | TABLE qname | '(' query { ',' query } ')'
@@ -210,7 +234,7 @@ table-primary ::= '(' table-ref ')'                (* a '(' that opens no query 
 ### Value expressions
 
 ```ebnf
-expr ::= expr ( '+' | '-' | '*' | '/' | '%' ) expr
+expr ::= expr ( '+' | '-' | '*' | '/' | '%' | '^' ) expr
        | expr '||' expr
        | expr ( '=' | '<>' | '!=' | '<' | '<=' | '>' | '>=' ) expr
        | expr ( '=' | '<>' | '!=' | '<' | '<=' | '>' | '>=' ) ( ALL | ANY | SOME ) '(' query ')'
@@ -227,6 +251,7 @@ expr ::= expr ( '+' | '-' | '*' | '/' | '%' ) expr
 
 primary ::= literal
           | ref { '[' expr ']' }                   (* array subscripts *)
+          | ARRAY '[' [ expr { ',' expr } ] ']'    (* an array value; ARRAY(x) is the call *)
           | CASE [ expr ] { WHEN expr THEN expr } [ ELSE expr ] END
           | CAST '(' expr AS type ')'
           | special-func
@@ -288,12 +313,14 @@ no rules of their own.
 | concatenation | `a \|\| b` |
 | additive | `a + b`, `a - b` |
 | multiplicative | `a * b`, `a / b`, `a % b` |
+| power | `a ^ b` |
 | unary | prefix `+a`, `-a`, `EXISTS a`, postfix `a COLLATE c` |
 | subscript | `a[i]` |
 
 The bounds of a `BETWEEN` parse above `NOT`, so its own `AND` ends the lower bound instead of being
 swallowed as a conjunction.
 Subscripts bind tighter than the prefix operators: `-a[1]` negates the element, not the array.
+The prefix operators, in turn, bind tighter than `^`, so `-a ^ 2` squares the negation.
 
 Two more chains sit outside the expression grammar.
 `INTERSECT` binds tighter than `UNION` and `EXCEPT`, and both chains are left-associative.

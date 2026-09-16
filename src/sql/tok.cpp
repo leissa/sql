@@ -78,6 +78,7 @@ std::optional<Tok::Prec> Tok::bin_prec(Tok::Tag tag) {
         case Tok::Tag::T_mul:
         case Tok::Tag::T_div:
         case Tok::Tag::T_mod: return Prec::Mul;
+        case Tok::Tag::T_pow: return Prec::Pow;
         default: return {};
     }
 }

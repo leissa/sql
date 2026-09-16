@@ -1,0 +1,4 @@
+bad_show.sql:1:6-1:10: error: expected `COLUMNS`, got `views` while parsing `SHOW` expression
+    1 | SHOW VIEWS;
+      |      ^^^^^
+1 error(s) encountered

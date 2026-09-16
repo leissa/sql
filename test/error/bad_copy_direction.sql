@@ -1,0 +1,1 @@
+COPY t INTO 'f';

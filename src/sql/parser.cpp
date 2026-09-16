@@ -253,7 +253,14 @@ AST<Expr> Parser::parse_stmt() {
         case Tok::Tag::K_UPDATE:   return parse_update();
         case Tok::Tag::K_DELETE:   return parse_delete();
         case Tok::Tag::C_TRANSACT: return parse_transact();
-        default:                   return parse_query("statement", false);
+        case Tok::Tag::K_PREPARE:  return parse_prepare();
+        case Tok::Tag::K_EXECUTE:  return parse_execute();
+        case Tok::Tag::K_DEALLOCATE: return parse_deallocate();
+        case Tok::Tag::K_DESCRIBE: return parse_show();
+        default:
+            if (isa_non_key(N_SHOW)) return parse_show();
+            if (isa_non_key(N_COPY)) return parse_copy();
+            return parse_query("statement", false);
     }
     // clang-format on
 }
@@ -494,6 +501,16 @@ AST<Expr> Parser::parse_primary_or_unary_expr(fe::Cite ctxt) {
         AST<Interval> interval;
         if (tag == Tok::Tag::K_INTERVAL && ISA(ahead().tag(), C_FIELD)) interval = parse_interval();
         return ast<TypedVal>(track, tag, str, interval);
+    }
+
+    // `ARRAY[a, b]`; a `(` instead makes it the ordinary call `array(a, b)`.
+    if (ahead().isa(Tok::Tag::K_ARRAY) && ahead(1).isa(Tok::Tag::D_brckt_l)) {
+        eat(Tok::Tag::K_ARRAY);
+        ASTs<Expr> args;
+        parse_list(
+            "array value constructor", [&]() { args.emplace_back(parse_expr("element of an array")); },
+            Tok::Tag::D_brckt_l);
+        return ast<Array>(track, args);
     }
 
     // Before the call below, so that `NOT (...)` stays an operator rather than a function.
@@ -919,7 +936,8 @@ AST<Expr> Parser::parse_alter() {
     auto track = tracker();
     eat(Tok::Tag::K_ALTER);
     expect(Tok::Tag::K_TABLE, "`ALTER` expression");
-    auto table = parse_name("table name");
+    bool if_table_exists = parse_if_exists(false);
+    auto table           = parse_name("table name");
 
     auto tag = Alter::Add_Column;
     Sym sym, sym2;
@@ -927,7 +945,8 @@ AST<Expr> Parser::parse_alter() {
     AST<Constraint> constraint;
     AST<Type> type;
     AST<Expr> expr;
-    auto behavior = Behavior::None;
+    auto behavior  = Behavior::None;
+    bool if_exists = false;
 
     if (accept_non_key(N_ADD)) {
         if (ISA(ahead().tag(), C_TABLE_CONSTRAINT)) {
@@ -940,12 +959,14 @@ AST<Expr> Parser::parse_alter() {
         }
     } else if (accept(Tok::Tag::K_DROP)) {
         if (accept(Tok::Tag::K_CONSTRAINT)) {
-            tag = Alter::Drop_Constraint;
-            sym = parse_sym("constraint name");
+            tag       = Alter::Drop_Constraint;
+            if_exists = parse_if_exists(false);
+            sym       = parse_sym("constraint name");
         } else {
             accept(Tok::Tag::K_COLUMN);
-            tag = Alter::Drop_Column;
-            sym = parse_sym("column name");
+            tag       = Alter::Drop_Column;
+            if_exists = parse_if_exists(false);
+            sym       = parse_sym("column name");
         }
         behavior = parse_behavior();
     } else if (accept(Tok::Tag::K_ALTER)) {
@@ -990,7 +1011,7 @@ AST<Expr> Parser::parse_alter() {
         syntax_err("`ADD`, `DROP`, `ALTER`, or `RENAME`", "`ALTER TABLE` expression");
     }
 
-    return ast<Alter>(track, tag, sym, sym2, elem, constraint, type, expr, behavior, table);
+    return ast<Alter>(track, tag, sym, sym2, elem, constraint, type, expr, behavior, if_table_exists, if_exists, table);
 }
 
 AST<Expr> Parser::parse_drop() {
@@ -1017,7 +1038,7 @@ AST<Expr> Parser::parse_drop() {
 AST<Expr> Parser::parse_truncate() {
     auto track = tracker();
     eat(Tok::Tag::K_TRUNCATE);
-    expect(Tok::Tag::K_TABLE, "`TRUNCATE` expression");
+    accept(Tok::Tag::K_TABLE);
     auto syms = parse_name("table name");
     return ast<Truncate>(track, syms);
 }
@@ -1119,6 +1140,131 @@ AST<Expr> Parser::parse_delete() {
 
     auto where = accept(Tok::Tag::K_WHERE) ? parse_expr("`WHERE` expression") : nullptr;
     return ast<Delete>(track, as, where, syms);
+}
+
+/*
+ * Prepare / Execute / Deallocate / Show / Copy
+ */
+
+/// `PREPARE <name> [(types)] AS <stmt>` - or `PREPARE <name> FROM '<stmt>'`, which leaves the
+/// statement as a string for whoever prepares it to parse.
+AST<Expr> Parser::parse_prepare() {
+    auto track = tracker();
+    eat(Tok::Tag::K_PREPARE);
+    auto sym = parse_sym("name of a `PREPARE` expression");
+
+    ASTs<Type> types;
+    if (ahead().isa(Tok::Tag::D_paren_l))
+        parse_list("parameter type list of a `PREPARE` expression",
+                   [&]() { types.emplace_back(parse_type("parameter type of a `PREPARE` expression")); });
+
+    AST<Expr> stmt;
+    Sym str;
+    if (accept(Tok::Tag::K_FROM)) {
+        if (ahead().isa(Tok::Tag::V_str))
+            str = lex().sym();
+        else
+            syntax_err("string literal", "`FROM` clause of a `PREPARE` expression");
+    } else {
+        expect(Tok::Tag::K_AS, "`PREPARE` expression");
+        stmt = parse_stmt();
+    }
+
+    return ast<Prepare>(track, sym, stmt, str, types);
+}
+
+AST<Expr> Parser::parse_execute() {
+    auto track = tracker();
+    eat(Tok::Tag::K_EXECUTE);
+    auto sym = parse_sym("name of an `EXECUTE` expression");
+
+    ASTs<Expr> args;
+    bool paren = ahead().isa(Tok::Tag::D_paren_l);
+    if (paren)
+        parse_list("argument list of an `EXECUTE` expression",
+                   [&]() { args.emplace_back(parse_expr("argument of an `EXECUTE` expression")); });
+
+    return ast<Execute>(track, sym, paren, args);
+}
+
+AST<Expr> Parser::parse_deallocate() {
+    auto track = tracker();
+    eat(Tok::Tag::K_DEALLOCATE);
+    accept(Tok::Tag::K_PREPARE);
+    // `ALL` deallocates every prepared statement; no name of its own, hence the empty Sym.
+    auto sym = accept(Tok::Tag::K_ALL) ? Sym() : parse_sym("name of a `DEALLOCATE` expression");
+    return ast<Deallocate>(track, sym);
+}
+
+/// `SHOW TABLES`, `SHOW COLUMNS <table>`, and the `DESCRIBE <table>` that means the latter.
+AST<Expr> Parser::parse_show() {
+    auto track = tracker();
+
+    if (accept(Tok::Tag::K_DESCRIBE)) return ast<Show>(track, Show::Columns, parse_name("table name"));
+
+    expect_non_key(N_SHOW, "`SHOW` expression");
+    if (accept_non_key(N_TABLES)) return ast<Show>(track, Show::Tables, Syms{});
+
+    expect_non_key(N_COLUMNS, "`SHOW` expression");
+    return ast<Show>(track, Show::Columns, parse_name("table name"));
+}
+
+/// `COPY <table> [(cols)] FROM <file> [(options)] [WHERE <where>]` reads, and
+/// `COPY {<table> [(cols)] | (<query>)} TO <file> [(options)]` writes.
+AST<Expr> Parser::parse_copy() {
+    auto track = tracker();
+    expect_non_key(N_COPY, "`COPY` expression");
+
+    // A `(` here opens the query a `COPY ... TO` may take in place of a table.
+    Syms syms, cols;
+    AST<Expr> query;
+    if (ahead().isa(Tok::Tag::D_paren_l)) {
+        expect(Tok::Tag::D_paren_l, "`COPY` expression");
+        auto _ = anchor(Tok::Tag::D_paren_r);
+        query  = parse_query("source of a `COPY` expression", false);
+        expect(Tok::Tag::D_paren_r, "closing delimiter of a `COPY` expression");
+    } else {
+        syms = parse_name("table name");
+        if (ahead().isa(Tok::Tag::D_paren_l)) parse_col_list("column list of a `COPY` expression", cols);
+    }
+
+    bool from = true;
+    if (accept(Tok::Tag::K_FROM))
+        from = true;
+    else if (accept(Tok::Tag::K_TO))
+        from = false;
+    else
+        syntax_err("`FROM` or `TO`", "`COPY` expression");
+
+    // Without a file name the data travels through the standard input or output instead.
+    Sym file;
+    if (ahead().isa(Tok::Tag::V_str))
+        file = lex().sym();
+    else if (!accept_non_key(from ? N_STDIN : N_STDOUT))
+        syntax_err("file name", "`COPY` expression");
+
+    ASTs<Copy::Option> options;
+    // The `WITH` is noise - the option list stands on its own just as well.
+    if (ahead().isa(Tok::Tag::K_WITH) && ahead(1).isa(Tok::Tag::D_paren_l)) lex();
+    if (ahead().isa(Tok::Tag::D_paren_l)) {
+        parse_list("option list of a `COPY` expression", [&]() {
+            auto opt_track = tracker();
+            auto sym       = parse_sym("option of a `COPY` expression");
+
+            // A format is named rather than computed, so a reserved word stands for itself here.
+            Sym name;
+            AST<Expr> val;
+            if (isa_sym() && (ahead(1).isa(Tok::Tag::T_comma) || ahead(1).isa(Tok::Tag::D_paren_r)))
+                name = parse_sym("argument of a `COPY` option");
+            else if (!ahead().isa(Tok::Tag::T_comma) && !ahead().isa(Tok::Tag::D_paren_r))
+                val = parse_expr("argument of a `COPY` option");
+
+            options.emplace_back(ast<Copy::Option>(opt_track, sym, name, val));
+        });
+    }
+
+    auto where = accept(Tok::Tag::K_WHERE) ? parse_expr("`WHERE` expression") : nullptr;
+    return ast<Copy>(track, from, query, file, where, syms, cols, options);
 }
 
 /*
@@ -1562,7 +1708,9 @@ AST<Expr> Parser::parse_query(fe::Cite ctxt, bool value_ok) {
             if (!accept(Tok::Tag::K_ROW)) accept(Tok::Tag::K_ROWS);
             expect(Tok::Tag::K_ONLY, "`FETCH` clause");
         } else if (!limit && accept_non_key(N_LIMIT)) {
-            limit = parse_expr("`LIMIT` clause");
+            // `LIMIT ALL` is the explicit way of spelling out no limit at all.
+            limit = ahead().isa(Tok::Tag::K_ALL) ? ast<SimpleVal>(lex().loc(), Tok::Tag::K_ALL)
+                                                 : parse_expr("`LIMIT` clause");
         } else {
             break;
         }

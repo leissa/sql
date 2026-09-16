@@ -42,3 +42,6 @@ SELECT a FROM t WHERE a ILIKE 'x%';
 SELECT a FROM t WHERE a NOT ILIKE 'x%';
 SELECT a FROM t WHERE a ILIKE 'x!%' ESCAPE '!';
 SELECT ilike FROM t;
+
+-- `^` binds tighter than `*` but looser than the unary operators, and is left-associative.
+SELECT 2 ^ 3 ^ 2, a * b ^ c, -a ^ 2 FROM t;
