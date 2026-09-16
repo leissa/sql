@@ -362,7 +362,6 @@ std::string to_lower(std::string_view sv);
     m(K_UPPER, "UPPER") \
     m(K_USER, "USER") \
     m(K_USING, "USING") \
-    m(K_VALUE, "VALUE") \
     m(K_VALUES, "VALUES") \
     m(K_VALUE_OF, "VALUE_OF") \
     m(K_VAR_POP, "VAR_POP") \
@@ -598,6 +597,7 @@ std::string to_lower(std::string_view sv);
     m(N_USER_DEFINED_TYPE_CODE, "USER_DEFINED_TYPE_CODE") \
     m(N_USER_DEFINED_TYPE_NAME, "USER_DEFINED_TYPE_NAME") \
     m(N_USER_DEFINED_TYPE_SCHEMA, "USER_DEFINED_TYPE_SCHEMA") \
+    m(N_VALUE, "VALUE") \
     m(N_VIEW, "VIEW") \
     m(N_WORK, "WORK") \
     m(N_WRITE, "WRITE") \

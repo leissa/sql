@@ -53,7 +53,8 @@ language and leaves the rest to a later check over the AST:
   dropped; around a query they are structural and are kept, because that is what makes it a subquery.
 - **Non-reserved words are recognized by Sym.** `LIMIT`, `CASCADE`, `NULLS`, `VIEW` and the like lex
   as plain identifiers and only mean something in the one place that looks for them, so
-  `SELECT limit FROM view` still parses as a query over a table.
+  `SELECT limit FROM view` still parses as a query over a table. `VALUE` sits here too, against the
+  standard, which reserves it: TPC-H Q11 names a column that, and so `ORDER BY value` has to work.
 
 The upshot is that some things parse that a conforming implementation would reject.
 That is intentional: it keeps the grammar small, and a checking pass has the whole AST to work with.
@@ -382,17 +383,20 @@ There are four kinds of test, one CTest entry per fixture:
 | `parse/parse/<name>` | `test/parse/` | Parses cleanly, and the dump matches the neighboring `.out` golden. |
 | `error/error/<name>` | `test/error/` | Is rejected, with the diagnostics matching the neighboring `.out` golden. |
 | `reject/reject/<name>` | `test/reject/` | Every query in the corpus, one per line, is rejected. |
-| `idempotent/...` | `test/parse/`, `test/job/`, `test/tpch/` | Dumping a dump reproduces it verbatim. |
+| `idempotent/...` | `test/parse/`, `test/job/`, `test/tpch/`, `test/hyrise/` | Dumping a dump reproduces it verbatim. |
 
 That last one is the interesting one: it holds the printer and the parser to each other, since
 whatever the printer emits, the parser has to read back into the very same AST.
-It runs over the curated fixtures and over two real-world corpora that get no goldens of their own:
-`test/job/`, the [Join Order Benchmark](https://github.com/gregrahn/join-order-benchmark) - 113
-queries plus their schema - and `test/tpch/`, the 22 TPC-H queries.
+It runs over the curated fixtures and over three real-world corpora that get no goldens of their own:
+`test/job/`, the [Join Order Benchmark](https://github.com/gregrahn/join-order-benchmark) with its
+113 queries plus their schema; `test/tpch/`, the 22 TPC-H queries; and `test/hyrise/`, the SQL the
+[hyrise](https://github.com/hyrise/hyrise) database itself runs - the 366 queries of its
+SQLiteTestRunner, the Star Schema Benchmark, and the TPC-H and TPC-DS schemas with their indexes.
 
-The corpora under `test/tpch/`, `test/reject/`, and `test/parse/hyrise.sql` come from the
-[hyrise/sql-parser](https://github.com/hyrise/sql-parser) test suite; each file says in its header
-what was adapted and what was left out.
+The corpora under `test/tpch/`, `test/reject/`, and `test/parse/hyrise.sql` come from
+[hyrise/sql-parser](https://github.com/hyrise/sql-parser), the parser hyrise vendors, and the ones
+under `test/hyrise/` from [hyrise](https://github.com/hyrise/hyrise) itself; each file says in its
+header what was adapted and what was left out.
 
 To run a single test, or one group:
 ```sh

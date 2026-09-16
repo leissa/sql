@@ -47,12 +47,14 @@ entry per `.sql` fixture, named `<mode>/<dir>/<name>`:
 | `parse` | `test/parse/` | Parses cleanly; dump matches the neighboring `.out` golden. |
 | `error` | `test/error/` | Is rejected; diagnostics match the `.out` golden. |
 | `reject` | `test/reject/` | Every query in the corpus, one per line, is rejected. No golden. |
-| `idempotent` | `test/parse/`, `test/job/`, `test/tpch/` | Dumping a dump reproduces it verbatim. |
+| `idempotent` | `test/parse/`, `test/job/`, `test/tpch/`, `test/hyrise/` | Dumping a dump reproduces it verbatim. |
 
 `idempotent` is the load-bearing one: it holds printer and parser to each other, since whatever the
 printer emits the parser must read back into the same AST. **A change to `stream.cpp` almost always
 needs a `bless` and a careful review of the golden diff** — and a printer that loses information
-shows up as an `idempotent` failure over `test/job/` (113 real queries) or `test/tpch/`.
+shows up as an `idempotent` failure over `test/job/` (113 real queries), `test/tpch/`, or
+`test/hyrise/` (the SQL hyrise itself runs: 366 SQLiteTestRunner queries, SSB, TPC-H and TPC-DS
+schemas).
 
 ## Architecture
 

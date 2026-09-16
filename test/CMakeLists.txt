@@ -30,6 +30,10 @@ add_sql_tests(reject reject)
 add_sql_tests(job idempotent)
 add_sql_tests(tpch idempotent)
 
+# What hyrise itself feeds its SQL layer: the SQLiteTestRunner queries and the schemas, indexes, and
+# benchmark queries it ships. Same deal - no goldens, only parse and round-trip.
+add_sql_tests(hyrise idempotent)
+
 add_subdirectory(bench)
 
 # Regenerate every golden file: `cmake --build build --target bless`.
