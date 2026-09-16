@@ -86,7 +86,7 @@ Tok Lexer::lex() {
         // sub or single-line comment
         if (accept('-')) {
             if (accept('-')) {
-                accept_while([](char32_t c) { return c != '\n'; });
+                accept_while_not('\n');
                 continue;
             }
             return {loc_, Tok::Tag::T_sub};
@@ -225,7 +225,7 @@ std::string Lexer::unquote(std::string_view body, uint32_t begin, char32_t delim
 
 void Lexer::eat_comments() {
     while (true) {
-        accept_while([](char32_t c) { return c != '*'; });
+        accept_while_not('*');
         if (ahead() == utf8::EoF) {
             error().e(loc_, "non-terminated multiline comment");
             return;

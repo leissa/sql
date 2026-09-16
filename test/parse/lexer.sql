@@ -5,6 +5,10 @@ SELECT 1 FROM t; -- trailing after a statement
 SELECT /* inline */ 2 FROM t;
 /* nested-looking /* but SQL stops at the first close */
 SELECT 3 FROM t;
+--
+/**/
+/***/
+SELECT 4 FROM t;
 
 -- String literals. A doubled quote escapes one, so the dump has to re-double it.
 SELECT 'plain', '', 'it''s', 'a-b_c', '%wild%', 'tab	here' FROM t;
@@ -21,3 +25,5 @@ SELECT a AS character, b AS at, c AS "select" FROM t;
 
 -- Integer literals.
 SELECT 0, 1, 10, 1000000 FROM t;
+
+-- a line comment ending at EoF, with no newline of its own

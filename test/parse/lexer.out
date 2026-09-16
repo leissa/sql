@@ -1,6 +1,7 @@
 SELECT 1 FROM t;
 SELECT 2 FROM t;
 SELECT 3 FROM t;
+SELECT 4 FROM t;
 SELECT 'plain', '', 'it''s', 'a-b_c', '%wild%', 'tab	here' FROM t;
 SELECT a FROM t WHERE (b = 1);
 SELECT a FROM t;
