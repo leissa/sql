@@ -426,21 +426,25 @@ test/bench/gen.py --mb 64 --stress-names -o /tmp/big.sql   # every identifier di
 ./build/bin/bench --once /tmp/big.sql
 ```
 
-The two modes answer different questions. `--each` is what an embedding that parses one query at a
-time pays, setup included; `--once` pays the setup once and leaves parsing throughput. What is left
-between them is registering each source and constructing a Parser - both O(1), since the few hundred
-reserved and non-reserved words are interned once per Driver rather than once per Parser.
+The first two modes answer different questions. `--each` is what an embedding that parses one query
+at a time pays, setup included; `--once` pays the setup once and leaves parsing throughput. What is
+left between them is registering each source and constructing a Parser - both O(1), since the few
+hundred reserved and non-reserved words are interned once per Driver rather than once per Parser.
 
 #### Against hyrise/sql-parser
 
 [hyrise/sql-parser](https://github.com/hyrise/sql-parser) makes a fair yardstick: a bison/flex parser
 of comparable scope, and the source of several of the corpora above.
-Both built `Release` and pinned to one 5.15 GHz Zen 5 core of a Ryzen AI 9 HX PRO 370, with
-`hyperfine` for the wall clock and `perf stat -e instructions` for a figure that does not drift
-between runs:
+Both built `Release` with the same compiler and pinned to one 5.15 GHz Zen 5 core of a Ryzen AI 9
+HX PRO 370, the machine otherwise idle.
+The wall clock is the best of five in-process timings over a corpus read up front, so no file system
+is in it; `perf stat -e instructions` gives the figure that does not drift between runs, normalized
+per input byte so that it does not depend on an iteration count either.
+On every corpus below both parsers accept every file and report the same number of statements, so
+they really are handed the same work.
 
 - **Throughput** is *more is better*.
-- **Instructions** is *fewer is better*.
+- **Instructions per byte** is *fewer is better*.
 - The **winner** of each pair is in **bold**.
 
 <table>
@@ -449,7 +453,7 @@ between runs:
       <th rowspan="2">Corpus</th>
       <th rowspan="2">Mode</th>
       <th colspan="2">Throughput (MB/s) </th>
-      <th colspan="2">Instructions (G) </th>
+      <th colspan="2">Instructions / byte </th>
     </tr>
     <tr>
       <th>Ours</th>
@@ -462,68 +466,84 @@ between runs:
     <tr>
       <td>JOB, 113 queries</td>
       <td><code>--each</code></td>
-      <td><strong>103.7</strong></td>
-      <td>59.5</td>
-      <td><strong>0.59</strong></td>
-      <td>1.04</td>
+      <td><strong>116.6</strong></td>
+      <td>66.6</td>
+      <td><strong>132.5</strong></td>
+      <td>253.1</td>
     </tr>
     <tr>
       <td>JOB</td>
       <td><code>--once</code></td>
-      <td><strong>157.8</strong></td>
-      <td>68.1</td>
-      <td><strong>0.48</strong></td>
-      <td>1.05</td>
+      <td><strong>183.2</strong></td>
+      <td>74.3</td>
+      <td><strong>105.4</strong></td>
+      <td>255.5</td>
     </tr>
     <tr>
       <td>TPC-H, 22 queries</td>
       <td><code>--each</code></td>
-      <td><strong>67.8</strong></td>
-      <td>50.1</td>
-      <td><strong>0.21</strong></td>
-      <td>0.28</td>
+      <td><strong>94.6</strong></td>
+      <td>71.6</td>
+      <td><strong>144.4</strong></td>
+      <td>209.2</td>
     </tr>
     <tr>
       <td>TPC-H</td>
       <td><code>--once</code></td>
-      <td><strong>114.1</strong></td>
-      <td>59.3</td>
-      <td><strong>0.16</strong></td>
-      <td>0.29</td>
+      <td><strong>165.5</strong></td>
+      <td>82.7</td>
+      <td><strong>107.6</strong></td>
+      <td>214.4</td>
     </tr>
     <tr>
       <td>generated, 32 MiB</td>
       <td><code>--once</code></td>
-      <td><strong>111.3</strong></td>
-      <td>43.9</td>
-      <td><strong>13.4</strong></td>
-      <td>26.0</td>
+      <td><strong>120.9</strong></td>
+      <td>46.3</td>
+      <td><strong>125.1</strong></td>
+      <td>257.6</td>
     </tr>
     <tr>
       <td>generated, 256 MiB</td>
       <td><code>--once</code></td>
-      <td><strong>113.9</strong></td>
-      <td>43.1</td>
-      <td><strong>39.8</strong></td>
-      <td>69.6</td>
+      <td><strong>116.4</strong></td>
+      <td>41.5</td>
+      <td><strong>140.8</strong></td>
+      <td>259.4</td>
+    </tr>
+    <tr>
+      <td>generated, 32 MiB, <code>--stress-names</code></td>
+      <td><code>--once</code></td>
+      <td><strong>109.8</strong></td>
+      <td>66.1</td>
+      <td><strong>99.4</strong></td>
+      <td>173.3</td>
     </tr>
   </tbody>
 </table>
 
-Lexing alone, against their flex scanner: 290.7 MB/s to 147.2 on JOB, and 204.5 to 114.7 on the
+Lexing alone, against their flex scanner: 341.9 MB/s to 176.9 on JOB, and 228.9 to 136.8 on the
 32 MiB corpus.
+That lead is won on instructions per cycle rather than on instruction count - their scanner retires
+roughly as many instructions per byte as this one, fewer on two of the five corpora, but runs at an
+IPC of 2.5 to 3.2 where this one runs at 3.4 to 4.6, a flex table walk being a chain of dependent
+loads the machine cannot run ahead of.
+
 Peak [resident set size](https://en.wikipedia.org/wiki/Resident_set_size) - the RAM a process has
-actually touched, at its high-water mark - over 500k times `SELECT a FROM t;` is 146 MiB against
-their 284, or 306 bytes per statement to their 596.
+actually touched, at its high-water mark - over 500k times `SELECT a FROM t;` is 127 MiB against
+their 285, or 267 bytes per statement to their 598.
 That is the number to watch for an embedding, because the AST *is* the output and is held for as long
 as the caller needs it.
 
-Two things worth reading off that table.
+Three things worth reading off that table.
 Throughput does not fall off as the corpus grows, because the per-statement footprint is small enough
 that the working set does not grow with it either.
-And the margin is narrowest in `--each`, where registering each source and hashing its path is a
-larger share of the work than parsing - that, rather than anything in the parser, is what the two
-modes still differ by.
+The margin is narrowest in `--each`, where registering each source and hashing its path is a larger
+share of the work than parsing - that, rather than anything in the parser, is what the two modes
+still differ by.
+And `--stress-names` is the worst case a design built on interning can be handed: with no name ever
+reused, lexing ties exactly - 162.7 MB/s to 164.0 - and parsing falls from a 2.6x lead to a 1.7x one
+over the same corpus with its names reused.
 
 The two do not do quite the same work per byte, in both directions: their scanner recognizes keywords
 inside the DFA, where this one interns and looks up every word, but it is also byte-oriented and
