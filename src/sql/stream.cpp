@@ -28,7 +28,7 @@ struct Ident {
 
         o << '"';
         for (auto c : sv) {
-            if (c == '"') o << '"';
+            if (c == '"' || c == '\\') o << c; // both escape by doubling
             o << c;
         }
         return o << '"';
@@ -52,7 +52,7 @@ struct Ref {
     }
 };
 
-/// Streams a string literal, doubling the delimiter the way SQL escapes it.
+/// Streams a string literal, doubling the delimiter - and the backslash - the way SQL escapes them.
 struct Str {
     Str(Sym sym)
         : sym(sym) {}
@@ -62,7 +62,7 @@ struct Str {
     friend std::ostream& operator<<(std::ostream& o, Str str) {
         o << '\'';
         for (auto c : *str.sym) {
-            if (c == '\'') o << '\'';
+            if (c == '\'' || c == '\\') o << c;
             o << c;
         }
         return o << '\'';
