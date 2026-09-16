@@ -86,7 +86,7 @@ Tok Lexer::lex() {
         // sub or single-line comment
         if (accept('-')) {
             if (accept('-')) {
-                accept_while_not('\n');
+                accept_while_none_of('\n');
                 continue;
             }
             return {loc_, Tok::Tag::T_sub};
@@ -166,17 +166,16 @@ Tok Lexer::lex_str(char32_t delim, Tok::Tag tag) {
     bool esc   = false;
 
     while (true) {
+        accept_while_none_of((char8_t)delim, u8'\\');
         if (accept(delim)) {
             if (!accept(delim)) return {loc_, tag, sym_str(begin, loc_.end.off - 1, delim, esc)};
             esc = true;
-        } else if (ahead() == utf8::EoF) {
-            error().e(loc_, "unterminated string literal");
-            return {loc_, tag, sym_str(begin, loc_.end.off, delim, esc)};
         } else if (accept('\\')) {
             esc = true;
             if (ahead() != utf8::EoF) next();
         } else {
-            next();
+            error().e(loc_, "unterminated string literal");
+            return {loc_, tag, sym_str(begin, loc_.end.off, delim, esc)};
         }
     }
 }
@@ -224,15 +223,12 @@ std::string Lexer::unquote(std::string_view body, uint32_t begin, char32_t delim
 }
 
 void Lexer::eat_comments() {
-    while (true) {
-        accept_while_not('*');
-        if (ahead() == utf8::EoF) {
-            error().e(loc_, "non-terminated multiline comment");
-            return;
-        }
-        next();
-        if (accept('/')) break;
+    accept_until("*/");
+    if (!accept('*')) {
+        error().e(loc_, "non-terminated multiline comment");
+        return;
     }
+    accept('/');
 }
 
 } // namespace sql
