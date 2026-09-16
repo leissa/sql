@@ -525,9 +525,9 @@ they really are handed the same work.
 Lexing alone, against their flex scanner: 341.9 MB/s to 176.9 on JOB, and 228.9 to 136.8 on the
 32 MiB corpus.
 That lead is won on instructions per cycle rather than on instruction count - their scanner retires
-roughly as many instructions per byte as this one, fewer on two of the five corpora, but runs at an
-IPC of 2.5 to 3.2 where this one runs at 3.4 to 4.6, a flex table walk being a chain of dependent
-loads the machine cannot run ahead of.
+a comparable number of instructions per byte, in fact fewer on three of the five corpora, yet
+wherever this one leads it does so at an IPC of 3.4 to 4.6 against their 2.5 to 3.2, a flex table
+walk being a chain of dependent loads the machine cannot run ahead of.
 
 Peak [resident set size](https://en.wikipedia.org/wiki/Resident_set_size) - the RAM a process has
 actually touched, at its high-water mark - over 500k times `SELECT a FROM t;` is 127 MiB against
