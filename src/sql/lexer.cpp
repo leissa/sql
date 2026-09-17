@@ -162,20 +162,20 @@ Tok Lexer::lex_num() {
 /// Lexes the body of a @p delim-quoted literal; a doubled @p delim escapes one occurrence of it.
 /// The body is a slice of Lexer::buf_ unless an escape made it diverge - see Lexer::unquote.
 Tok Lexer::lex_str(char32_t delim, Tok::Tag tag) {
-    auto begin = loc_.end.off; // just past the opening delim
+    auto begin = loc_.end.offset; // just past the opening delim
     bool esc   = false;
 
     while (true) {
         accept_while_none_of((char8_t)delim, u8'\\');
         if (accept(delim)) {
-            if (!accept(delim)) return {loc_, tag, sym_str(begin, loc_.end.off - 1, delim, esc)};
+            if (!accept(delim)) return {loc_, tag, sym_str(begin, loc_.end.offset - 1, delim, esc)};
             esc = true;
         } else if (accept('\\')) {
             esc = true;
             if (ahead() != utf8::EoF) next();
         } else {
             error().e(loc_, "unterminated string literal");
-            return {loc_, tag, sym_str(begin, loc_.end.off, delim, esc)};
+            return {loc_, tag, sym_str(begin, loc_.end.offset, delim, esc)};
         }
     }
 }
