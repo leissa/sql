@@ -206,9 +206,9 @@ public:
 
     Frame(Loc loc, Tok::Tag unit, AST<Bound> lo, AST<Bound> hi, Exclude exclude)
         : Node(loc)
-        , unit_(unit)
         , lo_(lo)
         , hi_(hi)
+        , unit_(unit)
         , exclude_(exclude) {}
 
     Tok::Tag unit() const { return unit_; } ///< Tok::Tag::K_ROWS, Tok::Tag::K_RANGE, or Tok::Tag::K_GROUPS.
@@ -219,9 +219,9 @@ public:
     void stream(std::ostream&) const override;
 
 private:
-    Tok::Tag unit_;
     AST<Bound> lo_;
     AST<Bound> hi_;
+    Tok::Tag unit_;
     Exclude exclude_;
 };
 
@@ -762,8 +762,8 @@ public:
     BinExpr(Loc loc, AST<Expr> lhs, Tok::Tag tag, AST<Expr> rhs)
         : Expr(loc)
         , lhs_(lhs)
-        , tag_(tag)
-        , rhs_(rhs) {}
+        , rhs_(rhs)
+        , tag_(tag) {}
 
     const Expr* lhs() const { return lhs_.get(); }
     Tok::Tag tag() const { return tag_; }
@@ -773,8 +773,8 @@ public:
 
 private:
     AST<Expr> lhs_;
-    Tok::Tag tag_;
     AST<Expr> rhs_;
+    Tok::Tag tag_;
 };
 
 class BinExprWithPreTag : public BinExpr {
@@ -921,8 +921,8 @@ public:
 
     CreateView(Loc loc, bool replace, AST<Expr> query, Tok::Tag check)
         : Expr(loc)
-        , replace_(replace)
         , query_(query)
+        , replace_(replace)
         , check_(check) {}
 
     auto syms() const { return vla<0>(); }
@@ -936,8 +936,8 @@ public:
     void stream(std::ostream&) const override;
 
 private:
-    bool replace_;
     AST<Expr> query_;
+    bool replace_;
     Tok::Tag check_;
 };
 
@@ -1271,10 +1271,10 @@ public:
 
     TableRef(Loc loc, bool lateral, AST<Expr> expr, bool ordinality, Sym as)
         : Expr(loc)
-        , lateral_(lateral)
         , expr_(expr)
-        , ordinality_(ordinality)
-        , as_(as) {}
+        , as_(as)
+        , lateral_(lateral)
+        , ordinality_(ordinality) {}
 
     bool lateral() const { return lateral_; }
     const Expr* expr() const { return expr_.get(); }
@@ -1285,10 +1285,10 @@ public:
     void stream(std::ostream&) const override;
 
 private:
-    bool lateral_;
     AST<Expr> expr_;
-    bool ordinality_;
     Sym as_;
+    bool lateral_;
+    bool ordinality_;
 };
 
 class Join : public Expr {
