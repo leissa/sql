@@ -37,8 +37,17 @@ same name; `cmake/sql-config.cmake.in` is what `find_package(sql)` lands on. The
 is likely to have taken already. The CLI and `example/` are built only when this is the top-level
 project; `example/` is in the default build so it cannot rot.
 
+`SQL_INSTALL` (default: `ON` only for a top-level build) gates the install rules, mirroring FE's own
+`FE_INSTALL` — an embedded libsql is compiled into its consumer, which has a prefix of its own to
+keep tidy. It also *sets* `FE_INSTALL`, and must: libsql's public headers include FE's, so a consumer
+needs them, and `install(EXPORT)` refuses a target whose PUBLIC dependency is in no export set. FE
+stays an `OBJECT` library either way, and CMake hands its objects only to whoever links it directly,
+so a consumer of the installed libsql resolves every `fe::` symbol in `libsql.so` rather than
+carrying a second copy — check with `nm -C` on the consumer binary if that ever seems in doubt.
+
 CI additionally runs an ASan+LSan+UBSan Debug build (`.github/workflows/linux.yml`). A change is done
-when it is leak- and UB-clean, not merely when `ctest` passes.
+when it is leak- and UB-clean, not merely when `ctest` passes. Reproduce it with **clang**, as CI
+does: a GCC sanitizer build dies in Abseil's `hash_policy_traits.h` on a non-constant expression.
 
 ### Formatting
 
