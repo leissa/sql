@@ -3,8 +3,9 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 A handwritten recursive-descent SQL parser built on [FE](https://github.com/leissa/fe), which is
-vendored at `submodules/fe`. `README.md` documents what the parser accepts, the EBNF grammar it
-actually implements, and the coding style; read it before changing the grammar or the printer.
+vendored at `submodules/fe`. `README.md` documents what the parser accepts and the
+coding style, and `GRAMMAR.md` the EBNF grammar it actually implements; read both before changing
+the grammar or the printer.
 
 ## Build and test
 

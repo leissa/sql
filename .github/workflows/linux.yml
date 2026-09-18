@@ -68,3 +68,38 @@ jobs:
         env:
           ASAN_OPTIONS: detect_leaks=1
           UBSAN_OPTIONS: print_stacktrace=1
+
+  install:
+    name: install + find_package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone recursively
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++-14
+
+      - name: Configure
+        run: >
+          CC=gcc-14 CXX=g++-14 cmake -S ${{github.workspace}} -B ${{github.workspace}}/build
+          -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+
+      - name: Build and install
+        run: >
+          cmake --build ${{github.workspace}}/build
+          && cmake --install ${{github.workspace}}/build --prefix ${{github.workspace}}/prefix
+
+      # example/ is a project of its own; here it stands in for any downstream find_package(sql).
+      - name: Build example against the install
+        run: >
+          CC=gcc-14 CXX=g++-14 cmake -S ${{github.workspace}}/example -B ${{github.workspace}}/build-example
+          -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=${{github.workspace}}/prefix
+          && cmake --build ${{github.workspace}}/build-example
+
+      - name: Run it
+        run: ${{github.workspace}}/build-example/example
