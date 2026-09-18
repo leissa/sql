@@ -11,6 +11,8 @@ set_target_properties(libsql PROPERTIES PREFIX "")
 set_target_properties(libsql PROPERTIES DEFINE_SYMBOL fe_EXPORTS)
 set_target_properties(libsql PROPERTIES EXPORT_NAME sql) # `libsql::libsql` reads badly.
 set_target_properties(libsql PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
+# The installed libsql.so must find the absl siblings installed beside it.
+set_target_properties(libsql PROPERTIES INSTALL_RPATH $<IF:$<PLATFORM_ID:Darwin>,@loader_path,$ORIGIN>)
 
 target_sources(libsql
     PUBLIC
