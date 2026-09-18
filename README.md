@@ -20,6 +20,9 @@ The [grammar](#-grammar) below spells out exactly which subset.
 Diagnostics carry precise `path:row:col` locations, and the parser recovers rather than giving up on
 the first error.
 
+Just want to parse SQL in your own C++ project?
+Jump to [Using It as a Library](#-using-it-as-a-library).
+
 ## 💡 Why?
 
 This is a compact, readable example of a handwritten recursive-descent frontend:
@@ -349,7 +352,81 @@ For a `Release` build simply use `-DCMAKE_BUILD_TYPE=Release`.
 This needs a C++23 compiler.
 Abseil and FE come along as submodules; nothing else is required.
 
-## 🔧 Usage
+To install the library, its headers, and its CMake package:
+```sh
+cmake --install build --prefix /usr/local
+```
+
+## 📦 Using It as a Library
+
+Link `sql::sql` - via `find_package` against an install, or by pulling the repository into your build:
+
+```cmake
+find_package(sql 0.1 REQUIRED)             # against `cmake --install`
+# or: add_subdirectory(sql)                # as a submodule
+# or: FetchContent_MakeAvailable(sql)      # straight from the repository
+
+target_link_libraries(my_app PRIVATE sql::sql)
+```
+
+One header, one call:
+
+```cpp
+#include <sql/sql.h>
+
+auto res = sql::parse("SELECT a, b FROM t WHERE a > 42;");
+if (!res) {
+    res.report(std::cerr);       // `<input>:1:10: error: ...`, snippet and all
+    return EXIT_FAILURE;
+}
+
+for (auto stmt : res.stmts())
+    if (auto select = stmt->isa<sql::Select>())
+        std::cout << select->elems().size() << " selected, " << select->froms().size() << " table refs\n";
+
+std::cout << res << '\n';       // the AST, streamed back out as SQL
+```
+
+`sql::parse_file(path)` and `sql::parse(std::istream&)` read from a file or a stream instead; the
+former throws `std::filesystem::filesystem_error` if the file cannot be read.
+A complete program is in [example/](example/), and it builds on its own:
+
+```sh
+cmake -S example -B build-example -DCMAKE_PREFIX_PATH=/usr/local && cmake --build build-example
+```
+
+### Lifetime
+
+Every AST node is allocated in an arena and handed out as an `AST<T>` - a *non-owning* pointer.
+That arena belongs to the `sql::Result`, which is why the Result is what you keep: the whole AST
+dies with it, so returning an `AST<T>` from a function that let its Result go out of scope dangles.
+A Result moves freely, though, so returning *it* is fine.
+
+### Walking the AST
+
+Statements are `Expr`s (see [Design](#-design-parse-loosely-check-later)), and every node is an
+`fe::RuntimeCast`, so a dynamic check is `isa` and an assertion is `as`:
+
+```cpp
+if (auto select = stmt->isa<sql::Select>()) /* ... */;   // nullptr if it is not a Select
+auto& select = *stmt->as<sql::Select>();                 // asserts that it is
+```
+
+`stream` is `virtual`, so any node - not just a whole `Prog` - streams itself back out as SQL via
+`operator<<` or `std::format`.
+
+### Diagnostics
+
+The parser recovers, so a `Result` with errors still carries an AST, just one with holes in it.
+`res.errors()` hands out the `fe::Error::Msg`es themselves - each a `Loc`, a tag, the text, and its
+notes - while `res.report(os)` streams them the way the command-line tool does and returns how many
+errors there were. Nothing is printed unless you ask for it.
+
+For finer control - a `fe::Diag` of your own, or parsing many inputs into a single arena - drop to
+`sql::Driver` and `sql::Parser` directly; `sql::parse` is a thin wrapper over exactly that, and
+`res.driver()` hands you the one it made.
+
+## 🔧 Command-Line Tool
 
 ```sh
 ./build/bin/sql -d test/parse/select.sql   # parse and dump the AST back as SQL

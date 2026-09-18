@@ -24,6 +24,19 @@ cmake --build build --target bless                                   # regenerat
 cmake --build build --target bench                                   # build the benchmark
 ```
 
+Packaging is part of the deliverable, so exercise it the way a consumer would:
+
+```sh
+cmake --install build --prefix /tmp/prefix                             # library, headers, CMake package
+cmake -S example -B /tmp/ex -DCMAKE_PREFIX_PATH=/tmp/prefix && cmake --build /tmp/ex
+```
+
+The library target is `libsql` (file `libsql.so`), aliased `sql::sql` in-tree and exported under that
+same name; `cmake/sql-config.cmake.in` is what `find_package(sql)` lands on. The CLI target is
+`sql-cli` with `OUTPUT_NAME sql` — a target name is global, and `sql` is precisely the one a consumer
+is likely to have taken already. The CLI and `example/` are built only when this is the top-level
+project; `example/` is in the default build so it cannot rot.
+
 CI additionally runs an ASan+LSan+UBSan Debug build (`.github/workflows/linux.yml`). A change is done
 when it is leak- and UB-clean, not merely when `ctest` passes.
 
@@ -58,7 +71,7 @@ schemas).
 
 ## Architecture
 
-Four layers, each a thin specialization of an FE CRTP base:
+Four layers, each a thin specialization of an FE CRTP base, plus a façade over all of them:
 
 - **`Driver`** (`driver.h`, `driver.cpp`) — owns the `SymPool`, the AST `Arena`, and everything
   interned once and for all: `keys()` (reserved words → `Tok::Tag`), `non_keys()` (non-reserved
@@ -78,11 +91,16 @@ Four layers, each a thin specialization of an FE CRTP base:
 - **AST + printer** (`ast.h`, `stream.cpp`) — ~64 node classes, all arena-allocated via
   `Driver::ast<T>()` and held as `AST<T>` = `fe::Arena::Ref<const T>`, a non-owning pointer: the
   Arena reclaims everything at once, so no node has a destructor and none is ever run. A node's
-  child lists sit in the very same allocation, right behind it: it derives from `fe::Trailing`,
-  names their element types in `Trail_Types`, and hands each out as a `fe::View` via `trail<I>()`.
+  child lists sit in the very same allocation, right behind it: it derives from `fe::VLA`,
+  names their element types in `VLA_Types`, and hands each out as a `fe::View` via `vla<I>()`.
   `ASTs<T>`/`Syms` are only the Parser's scratch buffers. Two consequences to respect: everything a
   node stores must stay trivially destructible, and the trailing ranges are passed as the **last**
-  arguments of `Driver::ast<T>()`, in the order `Trail_Types` declares them.
+  arguments of `Driver::ast<T>()`, in the order `VLA_Types` declares them.
+- **Façade** (`sql.h`, `sql.cpp`) — `sql::parse`/`parse_file` and the `sql::Result` they yield; what
+  an embedder is meant to use. A `Result` holds the `Driver` in a `unique_ptr` (`fe::Driver` is not
+  movable) and so owns the Arena the AST lives in: that is the whole point, since an `AST<T>` is a
+  non-owning pointer and would otherwise dangle the moment the Driver went out of scope. Keep this
+  layer thin — it must not grow knowledge the Parser does not already have.
 
 ### Conventions that are easy to get wrong
 
@@ -101,6 +119,10 @@ Four layers, each a thin specialization of an FE CRTP base:
   to quote more broadly churns every golden file.
 - **Statements are `Expr`s** (so subqueries need no second hierarchy) but the *grammar* keeps them
   apart; parentheses around a scalar expression are dropped, around a query they are kept.
+- **A consumer must see the same `FE_ABSL`.** It switches FE's containers between `std` and Abseil,
+  which changes the layout of `Driver` and everything reachable from it. The CMake package propagates
+  the define; a hand-rolled `g++ -I include` that omits it links fine and then corrupts memory at
+  runtime. Reproduce a consumer through `example/`, never through a bare compile line.
 - Naming: `is_` prefix for `bool`, `isa_` for `std::optional`/nullable pointer, `Camel_Snake_Case`
   for constants, trailing `_` on private members. Full list in README's Coding Style section.
 

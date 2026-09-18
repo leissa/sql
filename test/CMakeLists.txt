@@ -9,7 +9,7 @@ function(add_sql_tests dir mode)
         get_filename_component(name ${fixture} NAME_WE)
         add_test(
             NAME ${mode}/${dir}/${name}
-            COMMAND ${Python3_EXECUTABLE} ${RUN_TEST} --sql $<TARGET_FILE:sql> --mode ${mode} ${fixture}
+            COMMAND ${Python3_EXECUTABLE} ${RUN_TEST} --sql $<TARGET_FILE:sql-cli> --mode ${mode} ${fixture}
         )
     endforeach()
 endfunction()
@@ -39,7 +39,7 @@ add_subdirectory(bench)
 # Regenerate every golden file: `cmake --build build --target bless`.
 add_custom_target(bless
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/bless.py
-            --sql $<TARGET_FILE:sql> --test-dir ${CMAKE_CURRENT_SOURCE_DIR}
-    DEPENDS sql
+            --sql $<TARGET_FILE:sql-cli> --test-dir ${CMAKE_CURRENT_SOURCE_DIR}
+    DEPENDS sql-cli
     COMMENT "Regenerating test golden files"
 )

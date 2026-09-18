@@ -12,7 +12,6 @@ int main(int argc, char** argv) {
     sql::Driver driver; // outlives the handler below: it writes into the Driver's Diag
 
     try {
-        // TODO put version number into cmake magic
         bool show_help = false, show_version = false, dump = false;
         std::string input;
 
@@ -51,7 +50,7 @@ int main(int argc, char** argv) {
         }
 
         if (show_version) {
-            std::cerr << "libsql command-line utility version 0.1\n";
+            std::cout << "libsql command-line utility version " SQL_VERSION "\n";
             return EXIT_SUCCESS;
         }
 

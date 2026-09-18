@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.29 FATAL_ERROR)
-project(SQLParser)
+project(SQLParser VERSION 0.1.0)
+
+include(CMakePackageConfigHelpers)
+include(GNUInstallDirs)
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type (default Debug)" FORCE)
@@ -40,6 +43,10 @@ set(FE_ABSL ON)
 add_subdirectory(submodules/abseil-cpp)
 add_subdirectory(submodules/fe)
 add_subdirectory(src)
+
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+    add_subdirectory(example) # built here so it cannot rot.
+endif()
 
 if(BUILD_TESTING AND CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     add_subdirectory(test)
