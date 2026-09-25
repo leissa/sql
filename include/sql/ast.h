@@ -4,6 +4,7 @@
 
 #include <ostream>
 #include <tuple>
+#include <variant>
 
 #include <fe/arena.h>
 #include <fe/cast.h>
