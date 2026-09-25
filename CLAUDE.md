@@ -15,7 +15,7 @@ cmake --build build -j $(nproc)
 ctest --test-dir build --output-on-failure
 ```
 
-Abseil and FE come along as submodules (`git clone --recurse-submodules`); nothing else is needed.
+FE comes along as a submodule (`git clone --recurse-submodules`); nothing else is needed.
 Requires a C++23 compiler.
 
 ```sh
@@ -48,7 +48,7 @@ carrying a second copy — check with `nm -C` on the consumer binary if that eve
 
 CI additionally runs an ASan+LSan+UBSan Debug build (`.github/workflows/linux.yml`). A change is done
 when it is leak- and UB-clean, not merely when `ctest` passes. Reproduce it with **clang**, as CI
-does: a GCC sanitizer build dies in Abseil's `hash_policy_traits.h` on a non-constant expression.
+does.
 
 ### Formatting
 
@@ -129,10 +129,6 @@ Four layers, each a thin specialization of an FE CRTP base, plus a façade over 
   to quote more broadly churns every golden file.
 - **Statements are `Expr`s** (so subqueries need no second hierarchy) but the *grammar* keeps them
   apart; parentheses around a scalar expression are dropped, around a query they are kept.
-- **A consumer must see the same `FE_ABSL`.** It switches FE's containers between `std` and Abseil,
-  which changes the layout of `Driver` and everything reachable from it. The CMake package propagates
-  the define; a hand-rolled `g++ -I include` that omits it links fine and then corrupts memory at
-  runtime. Reproduce a consumer through `example/`, never through a bare compile line.
 - Naming: `is_` prefix for `bool`, `isa_` for `std::optional`/nullable pointer, `Camel_Snake_Case`
   for constants, trailing `_` on private members. Full list in README's Coding Style section.
 

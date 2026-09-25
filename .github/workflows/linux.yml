@@ -8,14 +8,14 @@ on:
 jobs:
   build-and-test:
     name: ${{matrix.compiler.name}} ${{matrix.build-type}}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:
         compiler:
-          # clang uses libstdc++ for its standard library, so g++-14 is installed in both cases.
-          - { name: gcc-14, cc: gcc-14, cxx: g++-14,  apt: g++-14 }
-          - { name: clang,  cc: clang,  cxx: clang++, apt: clang g++-14 }
+          # clang uses libstdc++ for its standard library, so g++-15 is installed in both cases.
+          - { name: gcc-15, cc: gcc-15, cxx: g++-15,  apt: g++-15 }
+          - { name: clang,  cc: clang,  cxx: clang++, apt: clang g++-15 }
         build-type: [Debug, Release]
 
     steps:
@@ -40,7 +40,7 @@ jobs:
 
   sanitize:
     name: ASan+LSan+UBSan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Clone recursively
@@ -51,7 +51,7 @@ jobs:
       - name: Install toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang g++-14
+          sudo apt-get install -y clang g++-15
 
       - name: Configure
         run: >
@@ -71,7 +71,7 @@ jobs:
 
   install:
     name: install + find_package
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Clone recursively
@@ -82,11 +82,11 @@ jobs:
       - name: Install toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y g++-14
+          sudo apt-get install -y g++-15
 
       - name: Configure
         run: >
-          CC=gcc-14 CXX=g++-14 cmake -S ${{github.workspace}} -B ${{github.workspace}}/build
+          CC=gcc-15 CXX=g++-15 cmake -S ${{github.workspace}} -B ${{github.workspace}}/build
           -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
 
       - name: Build and install
@@ -97,7 +97,7 @@ jobs:
       # example/ is a project of its own; here it stands in for any downstream find_package(sql).
       - name: Build example against the install
         run: >
-          CC=gcc-14 CXX=g++-14 cmake -S ${{github.workspace}}/example -B ${{github.workspace}}/build-example
+          CC=gcc-15 CXX=g++-15 cmake -S ${{github.workspace}}/example -B ${{github.workspace}}/build-example
           -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=${{github.workspace}}/prefix
           && cmake --build ${{github.workspace}}/build-example
 

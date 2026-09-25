@@ -90,7 +90,7 @@ cmake --build build -j $(nproc)
 For a `Release` build simply use `-DCMAKE_BUILD_TYPE=Release`.
 
 This needs a C++23 compiler.
-Abseil and FE come along as submodules; nothing else is required.
+FE comes along as a submodule; nothing else is required.
 
 To install the library, its headers, and its CMake package:
 ```sh

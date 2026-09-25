@@ -1,6 +1,3 @@
-[submodule "submodules/abseil-cpp"]
-	path = submodules/abseil-cpp
-	url = ../../abseil/abseil-cpp.git
 [submodule "submodules/fe"]
 	path = submodules/fe
 	url = ../fe

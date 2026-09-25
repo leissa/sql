@@ -11,8 +11,6 @@ set_target_properties(libsql PROPERTIES PREFIX "")
 set_target_properties(libsql PROPERTIES DEFINE_SYMBOL fe_EXPORTS)
 set_target_properties(libsql PROPERTIES EXPORT_NAME sql) # `libsql::libsql` reads badly.
 set_target_properties(libsql PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
-# The installed libsql.so must find the absl siblings installed beside it.
-set_target_properties(libsql PROPERTIES INSTALL_RPATH $<IF:$<PLATFORM_ID:Darwin>,@loader_path,$ORIGIN>)
 
 target_sources(libsql
     PUBLIC
@@ -27,17 +25,8 @@ target_sources(libsql
             ${PROJECT_SOURCE_DIR}/include/sql/sql.h
             ${PROJECT_SOURCE_DIR}/include/sql/tok.h
 )
-target_link_libraries(libsql
-    PUBLIC
-        absl::flat_hash_map absl::flat_hash_set
-        absl::node_hash_map absl::node_hash_set
-        fe
-)
+target_link_libraries(libsql PUBLIC fe)
 target_compile_features(libsql PUBLIC cxx_std_${CMAKE_CXX_STANDARD}) # make property public.
-
-if (MSVC AND BUILD_SHARED_LIBS)
-    target_compile_definitions(libsql PUBLIC ABSL_CONSUME_DLL)
-endif()
 
 if(SQL_INSTALL)
     set(targets_export_name "sql-targets")

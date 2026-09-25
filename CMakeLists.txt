@@ -37,10 +37,6 @@ else()
     add_compile_options(-Wall -Wextra)
 endif()
 
-set(ABSL_PROPAGATE_CXX_STD ON)
-set(ABSL_ENABLE_INSTALL ON)
-set(FE_ABSL ON)
-
 # An embedded libsql is built into its consumer, which has a prefix of its own to keep tidy.
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     set(sql_install ON)
@@ -50,7 +46,6 @@ endif()
 option(SQL_INSTALL "If ON, generate install rules for libsql." ${sql_install})
 # libsql's public headers include fe's, so a consumer needs them - and the export set needs fe in one.
 set(FE_INSTALL ${SQL_INSTALL})
-add_subdirectory(submodules/abseil-cpp)
 add_subdirectory(submodules/fe)
 add_subdirectory(src)
 

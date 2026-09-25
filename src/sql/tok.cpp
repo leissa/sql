@@ -1,11 +1,21 @@
 #include "sql/tok.h"
 
-#include <absl/container/flat_hash_set.h>
+#include <ankerl/unordered_dense.h>
 #include <fe/assert.h>
 
 using namespace std::literals;
 
 namespace sql {
+
+namespace {
+struct Hash {
+    using is_transparent = void;
+    using is_avalanching = void;
+    uint64_t operator()(std::string_view s) const noexcept {
+        return ankerl::unordered_dense::hash<std::string_view>()(s);
+    }
+};
+} // namespace
 
 std::string to_lower(std::string_view sv) {
     std::string res;
@@ -36,7 +46,7 @@ bool Tok::isa_key(std::string_view lower) {
     // Not a fe::SymSet: Sym%bols are interned per SymPool, and the printer - the only caller -
     // has none at hand. Hashing the spelling instead is pool-independent and allocates nothing.
     static const auto keys = [] {
-        absl::flat_hash_set<std::string> res;
+        ankerl::unordered_dense::set<std::string, Hash, std::equal_to<>> res;
 #define CODE(t, str) res.emplace(to_lower(str##sv));
         SQL_KEY(CODE)
 #undef CODE
