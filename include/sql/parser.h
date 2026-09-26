@@ -140,9 +140,9 @@ private:
     /// The latter stays anchored while the items are parsed and is expected once they are done.
     template<class F>
     void parse_list(fe::Cite ctxt, F f, Tok::Tag delim_l = Tok::Tag::D_paren_l, Tok::Tag sep = Tok::Tag::T_comma) {
-        expect(delim_l, ctxt);
+        auto tok_l   = expect(delim_l, ctxt);
         auto delim_r = (Tok::Tag)((int)delim_l + 1);
-        auto _       = anchor(delim_r);
+        auto _       = anchor(tok_l, delim_r);
         parse_seq(ctxt, f, delim_r, sep);
         expect(delim_r, "closing delimiter of a {}", ctxt);
     }
