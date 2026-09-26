@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <type_traits>
 
 #include <fe/parser.h>
 
@@ -136,16 +137,29 @@ private:
         }
     }
 
-    /// As above, but the sequence is enclosed in @p delim_l and its matching closing delimiter.
-    /// The latter stays anchored while the items are parsed and is expected once they are done.
+    /// Parses @p f enclosed in @p delim_l and its matching closing delimiter, and yields whatever @p f yields.
+    /// The latter stays anchored while @p f runs and is expected once it is done.
+    template<class F>
+    auto parse_delim(fe::Cite ctxt, F f, Tok::Tag delim_l = Tok::Tag::D_paren_l) {
+        auto _ = anchor(expect(delim_l, ctxt), delim_r(delim_l));
+        if constexpr (std::is_void_v<std::invoke_result_t<F>>) {
+            f();
+            expect(delim_r(delim_l), "closing delimiter of a {}", ctxt);
+        } else {
+            auto res = f();
+            expect(delim_r(delim_l), "closing delimiter of a {}", ctxt);
+            return res;
+        }
+    }
+
+    /// As Parser::parse_seq, but the sequence is enclosed as in Parser::parse_delim.
     template<class F>
     void parse_list(fe::Cite ctxt, F f, Tok::Tag delim_l = Tok::Tag::D_paren_l, Tok::Tag sep = Tok::Tag::T_comma) {
-        auto tok_l   = expect(delim_l, ctxt);
-        auto delim_r = (Tok::Tag)((int)delim_l + 1);
-        auto _       = anchor(tok_l, delim_r);
-        parse_seq(ctxt, f, delim_r, sep);
-        expect(delim_r, "closing delimiter of a {}", ctxt);
+        parse_delim(ctxt, [&] { parse_seq(ctxt, f, delim_r(delim_l), sep); }, delim_l);
     }
+
+    /// The `SQL_TOK` table pairs every opening delimiter with its closing one, in this order.
+    static Tok::Tag delim_r(Tok::Tag delim_l) { return (Tok::Tag)((int)delim_l + 1); }
 
     Lexer lexer_;
     Sym sym_error_;                                 ///< Stands in for a Sym that failed to parse.

@@ -4,7 +4,7 @@ bad_copy_direction.sql:1:8-1:11: error: expected `FROM` or `TO`, got `INTO` whil
 bad_copy_direction.sql:1:8-1:11: error: expected file name, got `INTO` while parsing `COPY` expression
     1 | COPY t INTO 'f';
       |        ^^^^
-bad_copy_direction.sql:1:8-1:15: error: ignoring 2 unmatched tokens starting with `INTO` while parsing statement list
+bad_copy_direction.sql:1:8-1:15: error: ignoring 2 stray tokens starting with `INTO` while parsing statement list
     1 | COPY t INTO 'f';
       |        ^^^^^^^^
 3 error(s) encountered

@@ -1,4 +1,7 @@
 missing_semicolon.sql:1:16: error: expected `;`, got `<end of file>` while parsing statement list
     1 | SELECT a FROM t
       |                ^
+      missing_semicolon.sql:1:1-1:6: note: to match this `SELECT`
+    1 | SELECT a FROM t
+      | ^^^^^^
 1 error(s) encountered

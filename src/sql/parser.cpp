@@ -227,7 +227,7 @@ AST<Prog> Parser::parse_prog() {
         if (accept(Tok::Tag::T_semicolon)) continue;
 
         // The `;` closes the statement no matter how badly it went, so nothing nested may swallow it.
-        auto _ = anchor(Tok::Tag::T_semicolon);
+        auto _ = anchor(ahead(), Tok::Tag::T_semicolon);
         exprs.emplace_back(parse_stmt());
         // Whatever is left before the `;` is bogus; discarding it also prevents an endless loop.
         recover([](Tok::Tag tag) { return tag != Tok::Tag::T_semicolon && tag != Tok::Tag::EoF; }, "statement list");
@@ -576,11 +576,8 @@ AST<Expr> Parser::parse_id_or_func() {
     // `a[i]`, and `a[i][j]` for the nested ones. Binding it here rather than in the operator loop is
     // what keeps it tighter than the unary operators: `- a[1]` negates the element, not the array.
     while (ahead().isa(Tok::Tag::D_brckt_l)) {
-        eat(Tok::Tag::D_brckt_l);
-        auto _     = anchor(Tok::Tag::D_brckt_r);
-        auto index = parse_expr("index of a subscript");
-        expect(Tok::Tag::D_brckt_r, "closing delimiter of a subscript");
-        expr = ast<Subscript>(track, expr, index);
+        auto index = parse_delim("subscript", [&] { return parse_expr("index of a subscript"); }, Tok::Tag::D_brckt_l);
+        expr       = ast<Subscript>(track, expr, index);
     }
 
     return expr;
@@ -591,38 +588,33 @@ AST<Expr> Parser::parse_id_or_func() {
 AST<Expr> Parser::parse_func(Tracker track, const Syms& syms) {
     bool distinct = false;
     ASTs<Expr> args;
-    {
-        expect(Tok::Tag::D_paren_l, "function argument list");
-        auto _   = anchor(Tok::Tag::D_paren_r);
+    parse_delim("function argument list", [&] {
         distinct = (bool)accept(Tok::Tag::K_DISTINCT);
         if (!distinct) accept(Tok::Tag::K_ALL);
 
         parse_seq(
-            "function argument list", [&]() { args.emplace_back(parse_expr("argument of function")); },
+            "function argument list", [&] { args.emplace_back(parse_expr("argument of function")); },
             Tok::Tag::D_paren_r);
-        expect(Tok::Tag::D_paren_r, "closing delimiter of a function argument list");
-    }
+    });
 
     ASTs<Order> withins;
     if (accept(Tok::Tag::K_WITHIN)) {
         expect(Tok::Tag::K_GROUP, "`WITHIN GROUP` clause");
-        expect(Tok::Tag::D_paren_l, "`WITHIN GROUP` clause");
-        auto _ = anchor(Tok::Tag::D_paren_r);
-        expect(Tok::Tag::K_ORDER, "`WITHIN GROUP` clause");
-        expect(Tok::Tag::K_BY, "`WITHIN GROUP` clause");
-        do
-            withins.emplace_back(parse_order());
-        while (accept(Tok::Tag::T_comma));
-        expect(Tok::Tag::D_paren_r, "closing delimiter of a `WITHIN GROUP` clause");
+        parse_delim("`WITHIN GROUP` clause", [&] {
+            expect(Tok::Tag::K_ORDER, "`WITHIN GROUP` clause");
+            expect(Tok::Tag::K_BY, "`WITHIN GROUP` clause");
+            do
+                withins.emplace_back(parse_order());
+            while (accept(Tok::Tag::T_comma));
+        });
     }
 
     AST<Expr> filter;
     if (accept(Tok::Tag::K_FILTER)) {
-        expect(Tok::Tag::D_paren_l, "`FILTER` clause");
-        auto _ = anchor(Tok::Tag::D_paren_r);
-        expect(Tok::Tag::K_WHERE, "`FILTER` clause");
-        filter = parse_expr("search condition of a `FILTER` clause");
-        expect(Tok::Tag::D_paren_r, "closing delimiter of a `FILTER` clause");
+        filter = parse_delim("`FILTER` clause", [&] {
+            expect(Tok::Tag::K_WHERE, "`FILTER` clause");
+            return parse_expr("search condition of a `FILTER` clause");
+        });
     }
 
     AST<Window> over;
@@ -637,8 +629,7 @@ AST<Expr> Parser::parse_special_func() {
     // Above Tok::Prec::Comp, so the `IN` of a `POSITION` is a separator and not an operator.
     auto tight = (Tok::Prec)((int)Tok::Prec::Comp + 1);
 
-    expect(Tok::Tag::D_paren_l, "`{}` expression", Tok::tag2str(tag));
-    auto _ = anchor(Tok::Tag::D_paren_r);
+    auto _ = anchor(expect(Tok::Tag::D_paren_l, "`{}` expression", Tok::tag2str(tag)), Tok::Tag::D_paren_r);
 
     auto close = [&](auto&& node) {
         expect(Tok::Tag::D_paren_r, "closing delimiter of a `{}` expression", Tok::tag2str(tag));
@@ -714,8 +705,7 @@ AST<Expr> Parser::parse_cast() {
     auto track = tracker();
     eat(Tok::Tag::K_CAST);
 
-    expect(Tok::Tag::D_paren_l, "`CAST` expression");
-    auto _    = anchor(Tok::Tag::D_paren_r);
+    auto _    = anchor(expect(Tok::Tag::D_paren_l, "`CAST` expression"), Tok::Tag::D_paren_r);
     auto expr = parse_expr("operand of a `CAST` expression");
     expect(Tok::Tag::K_AS, "`CAST` expression");
     auto type = parse_type("target type of a `CAST` expression");
@@ -726,8 +716,7 @@ AST<Expr> Parser::parse_cast() {
 
 AST<Expr> Parser::parse_case() {
     auto track = tracker();
-    eat(Tok::Tag::K_CASE);
-    auto _ = anchor(Tok::Tag::K_END);
+    auto _     = anchor(eat(Tok::Tag::K_CASE), Tok::Tag::K_END);
 
     // `CASE WHEN ...` is the searched form and has no operand.
     AST<Expr> operand;
@@ -803,10 +792,8 @@ AST<Constraint> Parser::parse_constraint(bool table_level) {
         if (ahead().isa(Tok::Tag::D_paren_l)) parse_col_list("referenced column list", ref_cols);
     } else if (accept(Tok::Tag::K_CHECK)) {
         tag = Constraint::Check;
-        expect(Tok::Tag::D_paren_l, "`CHECK` constraint");
-        auto _ = anchor(Tok::Tag::D_paren_r);
-        expr   = parse_expr("search condition of a `CHECK` constraint");
-        expect(Tok::Tag::D_paren_r, "closing delimiter of a `CHECK` constraint");
+        expr
+            = parse_delim("`CHECK` constraint", [&] { return parse_expr("search condition of a `CHECK` constraint"); });
     } else if (accept(Tok::Tag::K_DEFAULT)) {
         tag  = Constraint::Default;
         expr = parse_expr("default value");
@@ -1217,10 +1204,7 @@ AST<Expr> Parser::parse_copy() {
     Syms syms, cols;
     AST<Expr> query;
     if (ahead().isa(Tok::Tag::D_paren_l)) {
-        expect(Tok::Tag::D_paren_l, "`COPY` expression");
-        auto _ = anchor(Tok::Tag::D_paren_r);
-        query  = parse_query("source of a `COPY` expression", false);
-        expect(Tok::Tag::D_paren_r, "closing delimiter of a `COPY` expression");
+        query = parse_delim("`COPY` expression", [&] { return parse_query("source of a `COPY` expression", false); });
     } else {
         syms = parse_name("table name");
         if (ahead().isa(Tok::Tag::D_paren_l)) parse_col_list("column list of a `COPY` expression", cols);
@@ -1296,8 +1280,8 @@ AST<Expr> Parser::parse_group_elem() {
 }
 
 AST<Expr> Parser::parse_select() {
-    auto track = tracker();
-    eat(Tok::Tag::K_SELECT);
+    auto track  = tracker();
+    auto select = eat(Tok::Tag::K_SELECT);
 
     bool all = true;
     if (accept(Tok::Tag::K_ALL)) { /* do nothing */
@@ -1310,7 +1294,7 @@ AST<Expr> Parser::parse_select() {
         /* do nothing */
     } else {
         // `FROM` terminates the select list - and is what the enclosing SELECT expects next.
-        auto _ = anchor(Tok::Tag::K_FROM);
+        auto _ = anchor(select, Tok::Tag::K_FROM);
         do {
             auto track = tracker();
             auto expr  = parse_expr("elem of a `SELECT` expression");
@@ -1455,11 +1439,7 @@ AST<Expr> Parser::parse_table_factor() {
 AST<Expr> Parser::parse_table_primary() {
     if (ahead().isa(Tok::Tag::D_paren_l) && !ISA(ahead(1).tag(), C_QUERY)) {
         // `( <table reference> )` - these parentheses only group, so they leave no node behind.
-        eat(Tok::Tag::D_paren_l);
-        auto _    = anchor(Tok::Tag::D_paren_r);
-        auto expr = parse_table_ref();
-        expect(Tok::Tag::D_paren_r, "closing delimiter of a parenthesized table reference");
-        return expr;
+        return parse_delim("parenthesized table reference", [&] { return parse_table_ref(); });
     }
 
     return parse_expr("table reference of a `FROM` clause");
@@ -1499,8 +1479,7 @@ AST<Window> Parser::parse_window() {
         return ast<Window>(track, sym, false, AST<Frame>{}, ASTs<Expr>{}, ASTs<Order>{});
     }
 
-    eat(Tok::Tag::D_paren_l);
-    auto _ = anchor(Tok::Tag::D_paren_r);
+    auto _ = anchor(eat(Tok::Tag::D_paren_l), Tok::Tag::D_paren_r);
 
     // Every clause below starts with a reserved word, so a leading identifier can only be the name
     // of the window this one refines.
@@ -1667,10 +1646,8 @@ AST<Expr> Parser::parse_query(fe::Cite ctxt, bool value_ok) {
             Syms cols;
             if (ahead().isa(Tok::Tag::D_paren_l)) parse_col_list("column name list of a common table expression", cols);
             expect(Tok::Tag::K_AS, "common table expression");
-            expect(Tok::Tag::D_paren_l, "common table expression");
-            auto _     = anchor(Tok::Tag::D_paren_r);
-            auto query = parse_query("body of a common table expression", false);
-            expect(Tok::Tag::D_paren_r, "closing delimiter of a common table expression");
+            auto query = parse_delim("common table expression",
+                                     [&] { return parse_query("body of a common table expression", false); });
             ctes.emplace_back(ast<Query::Cte>(cte_track, sym, query, cols));
         } while (accept(Tok::Tag::T_comma));
     }

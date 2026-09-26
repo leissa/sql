@@ -1,7 +1,7 @@
 not_a_statement.sql:1:1: error: expected query expression, got `1` while parsing statement
     1 | 1 + 2;
       | ^
-not_a_statement.sql:1:1-1:5: error: ignoring 3 unmatched tokens starting with `1` while parsing statement list
+not_a_statement.sql:1:1-1:5: error: ignoring 3 stray tokens starting with `1` while parsing statement list
     1 | 1 + 2;
       | ^^^^^
 2 error(s) encountered
