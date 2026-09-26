@@ -1,6 +1,6 @@
 # 📜 Grammar
 
-*Part of [sql](README.md), a small SQL parser handwritten on top of [FE](https://leissa.github.io/fe/).*
+*Part of [sql](README.md), a fast SQL parser handwritten on top of [FE](https://leissa.github.io/fe/).*
 
 The grammar below is the one this parser actually implements - not the standard's, which is both
 larger and stricter.
