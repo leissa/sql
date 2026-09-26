@@ -1,7 +1,5 @@
 #include "sql/parser.h"
 
-#include <iostream>
-
 #include "fe/term.h"
 
 using namespace std::literals;
