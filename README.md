@@ -20,7 +20,7 @@ The [grammar](GRAMMAR.md) spells out exactly which subset.
 Diagnostics carry precise `path:row:col` locations, and the parser recovers rather than giving up on
 the first error.
 
-It sustains 90-180 MB/s - 1.3x to 2.7x [hyrise/sql-parser](https://github.com/hyrise/sql-parser), a
+It sustains 95-190 MB/s - 1.4x to 2.8x [hyrise/sql-parser](https://github.com/hyrise/sql-parser), a
 bison/flex parser of comparable scope - at roughly half its instructions per byte and half its
 memory per statement; the [numbers](#-performance) are below, with the corpora and the method to
 reproduce them.
@@ -80,9 +80,9 @@ they really are handed the same work.
     <tr>
       <td>JOB, 113 queries</td>
       <td><code>--each</code></td>
-      <td><strong>109.1</strong></td>
-      <td>65.8</td>
-      <td><strong>137.2</strong></td>
+      <td><strong>114.0</strong></td>
+      <td>64.9</td>
+      <td><strong>135.7</strong></td>
       <td>253.1</td>
     </tr>
     <tr>
@@ -90,57 +90,57 @@ they really are handed the same work.
       <td><code>--once</code></td>
       <td><strong>171.0</strong></td>
       <td>74.3</td>
-      <td><strong>109.5</strong></td>
+      <td><strong>108.0</strong></td>
       <td>255.5</td>
     </tr>
     <tr>
       <td>TPC-H, 22 queries</td>
       <td><code>--each</code></td>
-      <td><strong>91.3</strong></td>
+      <td><strong>94.6</strong></td>
       <td>69.7</td>
-      <td><strong>151.4</strong></td>
+      <td><strong>148.5</strong></td>
       <td>209.2</td>
     </tr>
     <tr>
       <td>TPC-H</td>
       <td><code>--once</code></td>
-      <td><strong>176.5</strong></td>
-      <td>82.7</td>
-      <td><strong>113.6</strong></td>
+      <td><strong>189.1</strong></td>
+      <td>80.2</td>
+      <td><strong>110.7</strong></td>
       <td>214.4</td>
     </tr>
     <tr>
       <td>generated, 32 MiB</td>
       <td><code>--once</code></td>
-      <td><strong>122.1</strong></td>
-      <td>46.5</td>
-      <td><strong>128.4</strong></td>
+      <td><strong>122.2</strong></td>
+      <td>46.1</td>
+      <td><strong>127.4</strong></td>
       <td>257.6</td>
     </tr>
     <tr>
       <td>generated, 256 MiB</td>
       <td><code>--once</code></td>
-      <td><strong>116.7</strong></td>
-      <td>43.1</td>
-      <td><strong>144.1</strong></td>
+      <td><strong>117.8</strong></td>
+      <td>42.7</td>
+      <td><strong>142.9</strong></td>
       <td>259.4</td>
     </tr>
     <tr>
       <td>generated, 32 MiB, <code>--stress-names</code></td>
       <td><code>--once</code></td>
-      <td><strong>127.0</strong></td>
-      <td>66.9</td>
-      <td><strong>105.6</strong></td>
+      <td><strong>135.5</strong></td>
+      <td>66.0</td>
+      <td><strong>102.0</strong></td>
       <td>173.3</td>
     </tr>
   </tbody>
 </table>
 
-Lexing alone, against their flex scanner: 320.6 MB/s to 176.9 on JOB, and 225.3 to 137.5 on the
+Lexing alone, against their flex scanner: 320.6 MB/s to 171.0 on JOB, and 225.8 to 132.8 on the
 32 MiB corpus.
 That lead is won on instructions per cycle rather than on instruction count - their scanner retires
 a comparable number of instructions per byte, in fact fewer on three of the five corpora, yet this
-one runs at an IPC of 3.0 to 4.6 against their 2.4 to 3.2, a flex table walk being a chain of
+one runs at an IPC of 3.0 to 4.7 against their 2.4 to 3.2, a flex table walk being a chain of
 dependent loads the machine cannot run ahead of.
 
 Peak [resident set size](https://en.wikipedia.org/wiki/Resident_set_size) - the RAM a process has
@@ -156,8 +156,8 @@ The margin is narrowest in `--each`, where registering each source and hashing i
 share of the work than parsing - that, rather than anything in the parser, is what the two modes
 still differ by.
 And `--stress-names` is the worst case a design built on interning can be handed: with no name ever
-reused, the lexing lead shrinks to 1.18x - 195.9 MB/s to 165.9 - and parsing falls from a 2.6x lead
-to a 1.9x one over the same corpus with its names reused.
+reused, the lexing lead shrinks to 1.30x - 208.9 MB/s to 160.3 - and parsing falls from a 2.7x lead
+to a 2.1x one over the same corpus with its names reused.
 
 The two do not do quite the same work per byte, in both directions: their scanner recognizes keywords
 inside the DFA, where this one interns and looks up every word, but it is also byte-oriented and
