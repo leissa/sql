@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cassert>
-
 #include <array>
 
 #include <fe/lexer.h>

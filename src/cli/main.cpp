@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
             .opt(driver.diag().max_errors,"num"  , ""  , "--max-errors", "Maximum number of errors to report before dropping the rest; `0` reports all of them.")
             .opt(driver.diag().werror   ,          ""  , "--werror"    , "Treats warnings as errors.")
             .arg(input, "file", "Input file.")
-            .epilog("Use \"-\" as `<file>` to output to stdout.");
+            .epilog("Use \"-\" as `<file>` to read from stdin.");
         // clang-format on
 
         if (auto err = cli.parse(argc, argv)) throw std::invalid_argument(*err);

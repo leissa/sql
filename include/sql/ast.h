@@ -28,7 +28,7 @@ template<class T>
 using ASTs = fe::Vector<AST<T>>;
 using Syms = fe::Vector<Sym>;
 
-/// Base class for all @p Expr%essions.
+/// Base class for all AST nodes.
 class Node : public fe::RuntimeCast<Node> {
 public:
     Node(Loc loc)
@@ -427,8 +427,6 @@ public:
     auto args() const { return vla<0>(); }
 
     void stream(std::ostream&) const override;
-
-private:
 };
 
 class Id : public Expr, public fe::VLA<Id> {
@@ -445,10 +443,7 @@ public:
     void stream(std::ostream&) const override;
 
 private:
-    bool asterisk_ = false;
-
-public:
-    mutable bool asterisk_allowed_ = false;
+    bool asterisk_;
 };
 
 class UnExpr : public Expr {
@@ -844,8 +839,6 @@ public:
     auto rows() const { return vla<0>(); }
 
     void stream(std::ostream&) const override;
-
-private:
 };
 
 /// `TABLE <name>` - the explicit-table shorthand for `SELECT * FROM <name>`.
@@ -859,8 +852,6 @@ public:
     auto syms() const { return vla<0>(); }
 
     void stream(std::ostream&) const override;
-
-private:
 };
 
 /*
@@ -1092,8 +1083,6 @@ public:
     auto syms() const { return vla<0>(); }
 
     void stream(std::ostream&) const override;
-
-private:
 };
 
 /// `PREPARE <name> [(types)] AS <stmt>`, or `PREPARE <name> FROM '<stmt>'` with the statement
@@ -1420,8 +1409,6 @@ private:
     AST<Expr> rhs_;
 };
 
-/// A query body wrapped in its `WITH` clause and its trailing `ORDER BY` / `OFFSET` / `FETCH` /
-/// `LIMIT` clauses. Only constructed when at least one of them is present.
 /// `FOR UPDATE|NO KEY UPDATE|SHARE|KEY SHARE [OF <tables>] [NOWAIT|SKIP LOCKED]` - the row-locking
 /// clause a query expression may end in. Not in the standard, but every dialect that has rows to
 /// lock spells it this way.
@@ -1451,6 +1438,8 @@ private:
     Wait wait_;
 };
 
+/// A query body wrapped in its `WITH` clause and its trailing `ORDER BY` / `OFFSET` / `FETCH` /
+/// `LIMIT` / locking clauses. Only constructed when at least one of them is present.
 class Query : public Expr, public fe::VLA<Query> {
 public:
     /// One common table expression: `<name> [(cols)] AS (<query>)`.
@@ -1601,7 +1590,7 @@ public:
  * Prog
  */
 
-/// Just a HACK to have a list of Stmt%s.
+/// The statements of one source, each terminated by a `;`.
 class Prog : public Node, public fe::VLA<Prog> {
 public:
     using VLA_Types = std::tuple<AST<Expr>>;
@@ -1612,8 +1601,6 @@ public:
     auto exprs() const { return vla<0>(); }
 
     void stream(std::ostream&) const override;
-
-private:
 };
 
 } // namespace sql

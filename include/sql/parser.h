@@ -32,7 +32,7 @@ private:
     /// comparison rather than a Tok::Tag check.
     ///@{
     Sym non_key(NonKey nk) const { return non_keys_[(size_t)nk]; }
-    bool isa_non_key(NonKey) const;
+    bool isa_non_key(NonKey, size_t i = 0) const;
     bool accept_non_key(NonKey);
     void expect_non_key(NonKey, fe::Cite ctxt);
     ///@}

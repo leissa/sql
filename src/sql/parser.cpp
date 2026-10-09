@@ -1,7 +1,5 @@
 #include "sql/parser.h"
 
-#include "fe/term.h"
-
 using namespace std::literals;
 
 // clang-format off
@@ -150,6 +148,8 @@ static constexpr std::string_view Non_Key_Strs[] = {
 #undef CODE
 };
 
+static constexpr Tok::Prec next_prec(Tok::Prec prec) { return (Tok::Prec)((int)prec + 1); }
+
 Parser::Parser(Driver& driver, const fe::Src& src)
     : lexer_(driver, src)
     , sym_error_(driver.sym_error())
@@ -161,7 +161,9 @@ Parser::Parser(Driver& driver, const fe::Src& src)
  * misc
  */
 
-bool Parser::isa_non_key(NonKey nk) const { return ahead().isa(Tok::Tag::V_id) && ahead().sym() == non_key(nk); }
+bool Parser::isa_non_key(NonKey nk, size_t i) const {
+    return ahead(i).isa(Tok::Tag::V_id) && ahead(i).sym() == non_key(nk);
+}
 
 bool Parser::accept_non_key(NonKey nk) {
     if (!isa_non_key(nk)) return false;
@@ -176,10 +178,7 @@ void Parser::expect_non_key(NonKey nk, fe::Cite ctxt) {
 bool Parser::isa_sym() const { return ahead().isa(Tok::Tag::V_id) || ahead().isa_key(); }
 
 /// Is the token @p i ahead the operator of a Like expression - `LIKE`, `ILIKE`, or `SIMILAR`?
-bool Parser::isa_like(size_t i) const {
-    if (ISA(ahead(i).tag(), C_LIKE)) return true;
-    return ahead(i).isa(Tok::Tag::V_id) && ahead(i).sym() == non_key(N_ILIKE);
-}
+bool Parser::isa_like(size_t i) const { return ISA(ahead(i).tag(), C_LIKE) || isa_non_key(N_ILIKE, i); }
 
 Sym Parser::parse_sym(fe::Cite ctxt) {
     if (ahead().isa(Tok::Tag::V_id)) return lex().sym();
@@ -348,11 +347,7 @@ AST<Type> Parser::parse_type(fe::Cite ctxt) {
         return ast<NamedType>(track, sym, parse_not_null(), args);
     }
 
-    if (!ctxt.empty()) {
-        syntax_err("type", ctxt);
-        return nullptr; // Error Type
-    }
-
+    syntax_err("type", ctxt);
     return nullptr;
 }
 
@@ -379,7 +374,7 @@ AST<Expr> Parser::parse_like(Tracker track, AST<Expr> lhs, bool negated) {
     if (tag == Tok::Tag::K_SIMILAR) expect(Tok::Tag::K_TO, "`SIMILAR TO` expression");
 
     // Above Tok::Prec::Comp: `a LIKE b = c` groups as `(a LIKE b) = c`, not `a LIKE (b = c)`.
-    auto prec    = (Tok::Prec)((int)Tok::Prec::Comp + 1);
+    auto prec    = next_prec(Tok::Prec::Comp);
     auto pattern = parse_expr("pattern of a `LIKE` expression", prec);
     AST<Expr> escape;
     if (accept(Tok::Tag::K_ESCAPE)) escape = parse_expr("`ESCAPE` clause of a `LIKE` expression", prec);
@@ -392,8 +387,6 @@ AST<Expr> Parser::parse_expr(fe::Cite ctxt, Tok::Prec cur_prec) {
     auto lhs   = parse_primary_or_unary_expr(ctxt);
 
     // All binary operators here are left-associative, so the right-hand side must bind strictly tighter.
-    auto next_prec = [](Tok::Prec prec) { return (Tok::Prec)((int)prec + 1); };
-
     while (true) {
         if (ahead().isa(Tok::Tag::K_NOT)) {
             // `ILIKE` has no Tok::Prec of its own - having no Tok::Tag either, it ranks with `LIKE`.
@@ -548,11 +541,8 @@ AST<Expr> Parser::parse_primary_or_unary_expr(fe::Cite ctxt) {
         return ast<ParenExprList>(track, args);
     }
 
-    if (!ctxt.empty()) {
-        syntax_err("primary or unary expression", ctxt);
-        return ast<ErrExpr>(curr_);
-    }
-    std::unreachable();
+    syntax_err("primary or unary expression", ctxt);
+    return ast<ErrExpr>(curr_);
 }
 
 AST<Expr> Parser::parse_id_or_func() {
@@ -567,7 +557,7 @@ AST<Expr> Parser::parse_id_or_func() {
             asterisk = true;
             break;
         }
-        syms.emplace_back(parse_sym("identifer chain"));
+        syms.emplace_back(parse_sym("identifier chain"));
     }
 
     auto expr
@@ -627,7 +617,7 @@ AST<Expr> Parser::parse_special_func() {
     auto track = tracker();
     auto tag   = lex().tag();
     // Above Tok::Prec::Comp, so the `IN` of a `POSITION` is a separator and not an operator.
-    auto tight = (Tok::Prec)((int)Tok::Prec::Comp + 1);
+    auto tight = next_prec(Tok::Prec::Comp);
 
     auto _ = anchor(expect(Tok::Tag::D_paren_l, "`{}` expression", Tok::tag2str(tag)), Tok::Tag::D_paren_r);
 
@@ -784,12 +774,8 @@ AST<Constraint> Parser::parse_constraint(bool table_level) {
         accept_non_key(N_KEY);
         parse_col_list("foreign key column list", cols);
         expect(Tok::Tag::K_REFERENCES, "`FOREIGN KEY` constraint");
-        table = parse_name("referenced table name");
-        if (ahead().isa(Tok::Tag::D_paren_l)) parse_col_list("referenced column list", ref_cols);
     } else if (accept(Tok::Tag::K_REFERENCES)) {
-        tag   = Constraint::References;
-        table = parse_name("referenced table name");
-        if (ahead().isa(Tok::Tag::D_paren_l)) parse_col_list("referenced column list", ref_cols);
+        tag = Constraint::References;
     } else if (accept(Tok::Tag::K_CHECK)) {
         tag = Constraint::Check;
         expr
@@ -804,6 +790,8 @@ AST<Constraint> Parser::parse_constraint(bool table_level) {
     // The referential actions of a foreign key, in either order.
     auto on_delete = Constraint::Action_None, on_update = Constraint::Action_None;
     if (tag == Constraint::References || tag == Constraint::Foreign_Key) {
+        table = parse_name("referenced table name");
+        if (ahead().isa(Tok::Tag::D_paren_l)) parse_col_list("referenced column list", ref_cols);
         while (accept(Tok::Tag::K_ON)) {
             if (accept(Tok::Tag::K_DELETE)) {
                 on_delete = parse_ref_action();
@@ -1004,9 +992,7 @@ AST<Expr> Parser::parse_drop() {
     eat(Tok::Tag::K_DROP);
 
     auto tag = Drop::Table;
-    if (accept(Tok::Tag::K_TABLE))
-        tag = Drop::Table;
-    else if (accept_non_key(N_VIEW))
+    if (accept_non_key(N_VIEW))
         tag = Drop::View;
     else if (accept_non_key(N_INDEX))
         tag = Drop::Index;
@@ -1210,13 +1196,8 @@ AST<Expr> Parser::parse_copy() {
         if (ahead().isa(Tok::Tag::D_paren_l)) parse_col_list("column list of a `COPY` expression", cols);
     }
 
-    bool from = true;
-    if (accept(Tok::Tag::K_FROM))
-        from = true;
-    else if (accept(Tok::Tag::K_TO))
-        from = false;
-    else
-        syntax_err("`FROM` or `TO`", "`COPY` expression");
+    bool from = !accept(Tok::Tag::K_TO);
+    if (from && !accept(Tok::Tag::K_FROM)) syntax_err("`FROM` or `TO`", "`COPY` expression");
 
     // Without a file name the data travels through the standard input or output instead.
     Sym file;
@@ -1283,16 +1264,11 @@ AST<Expr> Parser::parse_select() {
     auto track  = tracker();
     auto select = eat(Tok::Tag::K_SELECT);
 
-    bool all = true;
-    if (accept(Tok::Tag::K_ALL)) { /* do nothing */
-    } else if (accept(Tok::Tag::K_DISTINCT)) {
-        all = false;
-    }
+    bool all = !accept(Tok::Tag::K_DISTINCT);
+    if (all) accept(Tok::Tag::K_ALL);
 
     ASTs<Select::Elem> elems;
-    if (accept(Tok::Tag::T_mul)) {
-        /* do nothing */
-    } else {
+    if (!accept(Tok::Tag::T_mul)) {
         // `FROM` terminates the select list - and is what the enclosing SELECT expects next.
         auto _ = anchor(select, Tok::Tag::K_FROM);
         do {
@@ -1305,7 +1281,7 @@ AST<Expr> Parser::parse_select() {
                     parse_list("column name list of `AS` clause",
                                [&]() { syms.emplace_back(parse_sym("column name within `AS` clause")); });
                 } else {
-                    syms.emplace_back(parse_sym("column name within `AS` clause "));
+                    syms.emplace_back(parse_sym("column name within `AS` clause"));
                 }
             } else if (ahead().isa(Tok::Tag::V_id) && !isa_non_key(N_LIMIT)) {
                 syms.emplace_back(lex().sym()); // an alias may drop the `AS`
@@ -1411,7 +1387,7 @@ AST<Expr> Parser::parse_table_factor() {
     auto expr    = parse_table_primary();
 
     bool ordinality = false;
-    if (ahead().isa(Tok::Tag::K_WITH) && ahead(1).isa(Tok::Tag::V_id) && ahead(1).sym() == non_key(N_ORDINALITY)) {
+    if (ahead().isa(Tok::Tag::K_WITH) && isa_non_key(N_ORDINALITY, 1)) {
         lex();
         lex();
         ordinality = true;
@@ -1535,13 +1511,12 @@ AST<Frame> Parser::parse_frame() {
     auto track = tracker();
     auto unit  = lex().tag();
 
-    AST<Frame::Bound> lo, hi;
-    if (accept(Tok::Tag::K_BETWEEN)) {
-        lo = parse_frame_bound();
+    bool between = (bool)accept(Tok::Tag::K_BETWEEN);
+    auto lo      = parse_frame_bound();
+    AST<Frame::Bound> hi;
+    if (between) {
         expect(Tok::Tag::K_AND, "window frame");
         hi = parse_frame_bound();
-    } else {
-        lo = parse_frame_bound();
     }
 
     auto exclude = Frame::Exclude_None;
@@ -1610,7 +1585,7 @@ AST<Expr> Parser::parse_query_primary(fe::Cite ctxt, bool value_ok) {
     if (ahead().isa(Tok::Tag::D_paren_l)) {
         auto track = tracker();
         ASTs<Expr> args;
-        parse_list(fe::Cite(ctxt), [&]() { args.emplace_back(parse_query(ctxt, false)); });
+        parse_list(ctxt, [&]() { args.emplace_back(parse_query(ctxt, false)); });
         return ast<ParenExprList>(track, args);
     }
 

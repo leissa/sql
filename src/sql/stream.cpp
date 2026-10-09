@@ -634,13 +634,7 @@ void Lock::stream(std::ostream& o) const {
     }
     // clang-format on
 
-    if (!tables().empty()) {
-        o << " OF ";
-        for (auto sep = ""; const auto& table : tables()) {
-            std::print(o, "{}{}", sep, qname(table));
-            sep = ", ";
-        }
-    }
+    if (!tables().empty()) std::print(o, " OF {}", fe::Join(tables() | std::views::transform(qname)));
 
     // clang-format off
     switch (wait()) {

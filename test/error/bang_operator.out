@@ -1,0 +1,4 @@
+bang_operator.sql:1:9: error: invalid input following `!`: `*`
+    1 | SELECT !* FROM t;
+      |         ^
+1 error(s) encountered

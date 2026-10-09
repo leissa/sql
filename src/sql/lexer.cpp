@@ -43,6 +43,7 @@ Tok Lexer::lex() {
         if (accept('!')) {
             if (accept('=')) return {loc_, Tok::Tag::T_ue};
             error().e(peek(), "invalid input following `!`: `{}`", (char)ahead());
+            continue;
         }
         if (accept('>')) {
             if (accept('=')) return {loc_, Tok::Tag::T_ge};
