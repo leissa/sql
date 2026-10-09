@@ -28,7 +28,7 @@ std::string_view Tok::tag2str(Tok::Tag tag) {
         case Tok::Tag::Nil: return "<nil>"sv;
     }
 
-    fe::unreachable();
+    std::unreachable();
 }
 
 bool Tok::isa_key(std::string_view lower) {

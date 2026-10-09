@@ -552,7 +552,7 @@ AST<Expr> Parser::parse_primary_or_unary_expr(fe::Cite ctxt) {
         syntax_err("primary or unary expression", ctxt);
         return ast<ErrExpr>(curr_);
     }
-    fe::unreachable();
+    std::unreachable();
 }
 
 AST<Expr> Parser::parse_id_or_func() {
@@ -697,7 +697,7 @@ AST<Expr> Parser::parse_special_func() {
             syms.emplace_back(driver().sym(to_lower(Tok::tag2str(tag))));
             return close(ast<Func>(track, false, AST<Expr>{}, AST<Window>{}, syms, args, ASTs<Order>{}));
         }
-        default: fe::unreachable();
+        default: std::unreachable();
     }
 }
 
@@ -1066,7 +1066,7 @@ AST<Expr> Parser::parse_transact() {
             auto sym = parse_sym("savepoint name");
             return ast<Transact>(track, Transact::Release, sym);
         }
-        default: fe::unreachable();
+        default: std::unreachable();
     }
 }
 
