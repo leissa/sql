@@ -171,8 +171,8 @@ bool Parser::accept_non_key(NonKey nk) {
     return true;
 }
 
-void Parser::expect_non_key(NonKey nk, fe::Cite ctxt) {
-    if (!accept_non_key(nk)) syntax_err(fe::format_cite("`{}`", Non_Key_Strs[(size_t)nk]), ctxt);
+void Parser::expect_non_key(NonKey nk, fe::Cite ctx) {
+    if (!accept_non_key(nk)) syntax_err(fe::format_cite("`{}`", Non_Key_Strs[(size_t)nk]), ctx);
 }
 
 bool Parser::isa_sym() const { return ahead().isa(Tok::Tag::V_id) || ahead().isa_key(); }
@@ -180,23 +180,23 @@ bool Parser::isa_sym() const { return ahead().isa(Tok::Tag::V_id) || ahead().isa
 /// Is the token @p i ahead the operator of a Like expression - `LIKE`, `ILIKE`, or `SIMILAR`?
 bool Parser::isa_like(size_t i) const { return ISA(ahead(i).tag(), C_LIKE) || isa_non_key(N_ILIKE, i); }
 
-Sym Parser::parse_sym(fe::Cite ctxt) {
+Sym Parser::parse_sym(fe::Cite ctx) {
     if (ahead().isa(Tok::Tag::V_id)) return lex().sym();
     if (ahead().isa_key()) return driver().sym(to_lower(Tok::tag2str(lex().tag())));
-    syntax_err("identifier", ctxt);
+    syntax_err("identifier", ctx);
     return sym_error_;
 }
 
-Syms Parser::parse_name(fe::Cite ctxt) {
+Syms Parser::parse_name(fe::Cite ctx) {
     Syms syms;
-    syms.emplace_back(parse_sym(ctxt));
+    syms.emplace_back(parse_sym(ctx));
     while (accept(Tok::Tag::T_dot))
-        syms.emplace_back(parse_sym(ctxt));
+        syms.emplace_back(parse_sym(ctx));
     return syms;
 }
 
-void Parser::parse_col_list(fe::Cite ctxt, Syms& syms) {
-    parse_list(ctxt, [&]() { syms.emplace_back(parse_sym("column name")); });
+void Parser::parse_col_list(fe::Cite ctx, Syms& syms) {
+    parse_list(ctx, [&]() { syms.emplace_back(parse_sym("column name")); });
 }
 
 Behavior Parser::parse_behavior() {
@@ -292,7 +292,7 @@ AST<Interval> Parser::parse_interval() {
     return ast<Interval>(track, from, to, from_args, to_args);
 }
 
-AST<Type> Parser::parse_type(fe::Cite ctxt) {
+AST<Type> Parser::parse_type(fe::Cite ctx) {
     auto track = tracker();
 
     // Optional trailing `NOT NULL` - a plain `NULL` explicitly spells out the default.
@@ -347,7 +347,7 @@ AST<Type> Parser::parse_type(fe::Cite ctxt) {
         return ast<NamedType>(track, sym, parse_not_null(), args);
     }
 
-    syntax_err("type", ctxt);
+    syntax_err("type", ctx);
     return nullptr;
 }
 
@@ -382,9 +382,9 @@ AST<Expr> Parser::parse_like(Tracker track, AST<Expr> lhs, bool negated) {
     return ast<Like>(track, lhs, pattern, escape, negated, tag);
 }
 
-AST<Expr> Parser::parse_expr(fe::Cite ctxt, Tok::Prec cur_prec) {
+AST<Expr> Parser::parse_expr(fe::Cite ctx, Tok::Prec cur_prec) {
     auto track = tracker();
-    auto lhs   = parse_primary_or_unary_expr(ctxt);
+    auto lhs   = parse_primary_or_unary_expr(ctx);
 
     // All binary operators here are left-associative, so the right-hand side must bind strictly tighter.
     while (true) {
@@ -452,7 +452,7 @@ AST<Expr> Parser::parse_expr(fe::Cite ctxt, Tok::Prec cur_prec) {
     return lhs;
 }
 
-AST<Expr> Parser::parse_primary_or_unary_expr(fe::Cite ctxt) {
+AST<Expr> Parser::parse_primary_or_unary_expr(fe::Cite ctx) {
     switch (ahead().tag()) {
         case Tok::Tag::K_CASE: return parse_case();
         case Tok::Tag::K_CAST: return parse_cast();
@@ -541,7 +541,7 @@ AST<Expr> Parser::parse_primary_or_unary_expr(fe::Cite ctxt) {
         return ast<ParenExprList>(track, args);
     }
 
-    syntax_err("primary or unary expression", ctxt);
+    syntax_err("primary or unary expression", ctx);
     return ast<ErrExpr>(curr_);
 }
 
@@ -1570,7 +1570,7 @@ AST<Expr> Parser::parse_table() {
     return ast<Table>(track, parse_name("table name"));
 }
 
-AST<Expr> Parser::parse_query_primary(fe::Cite ctxt, bool value_ok) {
+AST<Expr> Parser::parse_query_primary(fe::Cite ctx, bool value_ok) {
     switch (ahead().tag()) {
         case Tok::Tag::K_SELECT: return parse_select();
         case Tok::Tag::K_VALUES: return parse_values();
@@ -1580,22 +1580,22 @@ AST<Expr> Parser::parse_query_primary(fe::Cite ctxt, bool value_ok) {
 
     // Every value expression is fair game where one is allowed - and a parenthesized one is where
     // `(SELECT ...)` and `(a, b)` meet, so that case goes through Parser::parse_primary_or_unary_expr.
-    if (value_ok) return parse_expr(ctxt);
+    if (value_ok) return parse_expr(ctx);
 
     if (ahead().isa(Tok::Tag::D_paren_l)) {
         auto track = tracker();
         ASTs<Expr> args;
-        parse_list(ctxt, [&]() { args.emplace_back(parse_query(ctxt, false)); });
+        parse_list(ctx, [&]() { args.emplace_back(parse_query(ctx, false)); });
         return ast<ParenExprList>(track, args);
     }
 
-    syntax_err("query expression", ctxt);
+    syntax_err("query expression", ctx);
     return ast<ErrExpr>(curr_);
 }
 
-AST<Expr> Parser::parse_query_term(fe::Cite ctxt, bool value_ok) {
+AST<Expr> Parser::parse_query_term(fe::Cite ctx, bool value_ok) {
     auto track = tracker();
-    auto lhs   = parse_query_primary(ctxt, value_ok);
+    auto lhs   = parse_query_primary(ctx, value_ok);
 
     while (ahead().isa(Tok::Tag::K_INTERSECT)) {
         eat(Tok::Tag::K_INTERSECT);
@@ -1608,7 +1608,7 @@ AST<Expr> Parser::parse_query_term(fe::Cite ctxt, bool value_ok) {
     return lhs;
 }
 
-AST<Expr> Parser::parse_query(fe::Cite ctxt, bool value_ok) {
+AST<Expr> Parser::parse_query(fe::Cite ctx, bool value_ok) {
     auto track = tracker();
 
     bool recursive = false;
@@ -1627,7 +1627,7 @@ AST<Expr> Parser::parse_query(fe::Cite ctxt, bool value_ok) {
         } while (accept(Tok::Tag::T_comma));
     }
 
-    auto body = parse_query_term(ctxt, value_ok);
+    auto body = parse_query_term(ctx, value_ok);
 
     while (ahead().isa(Tok::Tag::K_UNION) || ahead().isa(Tok::Tag::K_EXCEPT)) {
         auto tag = lex().isa(Tok::Tag::K_UNION) ? SetOp::Union : SetOp::Except;
